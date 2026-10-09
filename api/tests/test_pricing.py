@@ -5,7 +5,7 @@ import numpy as np
 from typer.testing import CliRunner
 
 from truerate import cli
-from truerate.pricing import band, band_median_price, collab_factor, fit, modash_price, price, round500, validate
+from truerate.pricing import band, band_median_price, collab_factor, fit, modash_price, price, rate_card, round500, validate
 
 # Synthetic deals: price = the category's ₹ per 1,000 views × views, with 15% noise.
 CAT_PER_1K = {"Tech and gadgets": 1500, "Food": 600, "Entertainment": 1000}
@@ -91,3 +91,11 @@ def test_validate_command_saves_model_and_report(db, tmp_path, monkeypatch):
     assert json.loads((tmp_path / "model_report.json").read_text())["holdout"]["n"] == 15
     served = joblib.load(tmp_path / "price.joblib")
     assert len(served.rows) == 90  # served model learns from every deal once validation is done
+
+
+def test_rate_card_per_category():
+    card = rate_card(fit(synthetic_rows()))
+    assert [c["category"] for c in card][0] == "Tech and gadgets"  # most expensive views first
+    food = next(c for c in card if c["category"] == "Food")
+    assert food["n"] == 30 and 500 < food["per_1k"]["median"] < 700
+    assert food["per_1k"]["p25"] <= food["per_1k"]["median"] <= food["per_1k"]["p75"] and food["typical_price"] > 0

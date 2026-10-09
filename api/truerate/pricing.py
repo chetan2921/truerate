@@ -167,3 +167,16 @@ def validate(rows: list[dict]) -> dict:
         "blend_weight": model.w,
         "range": [math.exp(model.lo), math.exp(model.hi)],
     }
+
+
+def rate_card(model: PriceModel) -> list[dict]:
+    """₹ per 1,000 views by category from the deals behind the served model, priciest views first."""
+    card = []
+    for c in CATEGORIES:
+        rows = [r for r in model.rows if r["category"] == c]
+        if not rows:
+            continue
+        p25, mid, p75 = (round(float(q)) for q in np.percentile([per_1k(r) for r in rows], [25, 50, 75]))
+        card.append({"category": c, "n": len(rows), "per_1k": {"p25": p25, "median": mid, "p75": p75},
+                     "typical_price": round(median(r["price"] for r in rows)), "typical_views": round(median(r["views"] for r in rows))})
+    return sorted(card, key=lambda x: -x["per_1k"]["median"])

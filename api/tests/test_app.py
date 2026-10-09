@@ -79,3 +79,39 @@ def test_meta_lists_categories_and_coverage(client, tmp_path, monkeypatch):
     (tmp_path / "redteam.json").write_text(json.dumps({"n": 150}))
     assert client.get("/api/meta").json()["range_coverage"] == 0.8
     assert client.get("/api/model-report").json() == {"validation": {"holdout": {"coverage": 0.8}}, "redteam": {"n": 150}}
+
+
+def test_quote_check_endpoint(client):
+    analysis_id = client.post("/api/analyses", json={"handle": "newcreator"}).json()["id"]
+    fair = client.get(f"/api/analyses/{analysis_id}").json()["result"]["price"]["fair"]
+    res = client.post(f"/api/analyses/{analysis_id}/quote", json={"quote": fair * 3})
+    assert res.status_code == 200 and res.json()["position"] == "above" and res.json()["counter_offer"] == fair
+    assert client.post("/api/analyses/nope/quote", json={"quote": 1000}).status_code == 404
+
+
+def test_batch_runs_every_handle_and_ranks_by_cost(client):
+    res = client.post("/api/batches", json={"handles": ["@one", "instagram.com/two", "three"], "budget": 50000})
+    assert res.status_code == 202
+    b = client.get(f"/api/batches/{res.json()['id']}").json()
+    assert (b["total"], b["done"]) == (3, 3) and b["inputs"]["budget"] == 50000
+    assert {row["handle"] for row in b["rows"]} == {"one", "two", "three"}
+    costs = [row["cost_per_1k"] for row in b["rows"]]
+    assert costs == sorted(costs) and all(row["call"] for row in b["rows"])
+
+
+def test_batch_rejects_bad_or_too_many_handles(client):
+    assert client.post("/api/batches", json={"handles": ["ok", "not ok!!"]}).status_code == 422
+    assert client.post("/api/batches", json={"handles": [f"h{i}" for i in range(51)]}).status_code == 422
+
+
+def test_rate_card_endpoint(client, tmp_path, monkeypatch):
+    monkeypatch.setattr(app_module, "MODELS_DIR", tmp_path)
+    import joblib
+
+    from test_pricing import synthetic_rows
+
+    from truerate.pricing import fit
+
+    joblib.dump(fit(synthetic_rows()), tmp_path / "price.joblib")
+    card = client.get("/api/rate-card").json()
+    assert len(card["categories"]) == 3 and card["categories"][0]["category"] == "Tech and gadgets"

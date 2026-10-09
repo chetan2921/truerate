@@ -15,13 +15,15 @@ from truerate.config import MODELS_DIR, get_settings
 from truerate.db import ensure_indexes, get_db
 from truerate.instagram import Hiker, collect
 from truerate.llm import Gemini
-from truerate.pipeline import STEPS, Deps, analyze
+from truerate.pipeline import STEPS, Deps, analyze, check_quote
+from truerate.pricing import rate_card
 from truerate.signals import CATEGORIES, minilm_embed
 
 app = FastAPI(title="TrueRate API")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000"], allow_methods=["*"], allow_headers=["*"])
 
 EXECUTOR = ThreadPoolExecutor(max_workers=2)
+MAX_BATCH = 50
 
 
 def submit(fn) -> None:
@@ -248,6 +250,63 @@ class AnalysisSummary(BaseModel):
     created_at: datetime
 
 
+class QuoteRequest(BaseModel):
+    quote: int
+
+
+class QuoteCheck(BaseModel):
+    quote: int
+    position: Literal["below", "within", "above"]
+    difference: int
+    counter_offer: int
+    talking_points: list[str]
+
+
+class BatchRequest(Inputs):
+    handles: list[str]
+
+
+class BatchRow(BaseModel):
+    handle: str
+    analysis_id: str
+    status: str
+    call: str | None
+    verdict: str | None
+    fair: int | None
+    low: int | None
+    high: int | None
+    cost_per_1k: int | None
+    expected_views: int | None
+    reason: str | None
+
+
+class Batch(BaseModel):
+    id: str
+    inputs: Inputs
+    created_at: datetime
+    total: int
+    done: int
+    rows: list[BatchRow]
+
+
+class Per1k(BaseModel):
+    p25: int
+    median: int
+    p75: int
+
+
+class CategoryRate(BaseModel):
+    category: str
+    n: int
+    per_1k: Per1k
+    typical_price: int
+    typical_views: int
+
+
+class RateCard(BaseModel):
+    categories: list[CategoryRate]
+
+
 class Meta(BaseModel):
     categories: list[str]
     range_coverage: float | None
@@ -315,11 +374,60 @@ def create_analysis(req: AnalysisRequest) -> Created:
         raise HTTPException(422, "Enter an Instagram handle or profile link.")
     db = get_db()
     ensure_indexes(db)
+    return Created(id=_start(db, handle, req.model_dump(exclude={"handle"})))
+
+
+def _start(db, handle: str, inputs: dict, batch_id: str | None = None) -> str:
     analysis_id = uuid.uuid4().hex[:12]
-    inputs = req.model_dump(exclude={"handle"})
-    db.analyses.insert_one({"_id": analysis_id, "handle": handle, "inputs": inputs, "status": "running", "step": 0, "created_at": datetime.now(timezone.utc)})
+    db.analyses.insert_one({"_id": analysis_id, "handle": handle, "inputs": inputs, "status": "running", "step": 0, "batch_id": batch_id,
+                            "created_at": datetime.now(timezone.utc)})
     submit(lambda: _run(analysis_id, handle, inputs))
-    return Created(id=analysis_id)
+    return analysis_id
+
+
+@app.post("/api/batches", status_code=202)
+def create_batch(req: BatchRequest) -> Created:
+    parsed = [parse_handle(h) for h in req.handles]
+    bad = [h for h, p in zip(req.handles, parsed) if not p]
+    if bad:
+        raise HTTPException(422, f"Not Instagram handles: {', '.join(bad)}")
+    handles = list(dict.fromkeys(parsed))
+    if not handles or len(handles) > MAX_BATCH:
+        raise HTTPException(422, f"Paste between 1 and {MAX_BATCH} handles.")
+    db = get_db()
+    ensure_indexes(db)
+    batch_id = uuid.uuid4().hex[:12]
+    inputs = req.model_dump(exclude={"handles"})
+    db.batches.insert_one({"_id": batch_id, "inputs": inputs, "handles": handles, "created_at": datetime.now(timezone.utc)})
+    for handle in handles:
+        _start(db, handle, inputs, batch_id)
+    return Created(id=batch_id)
+
+
+@app.get("/api/batches/{batch_id}")
+def get_batch(batch_id: str) -> Batch:
+    db = get_db()
+    b = db.batches.find_one({"_id": batch_id})
+    if not b:
+        raise HTTPException(404, "No batch with that id.")
+    rows = []
+    for a in db.analyses.find({"batch_id": batch_id}):
+        r = a.get("result") or {}
+        p = r.get("price", {})
+        rows.append(BatchRow(handle=a["handle"], analysis_id=a["_id"], status=a["status"], call=r.get("decision", {}).get("call"),
+                             verdict=r.get("audience", {}).get("verdict"), fair=p.get("fair"), low=p.get("low"), high=p.get("high"),
+                             cost_per_1k=p.get("delivery", {}).get("cost_per_1k"), expected_views=(p.get("delivery", {}).get("views") or [None, None])[1],
+                             reason=a.get("reason") or a.get("error")))
+    rows.sort(key=lambda x: (x.cost_per_1k is None, x.cost_per_1k or 0, x.handle))
+    return Batch(id=batch_id, inputs=b["inputs"], created_at=b["created_at"], total=len(rows), done=sum(x.status != "running" for x in rows), rows=rows)
+
+
+@app.get("/api/rate-card")
+def get_rate_card() -> RateCard:
+    path = MODELS_DIR / "price.joblib"
+    if not path.exists():
+        raise HTTPException(503, "The price model isn't built yet. Run `truerate validate`.")
+    return RateCard(categories=rate_card(joblib.load(path)))
 
 
 @app.get("/api/analyses")
@@ -338,6 +446,16 @@ def get_analysis(analysis_id: str) -> Analysis:
     if not a:
         raise HTTPException(404, "No analysis with that id.")
     return Analysis(id=a.pop("_id"), steps=STEPS, **a)
+
+
+@app.post("/api/analyses/{analysis_id}/quote")
+def quote_check(analysis_id: str, req: QuoteRequest) -> QuoteCheck:
+    a = get_db().analyses.find_one({"_id": analysis_id})
+    if not a:
+        raise HTTPException(404, "No analysis with that id.")
+    if not a.get("result"):
+        raise HTTPException(409, "This analysis has no price to check against.")
+    return QuoteCheck(**check_quote(a["result"], req.quote))
 
 
 @app.get("/api/meta")

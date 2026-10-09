@@ -5,7 +5,7 @@ import pytest
 from test_audience import fake_embed, genuine_snapshot
 from test_pricing import synthetic_rows
 
-from truerate.pipeline import Deps, analyze
+from truerate.pipeline import Deps, analyze, check_quote
 from truerate.pricing import fit
 from truerate.signals import audience_signals, make_fake, reel_metrics, train_fake_model
 
@@ -104,3 +104,15 @@ def test_private_and_faceless_pages_are_out_of_scope(world):
     assert out["status"] == "out_of_scope" and "private" in out["reason"]
     out = analyze("newcreator", {}, deps(world, target_snapshot(), face=False))
     assert out["status"] == "out_of_scope" and "face" in out["reason"]
+
+
+def test_quote_check_places_the_quote_and_counters(world):
+    r = analyze("newcreator", {}, deps(world, target_snapshot()))["result"]
+    p = r["price"]
+    high = check_quote(r, p["high"] + 10_000)
+    assert high["position"] == "above" and high["difference"] == p["high"] + 10_000 - p["fair"] and high["counter_offer"] == p["fair"]
+    assert len(high["talking_points"]) == 3 and all(point.endswith(".") for point in high["talking_points"])
+    within = check_quote(r, p["fair"] - 500)
+    assert within["position"] == "within" and within["counter_offer"] == p["fair"] - 500  # at or under fair: take it
+    below = check_quote(r, max(p["low"] - 1_000, 500))
+    assert below["position"] == "below" and below["counter_offer"] == below["quote"]

@@ -219,3 +219,21 @@ def _negotiation(p: dict, flags: list[dict], metrics: dict, category: str) -> di
              *[f["text"] + "." for f in flags[:2]],
              f"We can do ₹{p['low']:,} now and go up to ₹{p['fair']:,} for a usage-rights or story add-on."]
     return {"start": p["low"], "target": p["fair"], "walk_away": p["high"], "lines": [x for x in lines if x]}
+
+
+def check_quote(r: dict, quote: int) -> dict:
+    """A creator's quote against a finished report: where it sits, what to counter with, and 3 data-backed points."""
+    p, d = r["price"], r["price"]["delivery"]
+    position = "below" if quote < p["low"] else "above" if quote > p["high"] else "within"
+    per_1k = round(quote / (r["placement"]["typical_views"] / 1000))
+    points = [
+        f"At ₹{quote:,}, a reel costs ₹{per_1k:,} per 1,000 typical views"
+        + (f"; {r['category']} creators WLDD booked average ₹{d['category_cost_per_1k']:,}." if d["category_cost_per_1k"] else "."),
+        f"A sponsored reel here should get about {d['views'][1]:,} views, and we pay for what it delivers.",
+    ]
+    if r["audience"]["flags"]:
+        points.append(r["audience"]["flags"][0]["text"] + ".")
+    else:
+        paid = [c["price"] for c in p["comparables"]]
+        points.append(f"The 6 closest past WLDD deals were paid ₹{min(paid):,.0f} to ₹{max(paid):,.0f}.")
+    return {"quote": quote, "position": position, "difference": quote - p["fair"], "counter_offer": min(quote, p["fair"]), "talking_points": points}

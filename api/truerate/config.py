@@ -1,10 +1,14 @@
+import os
 from functools import lru_cache
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MODELS_DIR = REPO_ROOT / "data" / "models"
+# MODELS_DIR=data/models_dev points the API at synthetic models while building screens (api/scripts/seed_dev.py).
+MODELS_DIR = Path(os.environ.get("MODELS_DIR") or REPO_ROOT / "data" / "models")
+if not MODELS_DIR.is_absolute():
+    MODELS_DIR = REPO_ROOT / MODELS_DIR
 
 
 class Settings(BaseSettings):

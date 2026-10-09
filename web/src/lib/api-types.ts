@@ -39,6 +39,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Batch */
+        post: operations["create_batch_api_batches_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/batches/{batch_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Batch */
+        get: operations["get_batch_api_batches__batch_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rate-card": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Rate Card */
+        get: operations["get_rate_card_api_rate_card_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/analyses/{analysis_id}": {
         parameters: {
             query?: never;
@@ -50,6 +101,23 @@ export interface paths {
         get: operations["get_analysis_api_analyses__analysis_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analyses/{analysis_id}/quote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Quote Check */
+        post: operations["quote_check_api_analyses__analysis_id__quote_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -189,6 +257,71 @@ export interface components {
             /** Warnings */
             warnings: string[];
             mix: components["schemas"]["Mix"];
+        };
+        /** Batch */
+        Batch: {
+            /** Id */
+            id: string;
+            inputs: components["schemas"]["Inputs"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Total */
+            total: number;
+            /** Done */
+            done: number;
+            /** Rows */
+            rows: components["schemas"]["BatchRow"][];
+        };
+        /** BatchRequest */
+        BatchRequest: {
+            /** Category */
+            category?: string | null;
+            /** Quote */
+            quote?: number | null;
+            /** Budget */
+            budget?: number | null;
+            /** Handles */
+            handles: string[];
+        };
+        /** BatchRow */
+        BatchRow: {
+            /** Handle */
+            handle: string;
+            /** Analysis Id */
+            analysis_id: string;
+            /** Status */
+            status: string;
+            /** Call */
+            call: string | null;
+            /** Verdict */
+            verdict: string | null;
+            /** Fair */
+            fair: number | null;
+            /** Low */
+            low: number | null;
+            /** High */
+            high: number | null;
+            /** Cost Per 1K */
+            cost_per_1k: number | null;
+            /** Expected Views */
+            expected_views: number | null;
+            /** Reason */
+            reason: string | null;
+        };
+        /** CategoryRate */
+        CategoryRate: {
+            /** Category */
+            category: string;
+            /** N */
+            n: number;
+            per_1k: components["schemas"]["Per1k"];
+            /** Typical Price */
+            typical_price: number;
+            /** Typical Views */
+            typical_views: number;
         };
         /** Cheaper */
         Cheaper: {
@@ -376,6 +509,15 @@ export interface components {
             /** Typical Ratio */
             typical_ratio: number;
         };
+        /** Per1k */
+        Per1k: {
+            /** P25 */
+            p25: number;
+            /** Median */
+            median: number;
+            /** P75 */
+            p75: number;
+        };
         /** Placement */
         Placement: {
             /** Reels */
@@ -429,6 +571,32 @@ export interface components {
             bio: string;
             /** Is Verified */
             is_verified: boolean;
+        };
+        /** QuoteCheck */
+        QuoteCheck: {
+            /** Quote */
+            quote: number;
+            /**
+             * Position
+             * @enum {string}
+             */
+            position: "below" | "within" | "above";
+            /** Difference */
+            difference: number;
+            /** Counter Offer */
+            counter_offer: number;
+            /** Talking Points */
+            talking_points: string[];
+        };
+        /** QuoteRequest */
+        QuoteRequest: {
+            /** Quote */
+            quote: number;
+        };
+        /** RateCard */
+        RateCard: {
+            /** Categories */
+            categories: components["schemas"]["CategoryRate"][];
         };
         /** Ratio */
         Ratio: {
@@ -592,6 +760,90 @@ export interface operations {
             };
         };
     };
+    create_batch_api_batches_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Created"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_batch_api_batches__batch_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Batch"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_rate_card_api_rate_card_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateCard"];
+                };
+            };
+        };
+    };
     get_analysis_api_analyses__analysis_id__get: {
         parameters: {
             query?: never;
@@ -610,6 +862,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Analysis"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    quote_check_api_analyses__analysis_id__quote_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                analysis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuoteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QuoteCheck"];
                 };
             };
             /** @description Validation Error */
