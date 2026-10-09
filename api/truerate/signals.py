@@ -202,6 +202,7 @@ AUDIENCE_SIGNALS = {
     "views_per_follower": ("followers", "low", True, math.log(2)),
     "generic_comments": ("comments", "high", False, 0.15),
     "repeat_commenters": ("comments", "high", False, 3),
+    "ring_size": ("comments", "high", False, 2),
 }
 VERDICTS = ["Real audience", "Some fake activity", "Mostly fake"]
 
@@ -220,6 +221,8 @@ def band_norms(rows: list[dict]) -> dict:
         norms[name] = {}
         for s, (_, direction, log, _) in AUDIENCE_SIGNALS.items():
             values = [r[s] for r in group if r.get(s) is not None]
+            if not values:
+                continue
             q1, q3 = np.percentile([_scale(v, log) for v in values], [25, 75])
             fence = q3 + 1.5 * (q3 - q1) if direction == "high" else q1 - 1.5 * (q3 - q1)
             norms[name][s] = {"median": float(median(values)), "fence": float(fence)}
@@ -232,7 +235,7 @@ def verdict(signals: dict, norms: dict) -> dict:
     ref = norms.get(band(signals["followers"]), norms["all"])
     flags = []
     for s, (family, direction, log, gap) in AUDIENCE_SIGNALS.items():
-        if signals.get(s) is None:
+        if signals.get(s) is None or s not in ref:
             continue
         value, mid, fence = _scale(signals[s], log), _scale(ref[s]["median"], log), ref[s]["fence"]
         bad = value > fence and value - mid >= gap if direction == "high" else value < fence and mid - value >= gap
@@ -428,3 +431,22 @@ def face_share(covers: dict[str, bytes], detect=has_face) -> float | None:
     if not covers:
         return None
     return round(sum(detect(img) for img in covers.values()) / len(covers), 2)
+
+
+RING_MIN_SHARED = 3  # two creators are linked when at least this many accounts comment on both
+
+
+def commenter_rings(commenters_by_creator: dict[str, set[str]]) -> dict[str, int]:
+    """Louvain communities on the graph of creators linked by shared commenters. Each creator's ring size is how many
+    other creators sit in its community. Pods use real accounts, so the shared accounts are what give them away."""
+    import networkx as nx
+
+    graph = nx.Graph()
+    graph.add_nodes_from(commenters_by_creator)
+    names = sorted(commenters_by_creator)
+    for i, a in enumerate(names):
+        for b in names[i + 1 :]:
+            shared = len(commenters_by_creator[a] & commenters_by_creator[b])
+            if shared >= RING_MIN_SHARED:
+                graph.add_edge(a, b, weight=shared)
+    return {c: len(group) - 1 for group in nx.community.louvain_communities(graph, weight="weight", seed=42) for c in group}

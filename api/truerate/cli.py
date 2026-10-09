@@ -17,6 +17,7 @@ from truerate.signals import (
     audience_signals,
     category_from_niche,
     commenter_mix,
+    commenter_rings,
     label_creator,
     label_niche,
     load_kaggle,
@@ -139,10 +140,14 @@ def build_metrics_cmd() -> None:
             captions = [r["caption"] for r in sorted(snap["data"]["reels"], key=lambda r: r["taken_at"], reverse=True)]
             category, source = label_niche(llm, snap["data"]["profile"].get("bio", ""), captions), "gemini"
         audience = audience_signals(snap, metrics, fake_model, minilm_embed)
-        doc = {**metrics, **audience, "mix": commenter_mix(snap, fake_model, labels), "labels": labels, "labels_for": snap["_id"],
+        commenters = sorted({c["user"]["username"] for cs in snap["data"]["comments"].values() for c in cs})
+        doc = {**metrics, **audience, "mix": commenter_mix(snap, fake_model, labels), "labels": labels, "labels_for": snap["_id"], "commenters": commenters,
                "category": category, "category_source": source, "computed_at": datetime.now(timezone.utc)}
         db.metrics.replace_one({"_id": handle}, doc, upsert=True)
         built += 1
+    rings = commenter_rings({m["_id"]: set(m["commenters"]) for m in db.metrics.find({}, {"commenters": 1})})
+    for handle, size in rings.items():
+        db.metrics.update_one({"_id": handle}, {"$set": {"ring_size": size}})
     typer.echo(f"Built metrics for {built} creators; skipped {skipped} without a snapshot of 12+ reels")
 
 

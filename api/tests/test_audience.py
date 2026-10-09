@@ -5,7 +5,7 @@ from typer.testing import CliRunner
 
 from truerate import cli
 
-from truerate.signals import AUDIENCE_SIGNALS, FAKE_KINDS, audience_signals, commenter_mix, face_share, band_norms, comment_signals, genuine_share, make_fake, redteam, train_fake_model, verdict
+from truerate.signals import AUDIENCE_SIGNALS, FAKE_KINDS, audience_signals, commenter_mix, commenter_rings, face_share, band_norms, comment_signals, genuine_share, make_fake, redteam, train_fake_model, verdict
 
 
 VOCAB = {}
@@ -179,3 +179,15 @@ def test_face_share_is_the_share_of_covers_with_a_face():
     covers = {"a": b"face", "b": b"face", "c": b"food", "d": b"text"}
     assert face_share(covers, lambda img: img == b"face") == 0.5
     assert face_share({}, lambda img: True) is None
+
+
+def test_commenter_rings_group_creators_who_share_commenters():
+    pod = {"p1", "p2", "p3", "p4"}
+    commenters = {"a": pod | {"a1"}, "b": pod | {"b1"}, "c": pod | {"c1"}, "d": {"p1", "d1", "d2"}, "e": {"e1"}}
+    assert commenter_rings(commenters) == {"a": 2, "b": 2, "c": 2, "d": 0, "e": 0}
+
+
+def test_signals_without_norms_are_skipped():
+    norms = band_norms(genuine_band())  # these creators carry no ring_size
+    assert "ring_size" not in norms["medium"]
+    assert verdict(creator(ring_size=5), norms)["verdict"] == "Real audience"

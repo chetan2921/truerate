@@ -16,6 +16,7 @@ dependencies = [
     "sentence-transformers>=6.1.0",
     "mediapipe>=1.1.0",
     "pillow>=12.3.0",
+    "networkx>=3.7",
 ]
 
 [project.scripts]

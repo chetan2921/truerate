@@ -149,6 +149,8 @@ def test_build_metrics_uses_wldd_niche_first_and_gemini_otherwise(db, monkeypatc
     assert (unknown["category"], unknown["category_source"], unknown["n_reels"]) == ("Food", "gemini", 15)
     assert (unknown["fake_likers"], unknown["n_likers"], unknown["n_comments"]) == (0.0, 4, 1)  # audience signals feed the band norms
     assert unknown["labels"]["kinds"] == {"fan": "person"} and unknown["mix"]["people"] == 1
+    # rings: both creators share one commenter, fewer than the 3 a link needs
+    assert (unknown["ring_size"], unknown["commenters"]) == (0, ["fan"])
     # one niche call (only "unknown" lacks a WLDD niche) and one labelling call per creator; never a price
     assert (len(llm.niche_prompts), len(llm.label_prompts)) == (1, 2)
     assert not any(p in prompt for prompt in llm.niche_prompts + llm.label_prompts for p in ("37000", "37,000", "41000", "41,000"))
