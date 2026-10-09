@@ -23,6 +23,8 @@
 - LLM in unit tests: `FakeLLM` in `api/tests/test_signals.py` returns a fixed reply and records each prompt, so a test can check that no price went in. Never call Gemini from a test.
 - Statistical properties (range coverage) are pooled over several synthetic seeds: 15 held-out deals swing too much by chance to test one seed.
 - Pricing tests: `synthetic_rows(n, seed)` in `api/tests/test_pricing.py` makes deals whose true price is known.
+- Audience tests: `genuine_band()` and `genuine_snapshot(i, rng)` in `api/tests/test_audience.py` make believable creators. `fake_embed` gives each distinct text its own random unit vector, so identical texts match and others don't.
+- No real face images in the repo: test `face_share` with a stand-in detector, and run the real one live.
 
 ## Inventory
 | Area | Unit | Integration | E2E | Notes |
@@ -33,6 +35,10 @@
 | HikerAPI client, cache, parsers, `collect`, `collect-benchmark` | yes | no | no | live check on 2 deal creators passed: every reel has views, every comment a time, likers and followers non-empty |
 | Categories, `reel_metrics`, Gemini niche label, `build-metrics` | yes | no | no | fake LLM in tests; live on 2 creators (Food, Entertainment) |
 | `pricing.py` and `validate` | yes | no | no | synthetic deals with a known ₹ per 1,000 views per category; live run waits for the 150 snapshots |
+| Audience signals, band norms, verdict, genuine share, warnings | yes | no | no | synthetic genuine band; live signals on 2 creators |
+| Gemini labels, hidden-ad split, commenter mix | yes | no | no | `FakeLLM` / `SchemaLLM`; live on 2 creators |
+| Face check, Louvain rings | yes | no | no | stand-in detector in the unit test; real MediaPipe live on 2 creators' covers |
+| Red-team (`make_fake`, `redteam`, command) | yes | no | no | synthetic creators; live run waits for the 150 |
 
 ## Model validation (judging 4 and 5)
 These are reports, not pass/fail unit tests, and they arrive with milestones 2 and 3:

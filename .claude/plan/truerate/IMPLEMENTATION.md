@@ -1,31 +1,29 @@
 # truerate implementation
 
 ## Now
-Waiting on the paid HikerAPI key for three live steps, in order:
-1. `uv run truerate collect-benchmark` for all 150 deal creators (about 3,000 requests, about 2.5 hours at 1 request a second).
-2. `uv run truerate build-metrics`.
+Waiting on the paid HikerAPI key for the live steps, in order:
+1. `uv run truerate collect-benchmark` for all 150 deal creators (about 3,000 requests).
+2. `uv run truerate build-metrics`: about 150 Gemini labelling calls, plus niche calls for the 115 without a CSV niche.
 3. `uv run truerate validate`. Milestone 2 is done when the holdout median error is below both baselines.
+4. `uv run truerate redteam`. Milestone 3 is done when at least 80% are caught on flat views, bot likers, pod comments and bought followers, and the smart-fake rate is reported.
 
 The free key has about 50 requests left, kept for checks.
 
-Meanwhile milestone 3 is in flight, built against synthetic tests and the 2 live snapshots. Its thresholds get set on the 150.
+Meanwhile milestone 4 is in flight. Until the 150 are in, the web is built against a dev database seeded with synthetic creators (`MONGODB_DB=truerate_dev`).
 
-### In flight: audience check
-- [ ] test, then the signals per creator:
-  - likes family: fake-looking likers (`fake_share`), likes per view, how even likes are across reels
-  - followers family: fake-looking newest followers, views per follower
-  - comments family: generic and repeated comment text (MiniLM), commenters on 60% or more of reels
-- [ ] test, then the verdict: each signal is compared with WLDD creators in the same follower band. 0, 1, or 2 or more failing families give Real audience, Some fake activity or Mostly fake. Former usernames and IsolationForest only warn
-- [ ] test, then the genuine share (only fake engagement above the band median counts) feeding `price()`
-- [ ] Louvain rings: commenters shared across WLDD creators, run on the stored snapshots
-- [ ] Gemini, one call per creator: ambiguous reels labelled ad or not (with cover images), each reel's topic, comment languages. Prices are never in the prompt
-- [ ] commenter mix: fake-looking accounts, creators and brands among top commenters, and languages
-- [ ] MediaPipe face check on reel covers: a faceless page gets `out_of_scope`
-- [ ] test, then `truerate redteam`: 6 fake types built from real snapshots, catch rate per type, and the flagged share of unmodified creators
-- [ ] live, on the 150: at least 80% caught on flat views, bot likers, pod comments and bought followers; smart-fake rate reported
+### In flight: API + report
+- [ ] test, then `pipeline.analyze()`, recording each step as it goes:
+  - collect, then the face check, then labels, metrics and category
+  - the audience check (band norms, verdict, rings, warnings, commenter mix)
+  - price with the genuine share, then the decision, reasons and negotiation lines
+  - private accounts, fewer than 12 reels and faceless pages end as `out_of_scope`
+- [ ] test, then the API: `POST` and `GET /api/analyses` (background thread pool), `GET /api/meta`, `GET /api/model-report`, with Pydantic response models. Generate `web/src/lib/api-types.ts`
+- [ ] web: login (demo button plus the `@wldd.in` check, cookie, redirect), `/` with the analyze form and recent analyses, and `/analyses/[id]` polling the 4 steps
+- [ ] web: the report, per `DESIGN.md`: decision block, waterfall with the 6 comparables, the five sections, negotiation lines
+- [ ] ui-craft `audit.mjs` passes on `/` and the report
+- [ ] live: a never-seen face creator end to end in under 2 minutes
 
 ## Next
-- 4. API + report: analyses endpoints with background jobs, login, analyze page, report page with all five sections (per `DESIGN.md`)
 - 5. Extras: batch, rate card + calculator, quote check, competitor conflict, cheaper alternatives, print page, About in five parts
 - 6. Pitch: deck of at most 12 slides answering judging 1–6 with real numbers, plus a 3-minute demo with a cached fallback
 
@@ -38,3 +36,9 @@ Meanwhile milestone 3 is in flight, built against synthetic tests and the 2 live
   - `pricing.py`: Ridge plus the 6 same-category nearest deals, a leave-one-out blend and range, the collab factor, the waterfall and expected delivery
   - both baselines, and `validate`
   - On synthetic deals the model beats both baselines on 4 of 4 seeds, and the range covers 73% of 60 held-out deals.
+- 2026-10-10 M3 code:
+  - audience signals in 3 families (MiniLM generic and repeated comments, repeat commenters, fake likers and followers, evenness, ratios), band norms with box-plot fences and minimum gaps, the verdict and the genuine share
+  - Gemini labels (hidden ads with covers, topics, account kinds, languages) and the commenter mix
+  - MediaPipe face check, Louvain rings, and IsolationForest and renamed-page warnings
+  - the red-team with 6 fake kinds
+  - Live on 2 creators: 1 and 5 hidden ads found, plus the languages and commenter mixes.

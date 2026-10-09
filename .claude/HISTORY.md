@@ -8,3 +8,8 @@
   Decided: the fake-account model uses only the 6 fields that come with likers and followers lists (88% vs 92% with all 11), because the full fields cost one request per account. Fixtures are trimmed and anonymised before committing. 7 categories group the CSV's 21 genres.
 - 2026-10-10 M2 code: reel metrics, 7 categories, Gemini niche label, `build-metrics`, `pricing.py` and `validate`, all on synthetic tests. Live validation waits for the 150 snapshots. Gemini model moved to `gemini-3.8-flash` (2.5 is closed to new keys).
   Decided: comparables are the 6 nearest deals in the same category by views and followers, not nearest on every feature. Nearest on every feature mixed categories and narrowed the range (53% coverage on one seed). The served price model refits on all 150 after validation; the holdout numbers come from a model that never saw them.
+- 2026-10-10 M3 code: audience signals, norms, verdict, genuine share, Gemini labels (hidden ads, topics, account kinds, languages), commenter mix, face check, Louvain rings, warnings and red-team. All tested on synthetic data; live checks on 2 creators. The 150-creator runs wait for the paid key.
+  Decided:
+  - A signal is bad only past the band's box-plot fence and a minimum gap, so a tight band doesn't flag tiny differences.
+  - The genuine share counts flagged signals only, and pod comments don't discount the price because pods are real accounts.
+  - The face check rejects only clearly faceless pages (under 2 of 10 covers): a real food creator showed 2 of 10.

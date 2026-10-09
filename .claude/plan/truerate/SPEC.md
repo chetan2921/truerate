@@ -206,17 +206,17 @@ Response models are Pydantic. The web types are generated from `/openapi.json` (
   - Otherwise Go.
 
 **Audience check:**
-- Each signal in the table above is compared with WLDD creators in the same follower band (small < 20K, medium 20K–99.9K, big ≥ 100K).
+- Each signal in the table above is compared with WLDD creators in the same follower band (small < 20K, medium 20K–99.9K, big ≥ 100K). A signal is bad when it is past the band's box-plot fence (1.5 IQR beyond the quartile, log scale for ratios) and also a minimum gap from the band median (10 points for fake shares, 15 for generic comments, half or double for ratios, 3 repeat commenters, 2 ring creators). The gap stops a tight band from flagging tiny differences.
 - **Verdict:**
   - 0 failing families (likes, followers, comments) = Real audience
   - 1 = Some fake activity
   - 2 or more = Mostly fake
   - Former usernames and IsolationForest only warn.
-- **Genuine share** subtracts only the fake engagement above the band median.
+- **Genuine share** subtracts only the fake engagement above the band median, and only for a flagged signal: the largest of the fake-liker excess, the fake-follower excess, and the seeded-views gap (1 minus likes per view over the band's). Pod comments come from real accounts, so they flag the creator and shape the decision but don't discount the price. A Real audience verdict always means a genuine share of 1.
 
 **Ads:**
 - Rules first: paid-partnership label, sponsor tags, ASCI hashtags, a brand tag plus a code or link.
-- Then one Gemini call per creator labels ambiguous reels (with cover images), every reel's topic, and the comment languages.
+- Then one Gemini call per creator labels ambiguous reels (with cover images), every reel's topic, whether co-authors and top commenters are people, creators or brands, and the comment languages. Ambiguous means not an ad by the rules but with a co-author, tag, mention or promo words; Gemini's "ad" counts only on those.
 - A post co-authored with another creator counts as a collab post. A post co-authored with a brand counts as paid.
 
 **Validation:**
