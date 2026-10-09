@@ -11,13 +11,13 @@ Mapped from `main`.
 | `web/` | Next.js 16 front end | `.claude/truerate/web/AGENTS.md` |
 
 ## Run
-- `cp .env.example .env` and fill `MONGODB_URI`, `HIKERAPI_KEY`, `LLM_API_KEY`.
-- `make api`, `make web`, `make test` (targets in `Makefile`).
+- `cp .env.example .env` and fill `MONGODB_URI`, `HIKERAPI_KEY`, `LLM_API_KEY`. `LLM_MODEL` defaults to `gemini-3.8-flash` (2.5 is closed to new keys).
+- `make api`, `make web`, `make test`, and `make types` (regenerates the web's API types; `.claude/contracts/api-surface.md`). Targets in `Makefile`.
 
 ## Folder map
 - `api/`, `web/`: the two subsystems above
 - `DESIGN.md`: the visual source of truth for `web/`
-- `data/` (git-ignored, repo root): `creators.csv`, the Kaggle CSV, trained model files
+- `data/` (git-ignored, repo root): `creators.csv`, the Kaggle CSVs, `models/` (served models and reports), `models_dev/` (synthetic, for building screens), `pitch/` (the deck)
 - `.claude/`: agent memory (this tree); the plan lives in `.claude/plan/truerate/`
 
 ## Sharp edges
@@ -25,4 +25,4 @@ Mapped from `main`.
 - Deal prices never go into an LLM prompt.
 - Signatures for both subsystems are in `.claude/truerate/STRUCTURE.md`.
 
-<!-- mapped: .@9585fbe | paths: Makefile, .env.example, .gitignore -->
+<!-- mapped: .@01598ce | paths: Makefile, .env.example, .gitignore -->
