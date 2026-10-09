@@ -12,6 +12,7 @@ class Gemini:
         self.client = genai.Client(api_key=key)
         self.model = model
 
-    def json(self, prompt: str, schema: dict) -> dict:
+    def json(self, prompt: str, schema: dict, images: list[bytes] = ()) -> dict:
         config = types.GenerateContentConfig(response_mime_type="application/json", response_schema=schema)
-        return json.loads(self.client.models.generate_content(model=self.model, contents=prompt, config=config).text)
+        contents = [prompt] + [types.Part.from_bytes(data=img, mime_type="image/jpeg") for img in images]
+        return json.loads(self.client.models.generate_content(model=self.model, contents=contents, config=config).text)

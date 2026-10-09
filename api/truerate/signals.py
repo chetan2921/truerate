@@ -72,12 +72,24 @@ def is_paid(reel: dict) -> bool:
     return reel["paid"] or bool(reel["sponsors"]) or bool(_AD_TAG.search(reel["caption"]))
 
 
-def reel_metrics(snapshot: dict) -> dict:
-    """Stats over the last 30 unpinned reels with visible views. Own reels are neither paid nor co-authored."""
-    reels = sorted((r for r in snapshot["data"]["reels"] if not r["pinned"] and r["views"] > 0), key=lambda r: r["taken_at"], reverse=True)[:30]
-    paid = [r for r in reels if is_paid(r)]
-    collab = [r for r in reels if r["coauthors"] and not is_paid(r)]
-    own = [r for r in reels if not r["coauthors"] and not is_paid(r)]
+def recent_reels(snapshot: dict) -> list[dict]:
+    """The last 30 unpinned reels with visible views, newest first."""
+    return sorted((r for r in snapshot["data"]["reels"] if not r["pinned"] and r["views"] > 0), key=lambda r: r["taken_at"], reverse=True)[:30]
+
+
+def reel_metrics(snapshot: dict, labels: dict | None = None) -> dict:
+    """Stats over the recent reels. Paid: the rules, Gemini's hidden ads, or a brand co-author. Collab: any other co-author.
+    Own: the rest."""
+    ads = set((labels or {}).get("ads", []))
+    kinds = (labels or {}).get("kinds", {})
+
+    def paid_reel(r):
+        return is_paid(r) or r["code"] in ads or any(kinds.get(c) == "brand" for c in r["coauthors"])
+
+    reels = recent_reels(snapshot)
+    paid = [r for r in reels if paid_reel(r)]
+    collab = [r for r in reels if r["coauthors"] and not paid_reel(r)]
+    own = [r for r in reels if not r["coauthors"] and not paid_reel(r)]
     views = median(r["views"] for r in own)
 
     def ratio(group):
@@ -163,7 +175,7 @@ def _cv(values: list[float]) -> float:
 
 def audience_signals(snapshot: dict, metrics: dict, fake_model, embed) -> dict:
     d = snapshot["data"]
-    reels = sorted((r for r in d["reels"] if not r["pinned"] and r["views"] > 0), key=lambda r: r["taken_at"], reverse=True)[:30]
+    reels = recent_reels(snapshot)
     likers = [a for accounts in d["likers"].values() for a in accounts]
     return {
         "followers": snapshot["followers"],
@@ -309,3 +321,74 @@ def redteam(snapshots: list[dict], fake_model, embed, seed: int = 7) -> dict:
         "caught": caught,
         "genuine_share": shares,
     }
+
+
+_PROMO = re.compile(r"\b(code|coupon|discount|link in bio|use my|shop now|available (on|at)|order now|buy now)\b", re.IGNORECASE)
+
+
+def ambiguous(reel: dict) -> bool:
+    """Not an ad by the rules, but something in it could be one: a co-author, a tag, a mention or promo words."""
+    return not is_paid(reel) and bool(reel["coauthors"] or reel.get("tags") or "@" in reel["caption"] or _PROMO.search(reel["caption"]))
+
+
+def top_commenters(comments_by_reel: dict[str, list[dict]], n: int = 15) -> list[dict]:
+    counts: dict[str, list] = {}
+    for cs in comments_by_reel.values():
+        for c in cs:
+            counts.setdefault(c["user"]["username"], [0, c["user"]])[0] += 1
+    return [user for _, user in sorted(counts.values(), key=lambda x: (-x[0], x[1]["username"]))[:n]]
+
+
+_LABEL_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "reels": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {
+            "code": {"type": "STRING"}, "ad": {"type": "BOOLEAN"}, "topic": {"type": "STRING", "enum": list(CATEGORIES)}}, "required": ["code", "ad", "topic"]}},
+        "accounts": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {
+            "username": {"type": "STRING"}, "kind": {"type": "STRING", "enum": ["person", "creator", "brand"]}}, "required": ["username", "kind"]}},
+        "languages": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {
+            "language": {"type": "STRING"}, "share": {"type": "NUMBER"}}, "required": ["language", "share"]}},
+    },
+    "required": ["reels", "accounts", "languages"],
+}
+
+
+def label_creator(llm, snapshot: dict, images: dict[str, bytes]) -> dict:
+    """One Gemini call: hidden ads among the ambiguous reels (covers attached), every reel's topic, who the co-authors and
+    top commenters are, and the comment languages. No price goes in."""
+    d = snapshot["data"]
+    reels = recent_reels(snapshot)
+    unclear = [r["code"] for r in reels if ambiguous(r)]
+    with_cover = [code for code in unclear if code in images]
+    accounts = sorted({c for r in reels for c in r["coauthors"]}) + [u["username"] for u in top_commenters(d["comments"])]
+    comments = [c["text"][:200] for cs in d["comments"].values() for c in cs][:80]
+    reel_lines = "\n".join(f"{r['code']} | {r['caption'][:300]!r} | co-authors: {', '.join(r['coauthors']) or '-'} | tagged: {', '.join(r.get('tags', [])) or '-'}" for r in reels)
+    prompt = (
+        "You label an Instagram creator's content for an influencer-marketing team.\n"
+        "1. For each reel: is it an ad (a paid promotion of a brand, product or app, even without #ad)? And its topic.\n"
+        "2. For each account: a person, a creator (an influencer or public page) or a brand.\n"
+        "3. The languages the comments are written in, as shares adding to 1. Romanised Hindi counts as Hinglish.\n\n"
+        f"Bio: {d['profile'].get('bio', '')}\n\nReels (code | caption | co-authors | tagged):\n{reel_lines}\n\n"
+        f"Accounts: {', '.join(accounts) or '-'}\n\nComments:\n" + "\n".join(f"- {c}" for c in comments)
+        + (f"\n\nCover images follow, in this order: {', '.join(with_cover)}" if with_cover else "")
+    )
+    reply = llm.json(prompt, _LABEL_SCHEMA, images=[images[code] for code in with_cover])
+    return {
+        "ads": [r["code"] for r in reply["reels"] if r["ad"] and r["code"] in unclear],
+        "topics": {r["code"]: r["topic"] for r in reply["reels"]},
+        "kinds": {a["username"]: a["kind"] for a in reply["accounts"]},
+        "languages": sorted(reply["languages"], key=lambda x: -x["share"]),
+    }
+
+
+def commenter_mix(snapshot: dict, fake_model, labels: dict) -> dict:
+    """The top commenters, each counted once as fake-looking, a brand, a creator (verified or labelled) or a person."""
+    top = top_commenters(snapshot["data"]["comments"])
+    fake = fake_model.predict([account_features(u) for u in top]) if top else []
+    kinds = labels.get("kinds", {})
+    mix = {"top": len(top), "fake": 0, "brands": 0, "creators": 0, "people": 0}
+    for user, is_fake in zip(top, fake):
+        kind = kinds.get(user["username"])
+        key = "fake" if is_fake else "brands" if kind == "brand" else "creators" if user.get("is_verified") or kind == "creator" else "people"
+        mix[key] += 1
+    return mix | {"languages": labels.get("languages", [])}

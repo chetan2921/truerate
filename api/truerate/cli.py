@@ -9,10 +9,23 @@ import typer
 
 from truerate.config import MODELS_DIR, REPO_ROOT, get_settings
 from truerate.db import ensure_indexes, get_db, import_deals, training_rows
-from truerate.instagram import Hiker, HikerError, collect
+from truerate.instagram import Hiker, HikerError, collect, fetch_covers
 from truerate.llm import Gemini
 from truerate.pricing import fit, validate
-from truerate.signals import audience_signals, category_from_niche, redteam, label_niche, load_kaggle, minilm_embed, reel_metrics, train_fake_model
+from truerate.signals import (
+    ambiguous,
+    audience_signals,
+    category_from_niche,
+    commenter_mix,
+    label_creator,
+    label_niche,
+    load_kaggle,
+    minilm_embed,
+    recent_reels,
+    redteam,
+    reel_metrics,
+    train_fake_model,
+)
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -107,11 +120,16 @@ def build_metrics_cmd() -> None:
     for deal in db.deals.find().sort("handle"):
         handle = deal["handle"]
         snap = db.snapshots.find_one({"handle": handle}, sort=[("fetched_at", -1)])
-        if not snap or "reels" not in snap["data"] or reel_metrics(snap)["n_reels"] < 12:
+        if not snap or "reels" not in snap["data"] or len(recent_reels(snap)) < 12:
             skipped += 1
             continue
-        metrics = reel_metrics(snap)
         stored = db.metrics.find_one({"_id": handle}) or {}
+        if stored.get("labels_for") == snap["_id"]:
+            labels = stored["labels"]
+        else:
+            llm = llm or make_llm()
+            labels = label_creator(llm, snap, fetch_covers([r for r in recent_reels(snap) if ambiguous(r)]))
+        metrics = reel_metrics(snap, labels)
         if category := category_from_niche(deal["niche"]):
             source = "wldd"
         elif stored.get("category_source") == "gemini":
@@ -121,7 +139,8 @@ def build_metrics_cmd() -> None:
             captions = [r["caption"] for r in sorted(snap["data"]["reels"], key=lambda r: r["taken_at"], reverse=True)]
             category, source = label_niche(llm, snap["data"]["profile"].get("bio", ""), captions), "gemini"
         audience = audience_signals(snap, metrics, fake_model, minilm_embed)
-        doc = {**metrics, **audience, "category": category, "category_source": source, "computed_at": datetime.now(timezone.utc)}
+        doc = {**metrics, **audience, "mix": commenter_mix(snap, fake_model, labels), "labels": labels, "labels_for": snap["_id"],
+               "category": category, "category_source": source, "computed_at": datetime.now(timezone.utc)}
         db.metrics.replace_one({"_id": handle}, doc, upsert=True)
         built += 1
     typer.echo(f"Built metrics for {built} creators; skipped {skipped} without a snapshot of 12+ reels")

@@ -170,3 +170,17 @@ def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int
         "suggested": hiker.suggested(pk),
     }
     return snap
+
+
+def fetch_covers(reels: list[dict], limit: int = 6) -> dict[str, bytes]:
+    """Cover images by reel code, from Instagram's CDN (not HikerAPI, so no credit). Failures are skipped."""
+    covers = {}
+    with httpx.Client(timeout=10, follow_redirects=True) as http:
+        for r in reels[:limit]:
+            try:
+                resp = http.get(r["thumbnail"])
+            except httpx.HTTPError:
+                continue
+            if resp.status_code == 200:
+                covers[r["code"]] = resp.content
+    return covers

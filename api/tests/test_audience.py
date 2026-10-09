@@ -5,7 +5,7 @@ from typer.testing import CliRunner
 
 from truerate import cli
 
-from truerate.signals import AUDIENCE_SIGNALS, FAKE_KINDS, audience_signals, band_norms, comment_signals, genuine_share, make_fake, redteam, train_fake_model, verdict
+from truerate.signals import AUDIENCE_SIGNALS, FAKE_KINDS, audience_signals, commenter_mix, band_norms, comment_signals, genuine_share, make_fake, redteam, train_fake_model, verdict
 
 
 VOCAB = {}
@@ -111,7 +111,7 @@ def genuine_snapshot(i, rng):
     reels = []
     for j in range(30):
         views = int(followers * 0.4 * rng.lognormal(0, 0.8))
-        reels.append({"id": f"c{i}r{j}", "taken_at": f"2026-09-{30 - j:02d}T10:00:00Z", "views": views, "likes": int(views * lpv * rng.lognormal(0, 0.2)),
+        reels.append({"id": f"c{i}r{j}", "code": f"C{i}R{j}", "taken_at": f"2026-09-{30 - j:02d}T10:00:00Z", "views": views, "likes": int(views * lpv * rng.lognormal(0, 0.2)),
                       "comments": 10, "pinned": False, "paid": False, "sponsors": [], "coauthors": [], "caption": ""})
     likers = {r["id"]: [bot if k % 10 == 0 else person(f"l{k}") for k in range(200)] for r in reels[:3]}
     comments = {r["id"]: [comment(f"c{i}fan{j}_{k}", f"question {i}-{j}-{k} about this reel") for k in range(8)] for j, r in enumerate(reels[:10])}
@@ -154,3 +154,22 @@ def test_redteam_command_uses_the_latest_snapshot_of_each_creator_with_metrics(d
     assert result.exit_code == 0, result.output
     assert "Red-team on 12 WLDD creators" in result.output and "bot_likers" in result.output
     assert json.loads((tmp_path / "redteam.json").read_text())["n"] == 12
+
+
+def test_commenter_mix_sorts_top_commenters_into_fake_brand_creator_and_person():
+    model = train_fake_model([[1, 0, 2, 0, 0, 0]] * 20 + [[0, 0.67, 0, 0, 0, 0]] * 20, [0] * 20 + [1] * 20)
+
+    def user(name, verified=False, bot=False):
+        return {"username": name, "full_name": "" if bot else "Asha Rao", "has_pic": not bot, "is_private": False, "is_verified": verified}
+
+    comments = {
+        "r1": [comment_by(user("asha.fan"), "so good"), comment_by(user("bigcreator", verified=True), "collab soon?"), comment_by(user("user83920174", bot=True), "nice")],
+        "r2": [comment_by(user("asha.fan"), "again!"), comment_by(user("shopbrand"), "DM us"), comment_by(user("ravi.k"), "where is this")],
+    }
+    labels = {"kinds": {"shopbrand": "brand", "ravi.k": "person"}, "languages": [{"language": "Hinglish", "share": 0.7}]}
+    mix = commenter_mix({"data": {"comments": comments}}, model, labels)
+    assert mix == {"top": 5, "fake": 1, "brands": 1, "creators": 1, "people": 2, "languages": [{"language": "Hinglish", "share": 0.7}]}
+
+
+def comment_by(user, text):
+    return {"text": text, "user": user}
