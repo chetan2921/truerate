@@ -62,6 +62,9 @@ def test_a_genuine_creator_gets_go_with_a_full_report(world):
     assert steps == [0, 1, 2, 3] and out["status"] == "done"
     r = out["result"]
     assert r["decision"]["call"] == "Go" and r["decision"]["reasons"]
+    assert not any(reason.startswith("Expected") for reason in r["decision"]["reasons"])  # the decision block already says it
+    typical = r["placement"]["typical_views"]
+    assert all(typical / 2 <= c["views"] <= typical * 2 for c in r["cheaper"])  # alternatives at a similar reach only
     assert r["audience"]["verdict"] == "Real audience" and r["price"]["genuine_share"] == 1.0
     p = r["price"]
     assert p["low"] <= p["fair"] <= p["high"] and len(p["comparables"]) == 6 and {c["category"] for c in p["comparables"]} == {"Food"}

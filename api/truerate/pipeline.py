@@ -137,8 +137,8 @@ def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] =
                        if product and a["topic"] == product and _days_ago(a["taken_at"]) <= COMPETITOR_DAYS), None)
 
     decision = _decide(v, flags, p, inputs, metrics, model.paid_typical, fit, fit_share, competitor)
-    cheaper = sorted((r for r in model.rows if r["category"] == category and per_1k(r) < p["delivery"]["cost_per_1k"] and r["views"] >= metrics["views"] / 2),
-                     key=per_1k)[:3]
+    cheaper = sorted((r for r in model.rows if r["category"] == category and per_1k(r) < p["delivery"]["cost_per_1k"]
+                      and metrics["views"] / 2 <= r["views"] <= metrics["views"] * 2), key=per_1k)[:3]
     result = {
         "handle": handle,
         "profile": {k: d["profile"][k] for k in ("full_name", "followers", "following", "posts", "bio", "is_verified")},
@@ -208,9 +208,6 @@ def _decide(v, flags, p, inputs, metrics, typical, fit, fit_share, competitor) -
         negotiate.append(f"Fair price ₹{p['fair']:,} is ₹{p['fair'] - budget:,} over the ₹{budget:,} budget")
     if p["collab_factor"] < 0.85:
         negotiate.append(f"Paid reels keep {metrics['paid_ratio']:.0%} of usual views, against {typical:.0%} for a typical creator")
-    d = p["delivery"]
-    cost = f"₹{d['cost_per_1k']:,} per 1,000 views" + (f" (category ₹{d['category_cost_per_1k']:,})" if d["category_cost_per_1k"] else "")
-    good.append(f"Expected {d['views'][1]:,} views on the sponsored reel at {cost}")
     call = "Avoid" if avoid else "Negotiate" if negotiate else "Go"
     return {"call": call, "reasons": avoid + negotiate + (good if call == "Go" else [])}
 
