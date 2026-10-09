@@ -128,23 +128,23 @@ api/tests/test_audience.py:190:def test_signals_without_norms_are_skipped():
 api/tests/test_audience.py:196:def test_warnings_for_renamed_pages_and_unusual_patterns():
 api/tests/test_db.py:9:def write_csv(path, per_tier=11):
 api/tests/test_db.py:18:def test_indexes(db):
-api/tests/test_db.py:26:def test_import_deals_holds_out_10_per_tier_and_is_idempotent(db, tmp_path):
-api/tests/test_db.py:38:def test_import_deals_command(db, tmp_path, monkeypatch):
+api/tests/test_db.py:25:def test_import_deals_holds_out_10_per_tier_and_is_idempotent(db, tmp_path):
+api/tests/test_db.py:37:def test_import_deals_command(db, tmp_path, monkeypatch):
 api/tests/test_deck.py:19:def test_deck_has_at_most_12_slides_with_the_real_numbers_and_no_handles(tmp_path):
-api/tests/test_instagram.py:36:def fixture(name):
-api/tests/test_instagram.py:40:def fake_hiker(db, calls=None, status=200, private=False):
-api/tests/test_instagram.py:41:    def handler(request):
-api/tests/test_instagram.py:56:def test_parse_profile_and_about():
-api/tests/test_instagram.py:64:def test_parse_reels_reads_counts_ads_and_collabs():
-api/tests/test_instagram.py:76:def test_parse_reels_reads_tagged_accounts():
-api/tests/test_instagram.py:81:def test_mark_pinned_flags_reels_older_than_a_later_one():
-api/tests/test_instagram.py:87:def test_parse_comments_and_accounts():
-api/tests/test_instagram.py:98:def test_hiker_caches_each_call_in_mongo(db):
-api/tests/test_instagram.py:107:def test_hiker_raises_with_the_status(db):
-api/tests/test_instagram.py:113:def test_collect_builds_a_snapshot(db):
-api/tests/test_instagram.py:124:def test_collect_stops_at_the_profile_for_a_private_account(db):
-api/tests/test_instagram.py:130:def test_collect_benchmark_skips_creators_fetched_in_the_last_day(db, monkeypatch):
-api/tests/test_instagram.py:142:def test_collect_benchmark_stops_when_credit_runs_out(db, monkeypatch):
+api/tests/test_instagram.py:37:def fixture(name):
+api/tests/test_instagram.py:41:def fake_hiker(store, calls=None, status=200, private=False):
+api/tests/test_instagram.py:42:    def handler(request):
+api/tests/test_instagram.py:57:def test_parse_profile_and_about():
+api/tests/test_instagram.py:65:def test_parse_reels_reads_counts_ads_and_collabs():
+api/tests/test_instagram.py:77:def test_parse_reels_reads_tagged_accounts():
+api/tests/test_instagram.py:82:def test_mark_pinned_flags_reels_older_than_a_later_one():
+api/tests/test_instagram.py:88:def test_parse_comments_and_accounts():
+api/tests/test_instagram.py:99:def test_hiker_saves_each_raw_response_once_on_disk(tmp_path):
+api/tests/test_instagram.py:110:def test_hiker_raises_with_the_status_and_saves_nothing(tmp_path):
+api/tests/test_instagram.py:117:def test_collect_builds_a_snapshot(tmp_path):
+api/tests/test_instagram.py:128:def test_collect_stops_at_the_profile_for_a_private_account(tmp_path):
+api/tests/test_instagram.py:134:def test_collect_benchmark_skips_creators_fetched_in_the_last_day(db, tmp_path, monkeypatch):
+api/tests/test_instagram.py:146:def test_collect_benchmark_stops_when_credit_runs_out(db, tmp_path, monkeypatch):
 api/tests/test_pipeline.py:15:class TopicLLM:
 api/tests/test_pipeline.py:21:    def json(self, prompt, schema, images=()):
 api/tests/test_pipeline.py:29:def target_snapshot(handle="newcreator", seed=99):
@@ -242,7 +242,7 @@ api/truerate/app.py:469:def model_report() -> ModelReport:
 api/truerate/cli.py:35:def main() -> None:
 api/truerate/cli.py:40:def import_deals_cmd(csv_path: Annotated[Path, typer.Argument()] = REPO_ROOT / "data" / "creators.csv") -> None:
 api/truerate/cli.py:48:def build_fake_model_cmd(
-api/truerate/cli.py:59:def make_hiker(db) -> Hiker:
+api/truerate/cli.py:59:def make_hiker() -> Hiker:
 api/truerate/cli.py:64:def collect_cmd(handle: str) -> None:
 api/truerate/cli.py:82:def collect_benchmark_cmd() -> None:
 api/truerate/cli.py:105:def load_fake_model():
@@ -250,31 +250,31 @@ api/truerate/cli.py:109:def make_llm() -> Gemini:
 api/truerate/cli.py:115:def build_metrics_cmd() -> None:
 api/truerate/cli.py:155:def validate_cmd(out_dir: Path = REPO_ROOT / "data" / "models") -> None:
 api/truerate/cli.py:176:def redteam_cmd(out_dir: Path = MODELS_DIR) -> None:
-api/truerate/config.py:14:class Settings(BaseSettings):
-api/truerate/config.py:26:def get_settings() -> Settings:
-api/truerate/db.py:19:def _client(uri: str) -> MongoClient:
-api/truerate/db.py:23:def get_db() -> Database:
-api/truerate/db.py:30:def ensure_indexes(db: Database) -> None:
-api/truerate/db.py:39:def import_deals(db: Database, csv_path: Path) -> dict[str, int]:
-api/truerate/db.py:65:def training_rows(db: Database) -> list[dict]:
-api/truerate/instagram.py:14:class HikerError(RuntimeError):
-api/truerate/instagram.py:20:def _has_pic(url: str | None) -> bool:
-api/truerate/instagram.py:24:def parse_profile(raw: dict) -> dict:
-api/truerate/instagram.py:41:def parse_about(raw: dict) -> dict:
-api/truerate/instagram.py:45:def parse_accounts(users: list[dict]) -> list[dict]:
-api/truerate/instagram.py:59:def parse_reels(items: list[dict]) -> list[dict]:
-api/truerate/instagram.py:81:def mark_pinned(reels: list[dict]) -> list[dict]:
-api/truerate/instagram.py:90:def parse_comments(items: list[dict]) -> list[dict]:
-api/truerate/instagram.py:97:class Hiker:
-api/truerate/instagram.py:119:    def profile(self, username: str) -> dict:
-api/truerate/instagram.py:122:    def about(self, pk: str) -> dict:
-api/truerate/instagram.py:125:    def reels(self, pk: str, pages: int = 3) -> list[dict]:
-api/truerate/instagram.py:136:    def comments(self, media_id: str) -> list[dict]:
-api/truerate/instagram.py:139:    def likers(self, media_id: str, n: int = 200) -> list[dict]:
-api/truerate/instagram.py:147:    def followers(self, pk: str) -> list[dict]:
-api/truerate/instagram.py:150:    def suggested(self, pk: str) -> list[dict]:
-api/truerate/instagram.py:154:def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int = 3) -> dict:
-api/truerate/instagram.py:175:def fetch_covers(reels: list[dict], limit: int = 6) -> dict[str, bytes]:
+api/truerate/config.py:16:class Settings(BaseSettings):
+api/truerate/config.py:28:def get_settings() -> Settings:
+api/truerate/db.py:18:def _client(uri: str) -> MongoClient:
+api/truerate/db.py:22:def get_db() -> Database:
+api/truerate/db.py:29:def ensure_indexes(db: Database) -> None:
+api/truerate/db.py:37:def import_deals(db: Database, csv_path: Path) -> dict[str, int]:
+api/truerate/db.py:63:def training_rows(db: Database) -> list[dict]:
+api/truerate/instagram.py:18:class HikerError(RuntimeError):
+api/truerate/instagram.py:24:def _has_pic(url: str | None) -> bool:
+api/truerate/instagram.py:28:def parse_profile(raw: dict) -> dict:
+api/truerate/instagram.py:45:def parse_about(raw: dict) -> dict:
+api/truerate/instagram.py:49:def parse_accounts(users: list[dict]) -> list[dict]:
+api/truerate/instagram.py:63:def parse_reels(items: list[dict]) -> list[dict]:
+api/truerate/instagram.py:85:def mark_pinned(reels: list[dict]) -> list[dict]:
+api/truerate/instagram.py:94:def parse_comments(items: list[dict]) -> list[dict]:
+api/truerate/instagram.py:101:class Hiker:
+api/truerate/instagram.py:132:    def profile(self, username: str) -> dict:
+api/truerate/instagram.py:135:    def about(self, pk: str) -> dict:
+api/truerate/instagram.py:138:    def reels(self, pk: str, pages: int = 3) -> list[dict]:
+api/truerate/instagram.py:149:    def comments(self, media_id: str) -> list[dict]:
+api/truerate/instagram.py:152:    def likers(self, media_id: str, n: int = 200) -> list[dict]:
+api/truerate/instagram.py:160:    def followers(self, pk: str) -> list[dict]:
+api/truerate/instagram.py:163:    def suggested(self, pk: str) -> list[dict]:
+api/truerate/instagram.py:167:def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int = 3) -> dict:
+api/truerate/instagram.py:188:def fetch_covers(reels: list[dict], limit: int = 6) -> dict[str, bytes]:
 api/truerate/llm.py:7:class Gemini:
 api/truerate/llm.py:15:    def json(self, prompt: str, schema: dict, images: list[bytes] = ()) -> dict:
 api/truerate/pipeline.py:40:class Deps:
@@ -405,4 +405,4 @@ web/src/proxy.ts:4:export function proxy(request: NextRequest) {
 web/src/proxy.ts:12:export const config = {
 ```
 
-<!-- mapped: .@cc90011 | paths: api/, web/src/ -->
+<!-- mapped: .@48a778d | paths: api/, web/src/ -->

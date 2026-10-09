@@ -55,4 +55,4 @@ The Python service: collects Instagram data, runs the audience checks, prices on
 - `PriceModel` is pickled into `data/models/price.joblib`; rerun `truerate validate` after changing its fields.
 - Response models are part of the api-surface contract. Change one, then regenerate the web types.
 
-<!-- mapped: .@cc90011 | paths: api/ -->
+<!-- mapped: .@48a778d | paths: api/ -->
