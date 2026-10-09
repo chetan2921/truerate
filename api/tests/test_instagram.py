@@ -1,3 +1,4 @@
+import gzip
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -37,7 +38,7 @@ def fixture(name):
     return json.loads((FIXTURES / f"{name}.json").read_text())
 
 
-def fake_hiker(db, calls=None, status=200, private=False):
+def fake_hiker(store, calls=None, status=200, private=False):
     def handler(request):
         if calls is not None:
             calls.append(request.url.path)
@@ -50,7 +51,7 @@ def fake_hiker(db, calls=None, status=200, private=False):
             body["is_private"] = True
         return httpx.Response(200, json=body)
 
-    return Hiker("test-key", db, httpx.Client(base_url=BASE_URL, transport=httpx.MockTransport(handler)))
+    return Hiker("test-key", store, httpx.Client(base_url=BASE_URL, transport=httpx.MockTransport(handler)))
 
 
 def test_parse_profile_and_about():
@@ -95,23 +96,26 @@ def test_parse_comments_and_accounts():
     assert len(parse_accounts(fixture("suggested")["users"])) == 10
 
 
-def test_hiker_caches_each_call_in_mongo(db):
+def test_hiker_saves_each_raw_response_once_on_disk(tmp_path):
     calls = []
-    hiker = fake_hiker(db, calls)
-    assert hiker.profile("komalpandeyofficial")["followers"] == 2061112
-    assert hiker.profile("komalpandeyofficial")["followers"] == 2061112
+    assert fake_hiker(tmp_path, calls).profile("komalpandeyofficial")["followers"] == 2061112
+    # a new client on the same folder, as on the next run, reads the file instead of calling HikerAPI
+    assert fake_hiker(tmp_path, calls).profile("komalpandeyofficial")["followers"] == 2061112
     assert calls == ["/v1/user/by/username"]
-    assert db.cache.find_one()["fetched_at"] is not None
+    saved = list(tmp_path.rglob("*.json.gz"))
+    # raw, so a parser fix later needs no new request
+    assert len(saved) == 1 and json.loads(gzip.decompress(saved[0].read_bytes())) == fixture("profile")
 
 
-def test_hiker_raises_with_the_status(db):
+def test_hiker_raises_with_the_status_and_saves_nothing(tmp_path):
     with pytest.raises(HikerError) as err:
-        fake_hiker(db, status=402).profile("anyone")
+        fake_hiker(tmp_path, status=402).profile("anyone")
     assert err.value.status == 402 and "Top up" in str(err.value)
+    assert not list(tmp_path.rglob("*.json.gz"))
 
 
-def test_collect_builds_a_snapshot(db):
-    snap = collect(fake_hiker(db), "komalpandeyofficial")
+def test_collect_builds_a_snapshot(tmp_path):
+    snap = collect(fake_hiker(tmp_path), "komalpandeyofficial")
     assert snap["handle"] == "komalpandeyofficial" and snap["followers"] == 2061112
     data = snap["data"]
     assert len(data["reels"]) == 12 and data["about"]["country"] == "India"
@@ -121,28 +125,28 @@ def test_collect_builds_a_snapshot(db):
     assert len(data["followers"]) == 48 and len(data["suggested"]) == 10
 
 
-def test_collect_stops_at_the_profile_for_a_private_account(db):
+def test_collect_stops_at_the_profile_for_a_private_account(tmp_path):
     calls = []
-    snap = collect(fake_hiker(db, calls, private=True), "someone")
+    snap = collect(fake_hiker(tmp_path, calls, private=True), "someone")
     assert calls == ["/v1/user/by/username"] and set(snap["data"]) == {"profile"}
 
 
-def test_collect_benchmark_skips_creators_fetched_in_the_last_day(db, monkeypatch):
+def test_collect_benchmark_skips_creators_fetched_in_the_last_day(db, tmp_path, monkeypatch):
     db.deals.insert_many([{"handle": "fresh"}, {"handle": "stale"}])
     db.snapshots.insert_one({"handle": "fresh", "fetched_at": datetime.now(timezone.utc) - timedelta(hours=2)})
     db.snapshots.insert_one({"handle": "stale", "fetched_at": datetime.now(timezone.utc) - timedelta(hours=30)})
     monkeypatch.setattr(cli, "get_db", lambda: db)
-    monkeypatch.setattr(cli, "make_hiker", lambda database: fake_hiker(database))
+    monkeypatch.setattr(cli, "make_hiker", lambda: fake_hiker(tmp_path))
     result = CliRunner().invoke(cli.app, ["collect-benchmark"])
     assert result.exit_code == 0, result.output
     assert "Collected 1, skipped 1 fetched in the last 24 h, failed 0" in result.output
     assert db.snapshots.count_documents({"handle": "stale"}) == 2
 
 
-def test_collect_benchmark_stops_when_credit_runs_out(db, monkeypatch):
+def test_collect_benchmark_stops_when_credit_runs_out(db, tmp_path, monkeypatch):
     db.deals.insert_many([{"handle": "a"}, {"handle": "b"}])
     monkeypatch.setattr(cli, "get_db", lambda: db)
-    monkeypatch.setattr(cli, "make_hiker", lambda database: fake_hiker(database, status=402))
+    monkeypatch.setattr(cli, "make_hiker", lambda: fake_hiker(tmp_path, status=402))
     result = CliRunner().invoke(cli.app, ["collect-benchmark"])
     assert result.exit_code == 1
     assert result.output.count("402") == 1

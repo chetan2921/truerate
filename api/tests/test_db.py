@@ -3,7 +3,7 @@ from pymongo.errors import DuplicateKeyError
 from typer.testing import CliRunner
 
 from truerate import cli
-from truerate.db import CACHE_TTL_SECONDS, import_deals
+from truerate.db import import_deals
 
 
 def write_csv(path, per_tier=11):
@@ -16,8 +16,7 @@ def write_csv(path, per_tier=11):
 
 
 def test_indexes(db):
-    cache_index = next(v for v in db.cache.index_information().values() if v["key"] == [("fetched_at", 1)])
-    assert cache_index["expireAfterSeconds"] == CACHE_TTL_SECONDS
+    assert "cache" not in db.list_collection_names()  # HikerAPI responses live on disk (data/hikerapi/), not in Mongo
     db.deals.insert_one({"handle": "a"})
     with pytest.raises(DuplicateKeyError):
         db.deals.insert_one({"handle": "a"})

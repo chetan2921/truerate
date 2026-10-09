@@ -9,6 +9,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 MODELS_DIR = Path(os.environ.get("MODELS_DIR") or REPO_ROOT / "data" / "models")
 if not MODELS_DIR.is_absolute():
     MODELS_DIR = REPO_ROOT / MODELS_DIR
+# Every HikerAPI response, saved once and kept (truerate.instagram.Hiker).
+HIKER_DIR = REPO_ROOT / "data" / "hikerapi"
 
 
 class Settings(BaseSettings):

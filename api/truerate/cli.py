@@ -7,7 +7,7 @@ import json
 import joblib
 import typer
 
-from truerate.config import MODELS_DIR, REPO_ROOT, get_settings
+from truerate.config import HIKER_DIR, MODELS_DIR, REPO_ROOT, get_settings
 from truerate.db import ensure_indexes, get_db, import_deals, training_rows
 from truerate.instagram import Hiker, HikerError, collect, fetch_covers
 from truerate.llm import Gemini
@@ -56,15 +56,15 @@ def build_fake_model_cmd(
     typer.echo(f"Fake-account model: {model.score(X_test, y_test):.0%} on {len(y_test)} held-out Kaggle accounts. Saved {out}")
 
 
-def make_hiker(db) -> Hiker:
-    return Hiker(get_settings().hikerapi_key, db)
+def make_hiker() -> Hiker:
+    return Hiker(get_settings().hikerapi_key, HIKER_DIR)
 
 
 @app.command("collect")
 def collect_cmd(handle: str) -> None:
     db = get_db()
     ensure_indexes(db)
-    snap = collect(make_hiker(db), handle.lstrip("@").lower())
+    snap = collect(make_hiker(), handle.lstrip("@").lower())
     db.snapshots.insert_one(snap)
     d = snap["data"]
     if "reels" not in d:
@@ -83,7 +83,7 @@ def collect_benchmark_cmd() -> None:
     """Snapshot every deal creator, skipping any fetched in the last 24 h. Stops when HikerAPI credit runs out."""
     db = get_db()
     ensure_indexes(db)
-    hiker = make_hiker(db)
+    hiker = make_hiker()
     since = datetime.now(timezone.utc) - timedelta(hours=24)
     done = skipped = failed = 0
     for deal in db.deals.find({}, {"handle": 1}).sort("handle"):

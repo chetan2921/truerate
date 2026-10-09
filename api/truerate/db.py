@@ -9,7 +9,6 @@ from pymongo.database import Database
 
 from truerate.config import get_settings
 
-CACHE_TTL_SECONDS = 24 * 3600
 ACCOUNTS_TTL_SECONDS = 30 * 24 * 3600
 HOLDOUT_PER_TIER = 10
 SEED = 42
@@ -30,7 +29,6 @@ def get_db() -> Database:
 def ensure_indexes(db: Database) -> None:
     db.deals.create_index("handle", unique=True)
     db.snapshots.create_index([("handle", ASCENDING), ("fetched_at", DESCENDING)])
-    db.cache.create_index("fetched_at", expireAfterSeconds=CACHE_TTL_SECONDS)
     db.accounts.create_index("fetched_at", expireAfterSeconds=ACCOUNTS_TTL_SECONDS)
     db.analyses.create_index([("created_at", DESCENDING)])
     db.analyses.create_index("batch_id")

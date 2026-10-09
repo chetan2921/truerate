@@ -1,10 +1,14 @@
+import gzip
+import hashlib
+import json
 import random
+import re
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from urllib.parse import urlencode
 
 import httpx
-from pymongo.database import Database
 
 BASE_URL = "https://api.hikerapi.com"
 # Instagram's grey default avatar; an account showing it has no profile picture.
@@ -95,16 +99,22 @@ def parse_comments(items: list[dict]) -> list[dict]:
 
 
 class Hiker:
-    """HikerAPI client. Each parsed response is kept in Mongo's `cache` for 24 h, so a repeat costs nothing."""
+    """HikerAPI client. Every raw response is saved once as a gzipped file under `store` and kept, so each call is
+    paid for once. Raw, not parsed, so a parser change needs no new request."""
 
-    def __init__(self, key: str, db: Database, http: httpx.Client | None = None):
-        self.db = db
+    def __init__(self, key: str, store: Path, http: httpx.Client | None = None):
+        self.store = store
         self.http = http or httpx.Client(base_url=BASE_URL, headers={"x-access-key": key}, timeout=60)
 
+    def _file(self, path: str, params: dict) -> Path:
+        query = urlencode(sorted(params.items()))
+        readable = re.sub(r"[^A-Za-z0-9._=-]+", "_", query)[:80]
+        return self.store / path.strip("/").replace("/", "_") / f"{readable}-{hashlib.sha1(query.encode()).hexdigest()[:10]}.json.gz"
+
     def _get(self, path: str, parse, **params):
-        key = f"{path}?{urlencode(sorted(params.items()))}"
-        if hit := self.db.cache.find_one({"_id": key}):
-            return hit["data"]
+        file = self._file(path, params)
+        if file.exists():
+            return parse(json.loads(gzip.decompress(file.read_bytes())))
         for attempt in range(3):
             r = self.http.get(path, params=params)
             if r.status_code != 429:
@@ -112,9 +122,12 @@ class Hiker:
             time.sleep(1 + attempt)
         if r.status_code != 200:
             raise HikerError(r.status_code, f"HikerAPI {r.status_code} on {path}: {r.text[:200]}")
-        data = parse(r.json())
-        self.db.cache.replace_one({"_id": key}, {"data": data, "fetched_at": datetime.now(timezone.utc)}, upsert=True)
-        return data
+        raw = r.json()
+        file.parent.mkdir(parents=True, exist_ok=True)
+        tmp = file.with_suffix(".tmp")
+        tmp.write_bytes(gzip.compress(r.content))
+        tmp.replace(file)  # atomic, so a crash never leaves a half-written file behind
+        return parse(raw)
 
     def profile(self, username: str) -> dict:
         return self._get("/v1/user/by/username", parse_profile, username=username)

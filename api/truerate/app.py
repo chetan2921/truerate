@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from truerate.config import MODELS_DIR, get_settings
+from truerate.config import HIKER_DIR, MODELS_DIR, get_settings
 from truerate.db import ensure_indexes, get_db
 from truerate.instagram import Hiker, collect
 from truerate.llm import Gemini
@@ -334,7 +334,7 @@ def _models() -> tuple:
 
 def make_deps(db) -> Deps:
     settings = get_settings()
-    hiker = Hiker(settings.hikerapi_key, db)
+    hiker = Hiker(settings.hikerapi_key, HIKER_DIR)
     fake_model, price_model = _models()
     return Deps(db=db, collect=lambda handle: collect(hiker, handle), llm=Gemini(settings.llm_api_key, settings.llm_model),
                 fake_model=fake_model, embed=minilm_embed, price_model=price_model)
