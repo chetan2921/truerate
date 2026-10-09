@@ -24,7 +24,7 @@ def fake_embed(texts):
 
 
 def comment(user, text):
-    return {"text": text, "user": {"username": user}}
+    return {"text": text, "user": {"username": user, "full_name": "Fan Name", "has_pic": True, "is_private": False, "is_verified": False}}
 
 
 def test_comment_signals_find_generic_repeated_and_pod_comments():
