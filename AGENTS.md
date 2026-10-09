@@ -5,7 +5,7 @@ TrueRate is an internal WLDD tool. Paste an Instagram face creator, optionally w
 ## Repos
 | Repo | What it is | Mapped from | Context |
 |------|-----------|-------------|---------|
-| truerate (this folder, `.`) | api + web monorepo | `main` @ 9585fbe | `.claude/truerate/AGENTS.md`; subsystems `.claude/truerate/api/AGENTS.md`, `.claude/truerate/web/AGENTS.md` |
+| truerate (this folder, `.`) | api + web monorepo | `main` @ 4644762 | `.claude/truerate/AGENTS.md`; subsystems `.claude/truerate/api/AGENTS.md`, `.claude/truerate/web/AGENTS.md` |
 
 ## Products
 | Product | Repos | Plan |
@@ -24,6 +24,7 @@ changing either side, and update it when a side moves.
 - The repo is public. Never commit `data/`, `.env`, keys, or anything that pairs a creator handle with a WLDD deal price.
 - Deal prices are never sent to an LLM.
 - UI work follows `DESIGN.md` and the ui-craft skill. A screen is done only when ui-craft's `audit.mjs` passes on it.
+- Commits: `git commit -s`, no AI or Claude attribution anywhere. Push to `origin main` after each milestone, with the full suite green.
 
 ## Navigate
 Working in a repo: `.claude/<repo>/AGENTS.md`, and for `api/` or `web/` their

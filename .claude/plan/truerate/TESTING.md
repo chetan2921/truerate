@@ -9,8 +9,10 @@
 
 ## Known-good examples
 - FastAPI route test with `TestClient`, and settings read from env: `api/tests/test_app.py`
+- Mongo in a test (a mongomock `db` fixture with `ensure_indexes`), and a Typer command test with `CliRunner` and `get_db` monkeypatched: `api/tests/test_db.py`
 
 ## Strategies that work here
+- Typer turns a parameter with a default into an `--option`. Use `Annotated[Path, typer.Argument()] = default` for a positional argument with a default.
 - Goal is prototype, so tests cover the parts being proven: parsers, pricing maths, the verdict rules. Not every branch.
 - A test comes before the code it tests (repo-setup rule for planned products).
 - Mongo in unit tests: `mongomock`, never the real cluster.
@@ -21,6 +23,7 @@
 | Area | Unit | Integration | E2E | Notes |
 |------|------|-------------|-----|-------|
 | api health + settings | yes | no | no | |
+| Mongo indexes, deals import, `import-deals` command | yes | no | no | mongomock; live run pending `MONGODB_URI` |
 
 ## Model validation (judging 4 and 5)
 These are reports, not pass/fail unit tests, and they arrive with milestones 2 and 3:

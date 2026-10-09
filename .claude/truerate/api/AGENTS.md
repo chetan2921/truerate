@@ -4,16 +4,18 @@ The Python service: collects Instagram data, runs the audience checks, prices on
 
 ## Stack
 - Python 3.12, pinned in `api/.python-version` and managed by uv. The machine's default Python is 3.14; never use it here.
-- FastAPI, uvicorn, pymongo, pydantic-settings, httpx. Tests: pytest, mongomock.
+- FastAPI, uvicorn, pymongo, pydantic-settings, httpx, typer (CLI). Tests: pytest, mongomock.
 - Milestones 2–3 add scikit-learn, networkx, sentence-transformers, mediapipe and google-genai (spec, Stack table).
 
 ## Run
 - `make api` from the repo root: http://localhost:8000, docs at `/docs`
 - `make test`: `uv run pytest -q`
-- One-off commands: `cd api && uv run <command>`
+- CLI: `cd api && uv run truerate --help` (for example `uv run truerate import-deals`, which defaults to `data/creators.csv`)
 
 ## Entry points
 - `truerate/app.py`: the FastAPI `app` and its routes
+- `truerate/cli.py`: the `truerate` Typer command (data, model and validation jobs)
+- `truerate/db.py`: `get_db()` from `MONGODB_URI`, `ensure_indexes()` (24 h TTL on `cache`, 30 d on `accounts`, unique `deals.handle`), `import_deals()`
 - `truerate/config.py`: `Settings` loaded from the repo-root `.env`
 
 ## Folder map
@@ -26,4 +28,4 @@ The Python service: collects Instagram data, runs the audience checks, prices on
 - Deal prices never go into an LLM prompt.
 - Response models are part of the api-surface contract. Change one, then regenerate the web types.
 
-<!-- mapped: .@9585fbe | paths: api/ -->
+<!-- mapped: .@4644762 | paths: api/ -->

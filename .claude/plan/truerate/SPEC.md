@@ -143,7 +143,7 @@ Not in scope: watchlist, post-campaign check, UGC pricing, brand-handle input, d
 | LLM | Gemini via `google-genai` on a free key | No Claude API; prices are never sent to it |
 | auth | demo login + `@wldd.in` front-end check | Internal prototype |
 | hosting | local only (`make api`, `make web`) | Not deployed |
-| pitch | deck format is Chetan's choice | Content comes from the About page |
+| pitch | PowerPoint `.pptx`, at most 12 slides, DESIGN.md colours | Works offline on any laptop at judging; content comes from the About page |
 
 ## Architecture
 

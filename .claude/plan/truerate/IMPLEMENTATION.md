@@ -1,12 +1,13 @@
 # truerate implementation
 
 ## Now
-Milestone 1, data in. The scaffold is done (api health route, Next.js app). Next is the Mongo connection and the deals import. Waiting on Chetan for `MONGODB_URI` and `HIKERAPI_KEY` in `.env`.
+Milestone 1, data in. The Mongo layer and the deals import are built and pass on mongomock. Stopped here, blocked on two values in `.env`: `MONGODB_URI` (for the live import) and `HIKERAPI_KEY` (for fixtures and collection).
 
 ### In flight: deals and Instagram data into Mongo
-- [ ] add `pymongo` collections and indexes in `api/truerate/db.py`. Test (mongomock): the `cache` TTL index exists and handles are unique in `deals`
-- [ ] test: importing a 33-row CSV gives 33 deals, 30 held out (10 per tier, seed 42), and re-running doesn't duplicate
-- [ ] `truerate import-deals data/creators.csv` in `api/truerate/cli.py`
+- [x] `api/truerate/db.py`: collections and indexes. Tests (mongomock) check the `cache` TTL index and unique `deals.handle`
+- [x] test: importing a 33-row CSV gives 33 deals, 30 held out (10 per tier, seed 42), and re-running gives the same holdout without duplicating
+- [x] `truerate import-deals` in `api/truerate/cli.py`, defaulting to `data/creators.csv`
+- [ ] live: `uv run truerate import-deals` against the real cluster prints `Imported 150 deals (30 held out)` (needs `MONGODB_URI`)
 - [ ] record one real HikerAPI response per endpoint (profile, about, clips, comments, likers, followers, suggested) for a public account that is **not** in the deals CSV, into `api/tests/fixtures/`
 - [ ] test: the parsers turn those fixtures into profile, reels (views, likes, comments, caption, taken_at, pinned, paid-partnership, sponsors, co-authors, tags, thumbnail), comments, likers and followers
 - [ ] `api/truerate/instagram.py`: client (`x-access-key` header), 24 h Mongo cache, parsers
