@@ -20,7 +20,9 @@
 - Mongo in unit tests: `mongomock`, never the real cluster.
 - Instagram in unit tests: recorded HikerAPI JSON in `api/tests/fixtures/`, from komalpandeyofficial (public, not a WLDD deal). The recordings were trimmed to the parsed fields and every other account renamed before committing; grep them against the deals CSV handles before any commit that touches them.
 - Live HikerAPI runs: read `/sys/balance` (free) before and after, so the cost is measured. One creator is 20 requests.
-- LLM in unit tests: a fake that returns a fixed reply. Never call Gemini from a test.
+- LLM in unit tests: `FakeLLM` in `api/tests/test_signals.py` returns a fixed reply and records each prompt, so a test can check that no price went in. Never call Gemini from a test.
+- Statistical properties (range coverage) are pooled over several synthetic seeds: 15 held-out deals swing too much by chance to test one seed.
+- Pricing tests: `synthetic_rows(n, seed)` in `api/tests/test_pricing.py` makes deals whose true price is known.
 
 ## Inventory
 | Area | Unit | Integration | E2E | Notes |
@@ -29,6 +31,8 @@
 | Mongo indexes, deals import, `import-deals` command | yes | no | no | mongomock; live run gave 150 deals, 30 held out |
 | Kaggle fake-account model, `build-fake-model` | yes | no | no | real run: 88% on Kaggle's 120 test accounts |
 | HikerAPI client, cache, parsers, `collect`, `collect-benchmark` | yes | no | no | live check on 2 deal creators passed: every reel has views, every comment a time, likers and followers non-empty |
+| Categories, `reel_metrics`, Gemini niche label, `build-metrics` | yes | no | no | fake LLM in tests; live on 2 creators (Food, Entertainment) |
+| `pricing.py` and `validate` | yes | no | no | synthetic deals with a known ₹ per 1,000 views per category; live run waits for the 150 snapshots |
 
 ## Model validation (judging 4 and 5)
 These are reports, not pass/fail unit tests, and they arrive with milestones 2 and 3:

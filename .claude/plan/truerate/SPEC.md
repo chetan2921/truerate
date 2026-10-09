@@ -156,6 +156,7 @@ Not in scope: watchlist, post-campaign check, UGC pricing, brand-handle input, d
 | `instagram.py` | HikerAPI client, cache, parse to plain dicts |
 | `signals.py` | reel stats, consistency, paid/collab vs own, ad labels, fake accounts, comments and pods, audience mix, face check, verdict |
 | `pricing.py` | training frame, Ridge+KNN, adjustments, range, expected delivery, quote, decision, rate card, comparables, validation |
+| `llm.py` | Gemini with JSON replies (never given a price) |
 | `pipeline.py` | one creator → result |
 | `app.py` | FastAPI routes and the background job thread pool |
 | `cli.py` | import, collect, build, validate, redteam |
@@ -190,7 +191,7 @@ Not in scope: watchlist, post-campaign check, UGC pricing, brand-handle input, d
 Response models are Pydantic. The web types are generated from `/openapi.json` (see `.claude/contracts/api-surface.md`).
 
 **Pricing:**
-- Market price is a blend in log space of Ridge on log(price) (log views, log followers, engagement, comments per 1K views, category) and KNN, where the 6 nearest past deals' ₹ per 1,000 views is multiplied by this creator's views. The blend weight is picked by leave-one-out.
+- Market price is a blend in log space of Ridge on log(price) (log views, log followers, engagement, comments per 1K views, category) and KNN, where the 6 nearest past deals' ₹ per 1,000 views is multiplied by this creator's views. Nearest means the same category first, then the closest views and followers. The blend weight is picked by leave-one-out.
 - Fair price = market × collab factor × genuine share, rounded to ₹500.
 - **Collab factor:**
   - Measure how many views this creator's paid reels keep, relative to their own reels.
@@ -219,7 +220,7 @@ Response models are Pydantic. The web types are generated from `/openapi.json` (
 - A post co-authored with another creator counts as a collab post. A post co-authored with a brand counts as paid.
 
 **Validation:**
-- Held out: 30 creators (10 per band, seed 42), never trained on. They give the headline error, error per band, and range coverage.
+- Held out: 30 creators (10 per band, seed 42), never trained on. They give the headline error, error per band, and range coverage. After validation, the served model is refitted on all 150.
 - Per category: leave-one-out across all 150, because 30 creators split 7 ways is too few.
 - Baselines: the band's median price, and the Modash-style formula (views/1000 × CPM × engagement modifier ±25% × 2 at 1M+ followers).
 - **Red-team:** fakes built from real creators:

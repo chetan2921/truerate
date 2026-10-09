@@ -4,8 +4,8 @@ The Python service: collects Instagram data, runs the audience checks, prices on
 
 ## Stack
 - Python 3.12, pinned in `api/.python-version` and managed by uv. The machine's default Python is 3.14; never use it here.
-- FastAPI, uvicorn, pymongo, pydantic-settings, httpx, typer (CLI), scikit-learn and joblib. Tests: pytest, mongomock.
-- Later milestones add networkx, sentence-transformers, mediapipe and google-genai (spec, Stack table).
+- FastAPI, uvicorn, pymongo, pydantic-settings, httpx, typer (CLI), scikit-learn, numpy, joblib, google-genai. Tests: pytest, mongomock.
+- Later milestones add networkx, sentence-transformers and mediapipe (spec, Stack table).
 
 ## Run
 - `make api` from the repo root: http://localhost:8000, docs at `/docs`
@@ -15,13 +15,17 @@ The Python service: collects Instagram data, runs the audience checks, prices on
   - `build-fake-model`: trains on `data/external/instagram_fake/`, saves `data/models/fake_accounts.joblib`
   - `collect <handle>`: one snapshot, about 20 HikerAPI requests
   - `collect-benchmark`: every deal creator not fetched in the last 24 h; stops on HTTP 402 (credit gone)
+  - `build-metrics`: reel metrics and category for every deal with a 12+ reel snapshot (Gemini labels a creator only once)
+  - `validate`: writes `data/models/model_report.json` (no handles or prices) and the served `data/models/price.joblib`
 
 ## Entry points
 - `truerate/app.py`: the FastAPI `app` and its routes
 - `truerate/cli.py`: the `truerate` Typer command (data, model and validation jobs)
-- `truerate/db.py`: `get_db()` from `MONGODB_URI`, `ensure_indexes()` (24 h TTL on `cache`, 30 d on `accounts`, unique `deals.handle`), `import_deals()`
+- `truerate/db.py`: `get_db()` from `MONGODB_URI`, `ensure_indexes()` (24 h TTL on `cache`, 30 d on `accounts`, unique `deals.handle`), `import_deals()`, `training_rows()` (deals joined with metrics)
 - `truerate/instagram.py`: `Hiker` (HikerAPI client, parsed responses cached in `cache`), the `parse_*` functions, `mark_pinned()`, `collect()` (one snapshot)
-- `truerate/signals.py`: the Kaggle fake-account model (`account_features`, `train_fake_model`, `fake_share`)
+- `truerate/signals.py`: the Kaggle fake-account model (`account_features`, `train_fake_model`, `fake_share`), `CATEGORIES` and `category_from_niche`, `is_paid`, `reel_metrics`, `label_niche`
+- `truerate/pricing.py`: `fit()` gives a `PriceModel`; `price()` gives the range, waterfall, comparables and delivery; `validate()`; the two baselines
+- `truerate/llm.py`: `Gemini.json(prompt, schema)`
 - `truerate/config.py`: `Settings` loaded from the repo-root `.env`
 
 ## Folder map
@@ -35,6 +39,8 @@ The Python service: collects Instagram data, runs the audience checks, prices on
 - HikerAPI credit is limited. `GET /sys/balance` is free: check it before and after a live run. Free tier: 1 request per second.
 - `cache` stores parsed results, not raw JSON (a likers call is 1.4 MB raw). After changing a parser, clear `cache` or wait 24 h.
 - Views are `play_count`; `view_count` is always 0. Pinned reels have no flag; `mark_pinned` finds them by date order. Instagram shows only the 25 to 50 newest followers.
+- Gemini: `gemini-2.5-flash` is closed to new keys; the default is `gemini-3.8-flash`. Keep the `genai.Client` on an object, or the SDK closes its connection mid-call.
+- `PriceModel` is pickled into `data/models/price.joblib`; rerun `truerate validate` after changing its fields.
 - Response models are part of the api-surface contract. Change one, then regenerate the web types.
 
-<!-- mapped: .@39dc687 | paths: api/ -->
+<!-- mapped: .@2e55ffc | paths: api/ -->
