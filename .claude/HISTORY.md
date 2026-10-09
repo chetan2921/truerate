@@ -4,3 +4,5 @@
 - 2026-10-10 M1 start: ui-craft installed in `~/.claude/skills`. Mongo layer (indexes, TTL cache) and deals import with a fixed holdout, plus the `truerate import-deals` CLI, tested on mongomock. Blocked on `MONGODB_URI` and `HIKERAPI_KEY`.
   Decided with Chetan: commits are signed with `-s` and carry no AI attribution; the pitch is a `.pptx`; build runs straight through milestones and stops only when blocked.
 - 2026-10-10 keys: Chetan filled `.env` (Mongo, HikerAPI, Gemini). Work moves to sessions opened in `~/Documents/truerate`. Kaggle fake-account `train.csv` and `test.csv` added to `data/external/instagram_fake/`.
+- 2026-10-10 M1 code: live deals import; HikerAPI client, cache, parsers and `collect` commands, live-checked on 2 creators; Kaggle fake-account model (88%). The benchmark run waits for the paid HikerAPI key.
+  Decided: the fake-account model uses only the 6 fields that come with likers and followers lists (88% vs 92% with all 11), because the full fields cost one request per account. Fixtures are trimmed and anonymised before committing. 7 categories group the CSV's 21 genres.
