@@ -450,3 +450,27 @@ def commenter_rings(commenters_by_creator: dict[str, set[str]]) -> dict[str, int
             if shared >= RING_MIN_SHARED:
                 graph.add_edge(a, b, weight=shared)
     return {c: len(group) - 1 for group in nx.community.louvain_communities(graph, weight="weight", seed=42) for c in group}
+
+
+_ANOMALY_SIGNALS = ["fake_likers", "likes_per_view", "views_cv", "likes_cv", "fake_followers", "views_per_follower", "generic_comments", "repeat_commenters"]
+
+
+def _anomaly_row(signals: dict) -> list[float]:
+    return [_scale(signals.get(s) or 0, AUDIENCE_SIGNALS[s][2]) for s in _ANOMALY_SIGNALS]
+
+
+def fit_anomaly(rows: list[dict]):
+    """IsolationForest over WLDD creators' signals: finds fakes shaped in ways no single check predicts."""
+    from sklearn.ensemble import IsolationForest
+
+    return IsolationForest(contamination=0.05, random_state=42).fit([_anomaly_row(r) for r in rows])
+
+
+def audience_warnings(signals: dict, forest) -> list[str]:
+    """Things that don't change the verdict but a buyer should know."""
+    out = []
+    if signals.get("former_usernames"):
+        out.append(f"Changed username {signals['former_usernames']} times")
+    if forest.predict([_anomaly_row(signals)])[0] == -1:
+        out.append("Unusual overall pattern compared with WLDD's creators")
+    return out

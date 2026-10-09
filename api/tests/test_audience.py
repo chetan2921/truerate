@@ -5,7 +5,7 @@ from typer.testing import CliRunner
 
 from truerate import cli
 
-from truerate.signals import AUDIENCE_SIGNALS, FAKE_KINDS, audience_signals, commenter_mix, commenter_rings, face_share, band_norms, comment_signals, genuine_share, make_fake, redteam, train_fake_model, verdict
+from truerate.signals import AUDIENCE_SIGNALS, FAKE_KINDS, audience_signals, audience_warnings, fit_anomaly, commenter_mix, commenter_rings, face_share, band_norms, comment_signals, genuine_share, make_fake, redteam, train_fake_model, verdict
 
 
 VOCAB = {}
@@ -191,3 +191,12 @@ def test_signals_without_norms_are_skipped():
     norms = band_norms(genuine_band())  # these creators carry no ring_size
     assert "ring_size" not in norms["medium"]
     assert verdict(creator(ring_size=5), norms)["verdict"] == "Real audience"
+
+
+def test_warnings_for_renamed_pages_and_unusual_patterns():
+    rows = genuine_band()
+    forest = fit_anomaly(rows)
+    assert audience_warnings(creator(former_usernames=0), forest) == []
+    assert audience_warnings(creator(former_usernames=2), forest) == ["Changed username 2 times"]
+    odd = creator(fake_likers=0.9, likes_per_view=0.001, views_cv=0.01, likes_cv=0.01, fake_followers=0.9, views_per_follower=0.001, generic_comments=0.95, repeat_commenters=20)
+    assert "Unusual overall pattern compared with WLDD's creators" in audience_warnings(odd, forest)
