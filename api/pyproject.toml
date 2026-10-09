@@ -23,7 +23,11 @@ dependencies = [
 truerate = "truerate.cli:app"
 
 [dependency-groups]
-dev = ["pytest>=8.3", "mongomock>=4.2"]
+dev = [
+    "pytest>=8.3",
+    "mongomock>=4.2",
+    "python-pptx>=1.0.2",
+]
 
 [build-system]
 requires = ["hatchling"]
