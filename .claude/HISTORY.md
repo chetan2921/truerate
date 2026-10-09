@@ -22,3 +22,5 @@
   Decided:
   - A batch ranks Avoid creators after the rest. Pure cost ranking put a Mostly fake creator first.
   - The deck goes to the git-ignored `data/pitch/`: its charts come from WLDD's prices.
+- 2026-10-10 M6 code: pitch deck generator, decision-block screenshot and the demo script. All six milestones are code-complete; every remaining step is a live run that needs the paid HikerAPI key (IMPLEMENTATION, Now).
+  Decided: the deck uses Arial, because a .pptx can't embed fonts. The deck screenshot is the decision block only, so no WLDD deal price next to a creator reaches a slide.

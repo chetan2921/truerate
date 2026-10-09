@@ -39,6 +39,7 @@ The Python service: collects Instagram data, runs the audience checks, prices on
 ## Folder map
 - `truerate/`: the package. The file-per-job layout is in `.claude/plan/truerate/SPEC.md`, Architecture.
 - `scripts/seed_dev.py`: the dev seed above. It imports the tests' synthetic helpers.
+- `scripts/make_deck.py`: the pitch deck from `model_report.json` and `redteam.json` (and `data/pitch/report.png` if present) into `data/pitch/TrueRate.pptx`. `--models-dir data/models_dev` for a draft.
 - `tests/`: pytest. `conftest.py` has the mongomock `db` fixture. `tests/fixtures/` holds one recorded HikerAPI response per endpoint.
 
 ## Sharp edges
@@ -54,4 +55,4 @@ The Python service: collects Instagram data, runs the audience checks, prices on
 - `PriceModel` is pickled into `data/models/price.joblib`; rerun `truerate validate` after changing its fields.
 - Response models are part of the api-surface contract. Change one, then regenerate the web types.
 
-<!-- mapped: .@e5ad381 | paths: api/ -->
+<!-- mapped: .@cc90011 | paths: api/ -->

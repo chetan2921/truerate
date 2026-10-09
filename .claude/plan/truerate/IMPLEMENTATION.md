@@ -11,13 +11,12 @@ Waiting on the paid HikerAPI key for the live steps, in order:
 
 The free key has about 50 requests left, kept for checks. Screens are built against `truerate_dev` and `data/models_dev` (`api/scripts/seed_dev.py`).
 
-Meanwhile milestone 6 is in flight.
+Milestone 6's code is done too. What is left needs the 150:
+7. `uv run python scripts/make_deck.py` on the real reports, plus the report screenshot (`node web/scripts/report-shot.mjs <id>`).
+8. The demo dry run in `.claude/plan/truerate/DEMO.md`, timed.
 
-### In flight: pitch
-- [ ] `api/scripts/make_deck.py` (python-pptx): at most 12 slides in `DESIGN.md` colours, answering judging 1 to 6. Numbers come from `model_report.json` and `redteam.json`. Writes `data/pitch/TrueRate.pptx`, git-ignored because its charts come from WLDD's prices
-- [ ] report screenshots for the deck, taken with Playwright from a finished analysis
-- [ ] 3-minute demo script, with a cached fallback: analyses run beforehand, so their reports open instantly if live Instagram is slow
-- [ ] live: regenerate the deck from the real reports after `validate` and `redteam`
+### In flight: live runs
+Steps 1 to 8 above, in order, as soon as the paid HikerAPI key is in `.env`. Check `/sys/balance` first.
 
 ## Done
 - 2026-10-10 Scaffold: FastAPI `api/` (Python 3.12, uv) with `/api/health`, Next.js 16 `web/`, `DESIGN.md` on Solo's palette, agent memory.
@@ -44,3 +43,7 @@ Meanwhile milestone 6 is in flight.
   - the rate card with its calculator, About in five parts with the predicted-vs-actual chart, and the header nav
   - the dev seed and the `MODELS_DIR` override
   - ui-check passes on all 14 routes checked. Real-data checks wait for the 150.
+- 2026-10-10 M6 code:
+  - `api/scripts/make_deck.py`: 12 slides answering judging 1 to 6, with native tables and a log-scale predicted-vs-actual chart. Arial, `DESIGN.md` colours. Writes the git-ignored `data/pitch/`; checked by rendering through Keynote
+  - `web/scripts/report-shot.mjs`: captures the decision block only
+  - `DEMO.md`: the 3-minute script and its fallback

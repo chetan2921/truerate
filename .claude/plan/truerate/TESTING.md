@@ -45,6 +45,7 @@
 | `pipeline.analyze` (Go, bot likers, quote, product fit, out of scope) | yes | no | no | synthetic WLDD world (`world` fixture in `test_pipeline.py`) |
 | Analyses API, background job, meta, model report | yes | no | no | job runs inline (`submit` monkeypatched) |
 | Quote check, batches (Avoid last), rate card | yes | no | no | `check_quote` and the endpoints, on the synthetic world |
+| Pitch deck (`scripts/make_deck.py`) | yes | no | manual | at most 12 slides, numbers from the reports, no handles; slides rendered through Keynote (`osascript`, export as slide images) and looked at |
 | Web: login, analyze, polling states, report, quote, print, batch, rate card, About | no | no | manual | lint + build; ui-check passes on every route; checked in the browser on the dev seed |
 
 ## Model validation (judging 4 and 5)

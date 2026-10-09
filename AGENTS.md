@@ -5,7 +5,7 @@ TrueRate is an internal WLDD tool. Paste an Instagram face creator, optionally w
 ## Repos
 | Repo | What it is | Mapped from | Context |
 |------|-----------|-------------|---------|
-| truerate (this folder, `.`) | api + web monorepo | `main` @ e5ad381 | `.claude/truerate/AGENTS.md`; subsystems `.claude/truerate/api/AGENTS.md`, `.claude/truerate/web/AGENTS.md` |
+| truerate (this folder, `.`) | api + web monorepo | `main` @ cc90011 | `.claude/truerate/AGENTS.md`; subsystems `.claude/truerate/api/AGENTS.md`, `.claude/truerate/web/AGENTS.md` |
 
 ## Products
 | Product | Repos | Plan |
@@ -31,7 +31,7 @@ Working in a repo: `.claude/<repo>/AGENTS.md`, and for `api/` or `web/` their
 own file under `.claude/truerate/`. Looking for a symbol or a file:
 `.claude/<repo>/STRUCTURE.md`. Building a feature: that product's `SPEC.md` for
 what it should do and `IMPLEMENTATION.md` for where the work stands. Building or
-changing UI: `DESIGN.md`. Changing a seam: the contract. Wondering why something
+changing UI: `DESIGN.md`. Running the pitch demo: `.claude/plan/truerate/DEMO.md`. Changing a seam: the contract. Wondering why something
 is the way it is: `.claude/HISTORY.md`, newest lines last. Read what the task
 needs, never the tree.
 

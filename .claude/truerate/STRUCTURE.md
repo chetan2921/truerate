@@ -9,11 +9,13 @@ Generated from git. Signatures only.
 Makefile
 api/.python-version
 api/pyproject.toml
+api/scripts/make_deck.py
 api/scripts/seed_dev.py
 api/tests/conftest.py
 api/tests/test_app.py
 api/tests/test_audience.py
 api/tests/test_db.py
+api/tests/test_deck.py
 api/tests/test_instagram.py
 api/tests/test_pipeline.py
 api/tests/test_pricing.py
@@ -33,6 +35,7 @@ web/eslint.config.mjs
 web/next.config.ts
 web/package.json
 web/scripts/first-screen.mjs
+web/scripts/report-shot.mjs
 web/scripts/ui-check.sh
 web/src/app/(app)/about/content.ts
 web/src/app/(app)/about/page.tsx
@@ -74,6 +77,15 @@ api/tests/fixtures/*.json  (recorded HikerAPI responses, one per endpoint)
 
 ## Python (api/)
 ```
+api/scripts/make_deck.py:40:def pct(x) -> str:
+api/scripts/make_deck.py:44:class Deck:
+api/scripts/make_deck.py:49:    def slide(self, title: str, note: str = ""):
+api/scripts/make_deck.py:58:    def text(self, s, x, y, w, h, lines, gap=6):
+api/scripts/make_deck.py:71:    def table(self, s, x, y, widths, rows, size=13, bold_row=None, colors=None):
+api/scripts/make_deck.py:93:def _plain_style(tbl):
+api/scripts/make_deck.py:101:def _bottom_rule(cell):
+api/scripts/make_deck.py:109:def _log_axes(chart):
+api/scripts/make_deck.py:120:def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> None:
 api/scripts/seed_dev.py:43:def snap_for(handle, seed):
 api/scripts/seed_dev.py:61:def save(aid, handle, inputs, out, minutes):
 api/tests/conftest.py:8:def db():
@@ -118,6 +130,7 @@ api/tests/test_db.py:9:def write_csv(path, per_tier=11):
 api/tests/test_db.py:18:def test_indexes(db):
 api/tests/test_db.py:26:def test_import_deals_holds_out_10_per_tier_and_is_idempotent(db, tmp_path):
 api/tests/test_db.py:38:def test_import_deals_command(db, tmp_path, monkeypatch):
+api/tests/test_deck.py:19:def test_deck_has_at_most_12_slides_with_the_real_numbers_and_no_handles(tmp_path):
 api/tests/test_instagram.py:36:def fixture(name):
 api/tests/test_instagram.py:40:def fake_hiker(db, calls=None, status=200, private=False):
 api/tests/test_instagram.py:41:    def handler(request):
@@ -392,4 +405,4 @@ web/src/proxy.ts:4:export function proxy(request: NextRequest) {
 web/src/proxy.ts:12:export const config = {
 ```
 
-<!-- mapped: .@e5ad381 | paths: api/, web/src/ -->
+<!-- mapped: .@cc90011 | paths: api/, web/src/ -->

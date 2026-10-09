@@ -4,7 +4,7 @@ The Next.js front end the WLDD team uses: login, analyze, report with a quote ch
 
 ## Stack
 - Next.js 16 (App Router, `cacheComponents` on), React 19, TypeScript, Tailwind 4, ESLint. npm, not pnpm.
-- Recharts (reel chart), Lucide (icons), `openapi-typescript` (types from the API).
+- Recharts (charts), Lucide (icons), `openapi-typescript` (types from the API), `playwright-core` (dev only, screenshots). `devIndicators` is off so screenshots stay clean.
 
 ## Run
 - `make web` from the repo root: http://localhost:3000. The API base is `NEXT_PUBLIC_API_URL` (default http://localhost:8000).
@@ -30,7 +30,7 @@ The Next.js front end the WLDD team uses: login, analyze, report with a quote ch
 ## Folder map
 - `src/app/`: routes. Pages and flows are in `.claude/plan/truerate/SPEC.md`.
 - `src/components/`: report sections and shared bits
-- `scripts/`: `ui-check.sh` and `first-screen.mjs`
+- `scripts/`: `ui-check.sh` and `first-screen.mjs` (ui-craft behind the login), `report-shot.mjs` (the decision block as a PNG for the deck, through `playwright-core` and the installed Chrome)
 - `AGENTS.md`, `CLAUDE.md` (in `web/`): written by Next.js itself and re-added by `next dev`. Keep them committed.
 
 ## Sharp edges
@@ -43,4 +43,4 @@ The Next.js front end the WLDD team uses: login, analyze, report with a quote ch
 - React's compiler lint forbids reassigning a variable during render: put running totals in a helper outside the component (see `waterfall.tsx`).
 - The in-app preview tool can't read this repo, so run `make api` and `make web` from a terminal and open localhost.
 
-<!-- mapped: .@e5ad381 | paths: web/src/, web/package.json, web/next.config.ts, web/scripts/ -->
+<!-- mapped: .@cc90011 | paths: web/src/, web/package.json, web/next.config.ts, web/scripts/ -->
