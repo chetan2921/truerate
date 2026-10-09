@@ -103,7 +103,7 @@ The pitch deck uses the same content.
 
 | Area | Signal | Why it is there |
 |---|---|---|
-| Authenticity | Fake-looking likers (Kaggle-trained classifier, ~200 likers on 3 reels) | Bought likes come from empty accounts. Like counts are cheap to fake; account quality is not |
+| Authenticity | Fake-looking likers (Kaggle-trained classifier, ~200 likers on 3 reels). It uses only the 6 fields that come with the likers list: 88% on Kaggle's 120 test accounts, against 92% with all 11, which would cost one request per account | Bought likes come from empty accounts. Like counts are cheap to fake; account quality is not |
 | Authenticity | Fake-looking newest followers (up to 100) | Bought followers arrive as a block of empty accounts, so the newest followers show a recent spike |
 | Authenticity | Views per follower vs similar creators | Followers bought without reach show up as views far below the follower count |
 | Authenticity | Likes per view vs similar creators | Seeded views have no real viewers behind them, so few of those views turn into likes |
