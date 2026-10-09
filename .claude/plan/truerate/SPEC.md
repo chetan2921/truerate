@@ -49,7 +49,7 @@ A one-click "Demo login" button, or an email that must end in `@wldd.in` (checke
 Type a quote on the report: `POST /api/analyses/{id}/quote` returns below/within/above range, the difference, a counter-offer and 3 talking points. No re-scraping.
 
 ### Batch shortlist
-`/batch`: paste up to 50 handles plus product and budget. `/batch/[id]` polls a table ranked by cost per 1,000 views, with an Export CSV button. Judges can run their unseen set here.
+`/batch`: paste up to 50 handles plus product and budget. `/batch/[id]` polls a table ranked by cost per 1,000 views, with Avoid creators after the rest, and an Export CSV button. Judges can run their unseen set here.
 
 ### Rate card
 `/rate-card`: ₹ per 1,000 views and typical reel price per category, from WLDD's deals, plus a calculator: category + views wanted → total budget range.

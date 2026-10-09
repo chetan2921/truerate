@@ -18,10 +18,11 @@ The Python service: collects Instagram data, runs the audience checks, prices on
   - `build-metrics`: per deal creator, Gemini labels, reel metrics, category, audience signals and commenter mix, then Louvain rings over all of them
   - `validate`: writes `data/models/model_report.json` (no handles or prices) and the served `data/models/price.joblib`
   - `redteam`: writes `data/models/redteam.json`
+- Dev data for building screens before the 150 exist: `uv run python scripts/seed_dev.py` fills the `truerate_dev` database and `data/models_dev/` with synthetic analyses, a batch, a price model and both reports. Then run the API with `MONGODB_DB=truerate_dev MODELS_DIR=data/models_dev`.
 
 ## Entry points
-- `truerate/app.py`: the FastAPI `app`, the routes, the Pydantic `Report` and friends (the api-surface contract), and the background job (`submit`, `make_deps`, `_run`)
-- `truerate/pipeline.py`: `analyze(handle, inputs, deps, step)`: one creator to report, with `Deps` for every outside service so tests swap them
+- `truerate/app.py`: the FastAPI `app`, the routes (analyses, quote, batches, rate card, meta, model report), the Pydantic models (the api-surface contract), and the background job (`submit`, `_start`, `make_deps`, `_run`)
+- `truerate/pipeline.py`: `analyze(handle, inputs, deps, step)`: one creator to report, with `Deps` for every outside service so tests swap them; `check_quote(report, quote)`
 - `truerate/cli.py`: the `truerate` Typer command
 - `truerate/db.py`: `get_db()`, `ensure_indexes()` (24 h TTL on `cache`, 30 d on `accounts`, unique `deals.handle`), `import_deals()`, `training_rows()`
 - `truerate/instagram.py`: `Hiker` (HikerAPI client, parsed responses cached in `cache`), the `parse_*` functions, `mark_pinned()`, `collect()`, `fetch_covers()`
@@ -31,12 +32,13 @@ The Python service: collects Instagram data, runs the audience checks, prices on
   - `band`, MiniLM `comment_signals`, `audience_signals`, `AUDIENCE_SIGNALS`, `band_norms`, `verdict`, `genuine_share`
   - `make_fake` and `redteam`
   - `ambiguous`, `label_creator` (Gemini), `commenter_mix`, `face_share`, `commenter_rings` (Louvain), `fit_anomaly` and `audience_warnings`
-- `truerate/pricing.py`: `fit()` gives a `PriceModel`; `price()` gives the range, waterfall, comparables and delivery; `validate()`; the two baselines
+- `truerate/pricing.py`: `fit()` gives a `PriceModel`; `price()` gives the range, waterfall, comparables and delivery; `validate()` (with predicted-vs-actual points, no handles); the two baselines; `rate_card()`
 - `truerate/llm.py`: `Gemini.json(prompt, schema, images)`
-- `truerate/config.py`: `Settings` from the repo-root `.env`, `MODELS_DIR`
+- `truerate/config.py`: `Settings` from the repo-root `.env`; `MODELS_DIR` (env `MODELS_DIR` overrides, relative to the repo root)
 
 ## Folder map
 - `truerate/`: the package. The file-per-job layout is in `.claude/plan/truerate/SPEC.md`, Architecture.
+- `scripts/seed_dev.py`: the dev seed above. It imports the tests' synthetic helpers.
 - `tests/`: pytest. `conftest.py` has the mongomock `db` fixture. `tests/fixtures/` holds one recorded HikerAPI response per endpoint.
 
 ## Sharp edges
@@ -52,4 +54,4 @@ The Python service: collects Instagram data, runs the audience checks, prices on
 - `PriceModel` is pickled into `data/models/price.joblib`; rerun `truerate validate` after changing its fields.
 - Response models are part of the api-surface contract. Change one, then regenerate the web types.
 
-<!-- mapped: .@0d51f07 | paths: api/ -->
+<!-- mapped: .@e5ad381 | paths: api/ -->

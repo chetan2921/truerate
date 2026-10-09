@@ -18,3 +18,7 @@
   - Native controls instead of shadcn (`DESIGN.md` updated).
   - The report's first screen is checked by `first-screen.mjs`, because ui-craft's primary-action heuristic picks a secondary button there.
   - Cheaper alternatives must be within half to double this creator's views.
+- 2026-10-10 M5 code: quote check, client one-pager, batches, rate card with calculator, About in five parts, nav, dev seed (`truerate_dev`, `data/models_dev`). ui-check passes everywhere. M6 (pitch) in flight.
+  Decided:
+  - A batch ranks Avoid creators after the rest. Pure cost ranking put a Mostly fake creator first.
+  - The deck goes to the git-ignored `data/pitch/`: its charts come from WLDD's prices.

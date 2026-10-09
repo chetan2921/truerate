@@ -9,6 +9,7 @@ Generated from git. Signatures only.
 Makefile
 api/.python-version
 api/pyproject.toml
+api/scripts/seed_dev.py
 api/tests/conftest.py
 api/tests/test_app.py
 api/tests/test_audience.py
@@ -33,10 +34,19 @@ web/next.config.ts
 web/package.json
 web/scripts/first-screen.mjs
 web/scripts/ui-check.sh
+web/src/app/(app)/about/content.ts
+web/src/app/(app)/about/page.tsx
 web/src/app/(app)/analyses/[id]/analysis-view.tsx
 web/src/app/(app)/analyses/[id]/page.tsx
+web/src/app/(app)/analyses/[id]/print/page.tsx
+web/src/app/(app)/analyses/[id]/print/print-view.tsx
+web/src/app/(app)/batch/[id]/batch-view.tsx
+web/src/app/(app)/batch/[id]/page.tsx
+web/src/app/(app)/batch/page.tsx
 web/src/app/(app)/layout.tsx
+web/src/app/(app)/nav.tsx
 web/src/app/(app)/page.tsx
+web/src/app/(app)/rate-card/page.tsx
 web/src/app/(app)/sign-out.tsx
 web/src/app/favicon.ico
 web/src/app/globals.css
@@ -51,6 +61,7 @@ web/src/components/report/engagement.tsx
 web/src/components/report/evidence.tsx
 web/src/components/report/negotiation.tsx
 web/src/components/report/placement.tsx
+web/src/components/report/quote.tsx
 web/src/components/report/report.tsx
 web/src/components/report/waterfall.tsx
 web/src/lib/api-types.ts
@@ -63,6 +74,8 @@ api/tests/fixtures/*.json  (recorded HikerAPI responses, one per endpoint)
 
 ## Python (api/)
 ```
+api/scripts/seed_dev.py:43:def snap_for(handle, seed):
+api/scripts/seed_dev.py:61:def save(aid, handle, inputs, out, minutes):
 api/tests/conftest.py:8:def db():
 api/tests/test_app.py:7:def test_health():
 api/tests/test_app.py:11:def test_settings_read_env(monkeypatch):
@@ -74,6 +87,11 @@ api/tests/test_app.py:55:def test_out_of_scope_and_failures_are_recorded(client,
 api/tests/test_app.py:62:    def broken(handle):
 api/tests/test_app.py:70:def _with_collect(d, fn):
 api/tests/test_app.py:75:def test_meta_lists_categories_and_coverage(client, tmp_path, monkeypatch):
+api/tests/test_app.py:84:def test_quote_check_endpoint(client):
+api/tests/test_app.py:92:def test_batch_runs_every_handle_and_ranks_by_cost(client):
+api/tests/test_app.py:102:def test_batch_rejects_bad_or_too_many_handles(client):
+api/tests/test_app.py:107:def test_rate_card_endpoint(client, tmp_path, monkeypatch):
+api/tests/test_app.py:120:def test_batch_puts_avoid_after_everything_else(client, world, monkeypatch):
 api/tests/test_audience.py:14:def fake_embed(texts):
 api/tests/test_audience.py:26:def comment(user, text):
 api/tests/test_audience.py:30:def test_comment_signals_find_generic_repeated_and_pod_comments():
@@ -124,14 +142,16 @@ api/tests/test_pipeline.py:80:def test_bot_likers_stop_a_go_and_say_why(world):
 api/tests/test_pipeline.py:88:def test_a_quote_above_the_range_means_negotiate(world):
 api/tests/test_pipeline.py:94:def test_a_product_outside_the_creators_niche_means_avoid(world):
 api/tests/test_pipeline.py:100:def test_private_and_faceless_pages_are_out_of_scope(world):
+api/tests/test_pipeline.py:109:def test_quote_check_places_the_quote_and_counters(world):
 api/tests/test_pricing.py:14:def synthetic_rows(n=90, seed=1):
 api/tests/test_pricing.py:32:def test_bands_and_rounding():
 api/tests/test_pricing.py:37:def test_collab_factor_shrinks_few_ads_toward_the_typical_drop():
 api/tests/test_pricing.py:45:def test_baselines():
 api/tests/test_pricing.py:53:def test_price_has_a_range_waterfall_comparables_and_delivery():
 api/tests/test_pricing.py:67:def test_validate_beats_both_baselines_on_synthetic_deals():
-api/tests/test_pricing.py:77:def test_range_covers_most_held_out_prices():
-api/tests/test_pricing.py:83:def test_validate_command_saves_model_and_report(db, tmp_path, monkeypatch):
+api/tests/test_pricing.py:79:def test_range_covers_most_held_out_prices():
+api/tests/test_pricing.py:85:def test_validate_command_saves_model_and_report(db, tmp_path, monkeypatch):
+api/tests/test_pricing.py:98:def test_rate_card_per_category():
 api/tests/test_signals.py:13:def write_kaggle(path, n=20):
 api/tests/test_signals.py:23:def test_account_features_follow_kaggle_definitions():
 api/tests/test_signals.py:32:def test_load_kaggle_keeps_the_six_list_fields(tmp_path):
@@ -151,48 +171,61 @@ api/tests/test_signals.py:162:def labelled_snapshot():
 api/tests/test_signals.py:174:def test_ambiguous_reels_are_unlabelled_with_a_mention_tag_collab_or_promo_words():
 api/tests/test_signals.py:182:def test_label_creator_sends_reels_accounts_and_comments_but_no_price():
 api/tests/test_signals.py:197:def test_reel_metrics_count_hidden_ads_and_brand_co_authors_as_paid():
-api/truerate/app.py:27:def submit(fn) -> None:
-api/truerate/app.py:34:class Profile(BaseModel):
-api/truerate/app.py:43:class Decision(BaseModel):
-api/truerate/app.py:48:class WaterfallStep(BaseModel):
-api/truerate/app.py:53:class Comparable(BaseModel):
-api/truerate/app.py:62:class Delivery(BaseModel):
-api/truerate/app.py:70:class Price(BaseModel):
-api/truerate/app.py:82:class Flag(BaseModel):
-api/truerate/app.py:90:class Language(BaseModel):
-api/truerate/app.py:95:class Mix(BaseModel):
-api/truerate/app.py:104:class Audience(BaseModel):
-api/truerate/app.py:114:class Engagement(BaseModel):
-api/truerate/app.py:121:class ReelPoint(BaseModel):
-api/truerate/app.py:131:class FollowerPoint(BaseModel):
-api/truerate/app.py:136:class Ratio(BaseModel):
-api/truerate/app.py:141:class PaidRatio(Ratio):
-api/truerate/app.py:145:class Ad(BaseModel):
-api/truerate/app.py:153:class Placement(BaseModel):
-api/truerate/app.py:165:class Niche(BaseModel):
-api/truerate/app.py:173:class Competitor(BaseModel):
-api/truerate/app.py:179:class Cheaper(BaseModel):
-api/truerate/app.py:186:class Negotiation(BaseModel):
-api/truerate/app.py:193:class Report(BaseModel):
-api/truerate/app.py:213:class Inputs(BaseModel):
-api/truerate/app.py:219:class AnalysisRequest(Inputs):
-api/truerate/app.py:223:class Created(BaseModel):
-api/truerate/app.py:227:class Analysis(BaseModel):
-api/truerate/app.py:241:class AnalysisSummary(BaseModel):
-api/truerate/app.py:251:class Meta(BaseModel):
-api/truerate/app.py:256:class ModelReport(BaseModel):
-api/truerate/app.py:266:def parse_handle(text: str) -> str | None:
-api/truerate/app.py:272:def _models() -> tuple:
-api/truerate/app.py:276:def make_deps(db) -> Deps:
-api/truerate/app.py:284:def _run(analysis_id: str, handle: str, inputs: dict) -> None:
-api/truerate/app.py:287:    def step(i: int) -> None:
-api/truerate/app.py:298:def _read_json(name: str) -> dict | None:
-api/truerate/app.py:307:def health() -> dict:
-api/truerate/app.py:312:def create_analysis(req: AnalysisRequest) -> Created:
-api/truerate/app.py:326:def list_analyses() -> list[AnalysisSummary]:
-api/truerate/app.py:336:def get_analysis(analysis_id: str) -> Analysis:
-api/truerate/app.py:344:def meta() -> Meta:
-api/truerate/app.py:350:def model_report() -> ModelReport:
+api/truerate/app.py:29:def submit(fn) -> None:
+api/truerate/app.py:36:class Profile(BaseModel):
+api/truerate/app.py:45:class Decision(BaseModel):
+api/truerate/app.py:50:class WaterfallStep(BaseModel):
+api/truerate/app.py:55:class Comparable(BaseModel):
+api/truerate/app.py:64:class Delivery(BaseModel):
+api/truerate/app.py:72:class Price(BaseModel):
+api/truerate/app.py:84:class Flag(BaseModel):
+api/truerate/app.py:92:class Language(BaseModel):
+api/truerate/app.py:97:class Mix(BaseModel):
+api/truerate/app.py:106:class Audience(BaseModel):
+api/truerate/app.py:116:class Engagement(BaseModel):
+api/truerate/app.py:123:class ReelPoint(BaseModel):
+api/truerate/app.py:133:class FollowerPoint(BaseModel):
+api/truerate/app.py:138:class Ratio(BaseModel):
+api/truerate/app.py:143:class PaidRatio(Ratio):
+api/truerate/app.py:147:class Ad(BaseModel):
+api/truerate/app.py:155:class Placement(BaseModel):
+api/truerate/app.py:167:class Niche(BaseModel):
+api/truerate/app.py:175:class Competitor(BaseModel):
+api/truerate/app.py:181:class Cheaper(BaseModel):
+api/truerate/app.py:188:class Negotiation(BaseModel):
+api/truerate/app.py:195:class Report(BaseModel):
+api/truerate/app.py:215:class Inputs(BaseModel):
+api/truerate/app.py:221:class AnalysisRequest(Inputs):
+api/truerate/app.py:225:class Created(BaseModel):
+api/truerate/app.py:229:class Analysis(BaseModel):
+api/truerate/app.py:243:class AnalysisSummary(BaseModel):
+api/truerate/app.py:253:class QuoteRequest(BaseModel):
+api/truerate/app.py:257:class QuoteCheck(BaseModel):
+api/truerate/app.py:265:class BatchRequest(Inputs):
+api/truerate/app.py:269:class BatchRow(BaseModel):
+api/truerate/app.py:283:class Batch(BaseModel):
+api/truerate/app.py:292:class Per1k(BaseModel):
+api/truerate/app.py:298:class CategoryRate(BaseModel):
+api/truerate/app.py:306:class RateCard(BaseModel):
+api/truerate/app.py:310:class Meta(BaseModel):
+api/truerate/app.py:315:class ModelReport(BaseModel):
+api/truerate/app.py:325:def parse_handle(text: str) -> str | None:
+api/truerate/app.py:331:def _models() -> tuple:
+api/truerate/app.py:335:def make_deps(db) -> Deps:
+api/truerate/app.py:343:def _run(analysis_id: str, handle: str, inputs: dict) -> None:
+api/truerate/app.py:346:    def step(i: int) -> None:
+api/truerate/app.py:357:def _read_json(name: str) -> dict | None:
+api/truerate/app.py:366:def health() -> dict:
+api/truerate/app.py:371:def create_analysis(req: AnalysisRequest) -> Created:
+api/truerate/app.py:380:def _start(db, handle: str, inputs: dict, batch_id: str | None = None) -> str:
+api/truerate/app.py:389:def create_batch(req: BatchRequest) -> Created:
+api/truerate/app.py:408:def get_batch(batch_id: str) -> Batch:
+api/truerate/app.py:427:def get_rate_card() -> RateCard:
+api/truerate/app.py:435:def list_analyses() -> list[AnalysisSummary]:
+api/truerate/app.py:445:def get_analysis(analysis_id: str) -> Analysis:
+api/truerate/app.py:453:def quote_check(analysis_id: str, req: QuoteRequest) -> QuoteCheck:
+api/truerate/app.py:463:def meta() -> Meta:
+api/truerate/app.py:469:def model_report() -> ModelReport:
 api/truerate/cli.py:35:def main() -> None:
 api/truerate/cli.py:40:def import_deals_cmd(csv_path: Annotated[Path, typer.Argument()] = REPO_ROOT / "data" / "creators.csv") -> None:
 api/truerate/cli.py:48:def build_fake_model_cmd(
@@ -204,8 +237,8 @@ api/truerate/cli.py:109:def make_llm() -> Gemini:
 api/truerate/cli.py:115:def build_metrics_cmd() -> None:
 api/truerate/cli.py:155:def validate_cmd(out_dir: Path = REPO_ROOT / "data" / "models") -> None:
 api/truerate/cli.py:176:def redteam_cmd(out_dir: Path = MODELS_DIR) -> None:
-api/truerate/config.py:10:class Settings(BaseSettings):
-api/truerate/config.py:22:def get_settings() -> Settings:
+api/truerate/config.py:14:class Settings(BaseSettings):
+api/truerate/config.py:26:def get_settings() -> Settings:
 api/truerate/db.py:19:def _client(uri: str) -> MongoClient:
 api/truerate/db.py:23:def get_db() -> Database:
 api/truerate/db.py:30:def ensure_indexes(db: Database) -> None:
@@ -239,6 +272,7 @@ api/truerate/pipeline.py:75:def analyze(handle: str, inputs: dict, deps: Deps, s
 api/truerate/pipeline.py:116:    def kind(r):
 api/truerate/pipeline.py:188:def _decide(v, flags, p, inputs, metrics, typical, fit, fit_share, competitor) -> dict:
 api/truerate/pipeline.py:215:def _negotiation(p: dict, flags: list[dict], metrics: dict, category: str) -> dict:
+api/truerate/pipeline.py:224:def check_quote(r: dict, quote: int) -> dict:
 api/truerate/pricing.py:15:def round500(x: float) -> int:
 api/truerate/pricing.py:19:def features(m: dict) -> list[float]:
 api/truerate/pricing.py:23:def per_1k(row: dict) -> float:
@@ -255,6 +289,7 @@ api/truerate/pricing.py:125:def modash_price(rows: list[dict], m: dict) -> float
 api/truerate/pricing.py:133:def _summary(errors: list[dict], method: str) -> dict:
 api/truerate/pricing.py:138:def validate(rows: list[dict]) -> dict:
 api/truerate/pricing.py:143:    def errors(r: dict, m: PriceModel, others: list[dict]) -> dict:
+api/truerate/pricing.py:175:def rate_card(model: PriceModel) -> list[dict]:
 api/truerate/signals.py:16:def _digit_ratio(text: str) -> float:
 api/truerate/signals.py:20:def account_features(acc: dict) -> list[float]:
 api/truerate/signals.py:33:def load_kaggle(path: Path) -> tuple[list[list[float]], list[int]]:
@@ -296,10 +331,24 @@ api/truerate/signals.py:469:def audience_warnings(signals: dict, forest) -> list
 
 ## TypeScript (web/src/)
 ```
+web/src/app/(app)/about/content.ts:3:export const FLOW = [
+web/src/app/(app)/about/content.ts:12:export const SIGNALS: [string, string, string][] = [
+web/src/app/(app)/about/content.ts:31:export const FAKE_KINDS: Record<string, [string, string]> = {
+web/src/app/(app)/about/content.ts:40:export const OTHER_PAGES: [string, string][] = [
+web/src/app/(app)/about/content.ts:47:export const LIMITS = [
+web/src/app/(app)/about/page.tsx:16:export default function AboutPage() {
 web/src/app/(app)/analyses/[id]/analysis-view.tsx:11:export default function AnalysisView({ params }: { params: Promise<{ id: string }> }) {
 web/src/app/(app)/analyses/[id]/page.tsx:6:export default function AnalysisPage({ params }: PageProps<"/analyses/[id]">) {
-web/src/app/(app)/layout.tsx:5:export default function AppLayout({ children }: LayoutProps<"/">) {
+web/src/app/(app)/analyses/[id]/print/page.tsx:5:export default function PrintPage({ params }: PageProps<"/analyses/[id]/print">) {
+web/src/app/(app)/analyses/[id]/print/print-view.tsx:9:export default function PrintView({ params }: { params: Promise<{ id: string }> }) {
+web/src/app/(app)/batch/[id]/batch-view.tsx:16:export default function BatchView({ params }: { params: Promise<{ id: string }> }) {
+web/src/app/(app)/batch/[id]/page.tsx:5:export default function BatchResultPage({ params }: PageProps<"/batch/[id]">) {
+web/src/app/(app)/batch/page.tsx:8:export default function BatchPage() {
+web/src/app/(app)/layout.tsx:7:export default function AppLayout({ children }: LayoutProps<"/">) {
+web/src/app/(app)/nav.tsx:18:export function NavLinks({ path }: { path: string | null }) {
+web/src/app/(app)/nav.tsx:34:export default function Nav() {
 web/src/app/(app)/page.tsx:11:export default function AnalyzePage() {
+web/src/app/(app)/rate-card/page.tsx:8:export default function RateCardPage() {
 web/src/app/(app)/sign-out.tsx:7:export default function SignOut() {
 web/src/app/layout.tsx:12:export const metadata: Metadata = {
 web/src/app/layout.tsx:17:export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -315,19 +364,25 @@ web/src/components/report/engagement.tsx:6:export default function Engagement({ 
 web/src/components/report/evidence.tsx:9:export default function Evidence({ r }: { r: Report }) {
 web/src/components/report/negotiation.tsx:9:export default function Negotiation({ r }: { r: Report }) {
 web/src/components/report/placement.tsx:16:export default function Placement({ r }: { r: Report }) {
-web/src/components/report/report.tsx:13:export default function ReportView({ report: r, inputs }: { report: Report; inputs: Analysis["inputs"] }) {
+web/src/components/report/quote.tsx:10:export default function QuoteChecker({ id, initial }: { id: string; initial: number | null }) {
+web/src/components/report/report.tsx:17:export default function ReportView({ id, report: r, inputs }: { id: string; report: Report; inputs: Analysis["inputs"] }) {
 web/src/components/report/waterfall.tsx:23:export default function Waterfall({ r }: { r: Report }) {
 web/src/lib/api-types.ts:6:export interface paths {
-web/src/lib/api-types.ts:94:export type webhooks = Record<string, never>;
-web/src/lib/api-types.ts:95:export interface components {
-web/src/lib/api-types.ts:518:export type $defs = Record<string, never>;
-web/src/lib/api-types.ts:519:export interface operations {
+web/src/lib/api-types.ts:162:export type webhooks = Record<string, never>;
+web/src/lib/api-types.ts:163:export interface components {
+web/src/lib/api-types.ts:686:export type $defs = Record<string, never>;
+web/src/lib/api-types.ts:687:export interface operations {
 web/src/lib/api.ts:4:export type Analysis = Schemas["Analysis"];
 web/src/lib/api.ts:5:export type AnalysisRequest = Schemas["AnalysisRequest"];
 web/src/lib/api.ts:6:export type AnalysisSummary = Schemas["AnalysisSummary"];
 web/src/lib/api.ts:7:export type Report = Schemas["Report"];
 web/src/lib/api.ts:8:export type Meta = Schemas["Meta"];
-web/src/lib/api.ts:21:export const api = {
+web/src/lib/api.ts:9:export type QuoteCheck = Schemas["QuoteCheck"];
+web/src/lib/api.ts:10:export type Batch = Schemas["Batch"];
+web/src/lib/api.ts:11:export type BatchRequest = Schemas["BatchRequest"];
+web/src/lib/api.ts:12:export type RateCard = Schemas["RateCard"];
+web/src/lib/api.ts:13:export type ModelReport = Schemas["ModelReport"];
+web/src/lib/api.ts:26:export const api = {
 web/src/lib/format.ts:3:export function inr(n: number): string {
 web/src/lib/format.ts:11:export function compact(n: number): string {
 web/src/lib/format.ts:18:export function pct(x: number, digits = 0): string {
@@ -337,4 +392,4 @@ web/src/proxy.ts:4:export function proxy(request: NextRequest) {
 web/src/proxy.ts:12:export const config = {
 ```
 
-<!-- mapped: .@0d51f07 | paths: api/, web/src/ -->
+<!-- mapped: .@e5ad381 | paths: api/, web/src/ -->

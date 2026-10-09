@@ -44,7 +44,8 @@
 | Red-team (`make_fake`, `redteam`, command) | yes | no | no | synthetic creators; live run waits for the 150 |
 | `pipeline.analyze` (Go, bot likers, quote, product fit, out of scope) | yes | no | no | synthetic WLDD world (`world` fixture in `test_pipeline.py`) |
 | Analyses API, background job, meta, model report | yes | no | no | job runs inline (`submit` monkeypatched) |
-| Web: login, analyze, polling states, report | no | no | manual | lint + build; ui-check passes; checked in the browser on synthetic dev analyses |
+| Quote check, batches (Avoid last), rate card | yes | no | no | `check_quote` and the endpoints, on the synthetic world |
+| Web: login, analyze, polling states, report, quote, print, batch, rate card, About | no | no | manual | lint + build; ui-check passes on every route; checked in the browser on the dev seed |
 
 ## Model validation (judging 4 and 5)
 These are reports, not pass/fail unit tests, and they arrive with milestones 2 and 3:

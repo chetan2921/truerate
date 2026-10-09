@@ -7,23 +7,17 @@ Waiting on the paid HikerAPI key for the live steps, in order:
 3. `uv run truerate validate`. Milestone 2 is done when the holdout median error is below both baselines.
 4. `uv run truerate redteam`. Milestone 3 is done when at least 80% are caught on flat views, bot likers, pod comments and bought followers, and the smart-fake rate is reported.
 5. A never-seen face creator on `/`, end to end in under 2 minutes. That closes milestone 4.
+6. Batch, rate card, quote check, print and About on real data. That closes milestone 5.
 
-The free key has about 50 requests left, kept for checks.
+The free key has about 50 requests left, kept for checks. Screens are built against `truerate_dev` and `data/models_dev` (`api/scripts/seed_dev.py`).
 
-Meanwhile milestone 5 is in flight. Its screens are built against `MONGODB_DB=truerate_dev` and synthetic models until the 150 are in.
+Meanwhile milestone 6 is in flight.
 
-### In flight: extras
-- [ ] dev seed: `MODELS_DIR` can point at `data/models_dev`, and a seed script writes synthetic analyses, a price model and both reports there
-- [ ] test, then the quote check: `POST /api/analyses/{id}/quote` gives below, within or above the range, the difference, a counter-offer and 3 talking points, with no new scraping. The report gets a quote checker under the waterfall
-- [ ] test, then batches: `POST /api/batches` (up to 50 handles, product, budget) and `GET /api/batches/{id}`, ranked by cost per 1,000 views. `/batch` and `/batch/[id]` with Export CSV
-- [ ] test, then the rate card: `GET /api/rate-card` gives ₹ per 1,000 views and the typical reel price per category. `/rate-card` with the calculator (category and views wanted give a budget range)
-- [ ] `/analyses/[id]/print`: the decision block, waterfall and red flags on A4, black on white; opens the print dialog. A Download-PDF button on the report
-- [ ] `/about` in five parts: how it works, signals and why, accuracy (band, category, baselines, coverage), the fake-creator test, and other page types plus known limits. Reads `/api/model-report`
-- [ ] header nav: Analyze, Batch, Rate card, About
-- [ ] `web/scripts/ui-check.sh` passes on every new screen
-
-## Next
-- 6. Pitch: deck of at most 12 slides answering judging 1–6 with real numbers, plus a 3-minute demo with a cached fallback
+### In flight: pitch
+- [ ] `api/scripts/make_deck.py` (python-pptx): at most 12 slides in `DESIGN.md` colours, answering judging 1 to 6. Numbers come from `model_report.json` and `redteam.json`. Writes `data/pitch/TrueRate.pptx`, git-ignored because its charts come from WLDD's prices
+- [ ] report screenshots for the deck, taken with Playwright from a finished analysis
+- [ ] 3-minute demo script, with a cached fallback: analyses run beforehand, so their reports open instantly if live Instagram is slow
+- [ ] live: regenerate the deck from the real reports after `validate` and `redteam`
 
 ## Done
 - 2026-10-10 Scaffold: FastAPI `api/` (Python 3.12, uv) with `/api/health`, Next.js 16 `web/`, `DESIGN.md` on Solo's palette, agent memory.
@@ -45,3 +39,8 @@ Meanwhile milestone 5 is in flight. Its screens are built against `MONGODB_DB=tr
   - the analyses API with background jobs and typed `Report` models, plus generated web types
   - login with proxy and `@wldd.in` check, analyze page, polling with 4 steps, and the full report
   - ui-check passes on `/`, `/login` and two reports (audit, report first screen, slop scan 0 of 12). The live run waits for the 150.
+- 2026-10-10 M5 code:
+  - quote check (API and report), the A4 client one-pager, and batches ranked by cost per 1,000 views with Avoid last and Export CSV
+  - the rate card with its calculator, About in five parts with the predicted-vs-actual chart, and the header nav
+  - the dev seed and the `MODELS_DIR` override
+  - ui-check passes on all 14 routes checked. Real-data checks wait for the 150.
