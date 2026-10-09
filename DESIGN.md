@@ -62,7 +62,7 @@ The decision block is earned by the brief: the price is the product's entire ans
 
 ## Components and charts
 
-- Primitives: shadcn/ui on Radix (Select, Tooltip, Tabs, Dialog), themed with the tokens above. Icons: Lucide.
+- Primitives: native controls (`select`, `input`, `button`) themed with the tokens above, through the `.field` and `.btn` classes in `globals.css`. They are accessible as they are, so shadcn/ui is not installed; add it only when a Tooltip or Dialog is needed. Icons: Lucide.
 - Charts: Recharts.
   - The creator is `--accent`, peers are `--info` at 60%, sponsored reels are marked with `--negotiate`.
   - Axes use compact numbers.
@@ -116,12 +116,14 @@ cp -R shaktiyan/skills/ui-craft ~/.claude/skills/
 cd ~/.claude/skills/ui-craft/scripts && npm install
 ```
 
-With `make api` and `make web` running:
+With the API and web running:
 
 ```
-cd ~/.claude/skills/ui-craft/scripts
-node audit.mjs     http://localhost:3000 / /batch /rate-card /about
-node slop-scan.mjs http://localhost:3000
+web/scripts/ui-check.sh /analyses/<id> /login /batch /rate-card /about
 ```
 
-`audit.mjs` must pass. `slop-scan.mjs` is advisory: fix every hit you can't justify from this brief.
+Every page except `/login` sits behind the demo-login cookie, so the script runs ui-craft's `audit.mjs` and `slop-scan.mjs` from temporary copies that add the cookie, and leaves the installed skill untouched. It audits `/` first, because the first-screen matrix runs on the first route and `/` has the primary action.
+
+The report has no primary button: its job is the decision block. `audit.mjs` takes the first `.btn` as the primary action, so on the report it would measure a secondary button far down the page. `web/scripts/first-screen.mjs` checks the price and the decision chip at the same 11 sizes instead.
+
+`audit.mjs` and `first-screen.mjs` must pass. `slop-scan.mjs` is advisory: fix every hit you can't justify from this brief.

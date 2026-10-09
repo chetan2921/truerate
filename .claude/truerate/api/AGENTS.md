@@ -20,7 +20,8 @@ The Python service: collects Instagram data, runs the audience checks, prices on
   - `redteam`: writes `data/models/redteam.json`
 
 ## Entry points
-- `truerate/app.py`: the FastAPI `app` and its routes
+- `truerate/app.py`: the FastAPI `app`, the routes, the Pydantic `Report` and friends (the api-surface contract), and the background job (`submit`, `make_deps`, `_run`)
+- `truerate/pipeline.py`: `analyze(handle, inputs, deps, step)`: one creator to report, with `Deps` for every outside service so tests swap them
 - `truerate/cli.py`: the `truerate` Typer command
 - `truerate/db.py`: `get_db()`, `ensure_indexes()` (24 h TTL on `cache`, 30 d on `accounts`, unique `deals.handle`), `import_deals()`, `training_rows()`
 - `truerate/instagram.py`: `Hiker` (HikerAPI client, parsed responses cached in `cache`), the `parse_*` functions, `mark_pinned()`, `collect()`, `fetch_covers()`
@@ -51,4 +52,4 @@ The Python service: collects Instagram data, runs the audience checks, prices on
 - `PriceModel` is pickled into `data/models/price.joblib`; rerun `truerate validate` after changing its fields.
 - Response models are part of the api-surface contract. Change one, then regenerate the web types.
 
-<!-- mapped: .@c8304e8 | paths: api/ -->
+<!-- mapped: .@0d51f07 | paths: api/ -->

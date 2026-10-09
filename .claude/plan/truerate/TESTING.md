@@ -5,7 +5,7 @@
 |------|---------|
 | api | `make test` (runs `uv run pytest -q` in `api/`) |
 | web | `cd web && npm run lint && npm run build` |
-| UI | ui-craft `audit.mjs` and `slop-scan.mjs`, commands in `DESIGN.md` |
+| UI | `web/scripts/ui-check.sh /analyses/<id> /login` with the API and web running (ui-craft behind the demo login; `DESIGN.md`, Verify) |
 
 ## Known-good examples
 - FastAPI route test with `TestClient`, and settings read from env: `api/tests/test_app.py`
@@ -25,6 +25,9 @@
 - Pricing tests: `synthetic_rows(n, seed)` in `api/tests/test_pricing.py` makes deals whose true price is known.
 - Audience tests: `genuine_band()` and `genuine_snapshot(i, rng)` in `api/tests/test_audience.py` make believable creators. `fake_embed` gives each distinct text its own random unit vector, so identical texts match and others don't.
 - No real face images in the repo: test `face_share` with a stand-in detector, and run the real one live.
+- Pipeline and API tests share one synthetic world: `world` and `deps()` in `api/tests/test_pipeline.py`; `test_app.py` imports them.
+- ui-craft's `audit.mjs` takes the first `.btn` as the primary action. On the report that is a secondary button far down, so the report's first screen is checked with `web/scripts/first-screen.mjs`. A failing check is a hypothesis: confirm what it measured before changing the page.
+- `slop-scan.mjs` can measure a loading state on a dev server that is still compiling the route (0 sections). Rerun once the route is warm.
 
 ## Inventory
 | Area | Unit | Integration | E2E | Notes |
@@ -39,6 +42,9 @@
 | Gemini labels, hidden-ad split, commenter mix | yes | no | no | `FakeLLM` / `SchemaLLM`; live on 2 creators |
 | Face check, Louvain rings | yes | no | no | stand-in detector in the unit test; real MediaPipe live on 2 creators' covers |
 | Red-team (`make_fake`, `redteam`, command) | yes | no | no | synthetic creators; live run waits for the 150 |
+| `pipeline.analyze` (Go, bot likers, quote, product fit, out of scope) | yes | no | no | synthetic WLDD world (`world` fixture in `test_pipeline.py`) |
+| Analyses API, background job, meta, model report | yes | no | no | job runs inline (`submit` monkeypatched) |
+| Web: login, analyze, polling states, report | no | no | manual | lint + build; ui-check passes; checked in the browser on synthetic dev analyses |
 
 ## Model validation (judging 4 and 5)
 These are reports, not pass/fail unit tests, and they arrive with milestones 2 and 3:
@@ -46,4 +52,4 @@ These are reports, not pass/fail unit tests, and they arrive with milestones 2 a
 - `truerate redteam`: catch rate per fake type (smart fake included) and the flagged share of unmodified creators
 
 ## Gaps
-- `web/` has no tests yet; lint and build only.
+- `web/` has no unit tests; lint, build, ui-check and a browser pass on the dev analyses.

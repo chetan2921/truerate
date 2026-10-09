@@ -13,3 +13,8 @@
   - A signal is bad only past the band's box-plot fence and a minimum gap, so a tight band doesn't flag tiny differences.
   - The genuine share counts flagged signals only, and pod comments don't discount the price because pods are real accounts.
   - The face check rejects only clearly faceless pages (under 2 of 10 covers): a real food creator showed 2 of 10.
+- 2026-10-10 M4 code: pipeline, analyses API with typed `Report`, generated web types, login, analyze, polling and the full report. ui-check passes. The live run waits for the 150. A dev database (`truerate_dev`) holds synthetic analyses for building screens.
+  Decided:
+  - Native controls instead of shadcn (`DESIGN.md` updated).
+  - The report's first screen is checked by `first-screen.mjs`, because ui-craft's primary-action heuristic picks a secondary button there.
+  - Cheaper alternatives must be within half to double this creator's views.

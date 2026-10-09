@@ -5,7 +5,7 @@ TrueRate is an internal WLDD tool. Paste an Instagram face creator, optionally w
 ## Repos
 | Repo | What it is | Mapped from | Context |
 |------|-----------|-------------|---------|
-| truerate (this folder, `.`) | api + web monorepo | `main` @ c8304e8 | `.claude/truerate/AGENTS.md`; subsystems `.claude/truerate/api/AGENTS.md`, `.claude/truerate/web/AGENTS.md` |
+| truerate (this folder, `.`) | api + web monorepo | `main` @ 0d51f07 | `.claude/truerate/AGENTS.md`; subsystems `.claude/truerate/api/AGENTS.md`, `.claude/truerate/web/AGENTS.md` |
 
 ## Products
 | Product | Repos | Plan |

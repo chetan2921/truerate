@@ -14,6 +14,7 @@ api/tests/test_app.py
 api/tests/test_audience.py
 api/tests/test_db.py
 api/tests/test_instagram.py
+api/tests/test_pipeline.py
 api/tests/test_pricing.py
 api/tests/test_signals.py
 api/truerate/__init__.py
@@ -23,16 +24,39 @@ api/truerate/config.py
 api/truerate/db.py
 api/truerate/instagram.py
 api/truerate/llm.py
+api/truerate/pipeline.py
 api/truerate/pricing.py
 api/truerate/signals.py
 web/.gitignore
 web/eslint.config.mjs
 web/next.config.ts
 web/package.json
+web/scripts/first-screen.mjs
+web/scripts/ui-check.sh
+web/src/app/(app)/analyses/[id]/analysis-view.tsx
+web/src/app/(app)/analyses/[id]/page.tsx
+web/src/app/(app)/layout.tsx
+web/src/app/(app)/page.tsx
+web/src/app/(app)/sign-out.tsx
 web/src/app/favicon.ico
 web/src/app/globals.css
 web/src/app/layout.tsx
-web/src/app/page.tsx
+web/src/app/login/login-form.tsx
+web/src/app/login/page.tsx
+web/src/components/chips.tsx
+web/src/components/report/audience.tsx
+web/src/components/report/authenticity.tsx
+web/src/components/report/decision.tsx
+web/src/components/report/engagement.tsx
+web/src/components/report/evidence.tsx
+web/src/components/report/negotiation.tsx
+web/src/components/report/placement.tsx
+web/src/components/report/report.tsx
+web/src/components/report/waterfall.tsx
+web/src/lib/api-types.ts
+web/src/lib/api.ts
+web/src/lib/format.ts
+web/src/proxy.ts
 web/tsconfig.json
 api/tests/fixtures/*.json  (recorded HikerAPI responses, one per endpoint)
 ```
@@ -42,6 +66,14 @@ api/tests/fixtures/*.json  (recorded HikerAPI responses, one per endpoint)
 api/tests/conftest.py:8:def db():
 api/tests/test_app.py:7:def test_health():
 api/tests/test_app.py:11:def test_settings_read_env(monkeypatch):
+api/tests/test_app.py:25:def test_parse_handle_accepts_handles_and_links():
+api/tests/test_app.py:33:def client(world, monkeypatch):
+api/tests/test_app.py:40:def test_analysis_runs_and_reports(client):
+api/tests/test_app.py:51:def test_bad_handle_is_rejected(client):
+api/tests/test_app.py:55:def test_out_of_scope_and_failures_are_recorded(client, world, monkeypatch):
+api/tests/test_app.py:62:    def broken(handle):
+api/tests/test_app.py:70:def _with_collect(d, fn):
+api/tests/test_app.py:75:def test_meta_lists_categories_and_coverage(client, tmp_path, monkeypatch):
 api/tests/test_audience.py:14:def fake_embed(texts):
 api/tests/test_audience.py:26:def comment(user, text):
 api/tests/test_audience.py:30:def test_comment_signals_find_generic_repeated_and_pod_comments():
@@ -82,6 +114,16 @@ api/tests/test_instagram.py:113:def test_collect_builds_a_snapshot(db):
 api/tests/test_instagram.py:124:def test_collect_stops_at_the_profile_for_a_private_account(db):
 api/tests/test_instagram.py:130:def test_collect_benchmark_skips_creators_fetched_in_the_last_day(db, monkeypatch):
 api/tests/test_instagram.py:142:def test_collect_benchmark_stops_when_credit_runs_out(db, monkeypatch):
+api/tests/test_pipeline.py:15:class TopicLLM:
+api/tests/test_pipeline.py:21:    def json(self, prompt, schema, images=()):
+api/tests/test_pipeline.py:29:def target_snapshot(handle="newcreator", seed=99):
+api/tests/test_pipeline.py:41:def world(db):
+api/tests/test_pipeline.py:52:def deps(db, snap, llm=None, face=True):
+api/tests/test_pipeline.py:58:def test_a_genuine_creator_gets_go_with_a_full_report(world):
+api/tests/test_pipeline.py:80:def test_bot_likers_stop_a_go_and_say_why(world):
+api/tests/test_pipeline.py:88:def test_a_quote_above_the_range_means_negotiate(world):
+api/tests/test_pipeline.py:94:def test_a_product_outside_the_creators_niche_means_avoid(world):
+api/tests/test_pipeline.py:100:def test_private_and_faceless_pages_are_out_of_scope(world):
 api/tests/test_pricing.py:14:def synthetic_rows(n=90, seed=1):
 api/tests/test_pricing.py:32:def test_bands_and_rounding():
 api/tests/test_pricing.py:37:def test_collab_factor_shrinks_few_ads_toward_the_typical_drop():
@@ -109,7 +151,48 @@ api/tests/test_signals.py:162:def labelled_snapshot():
 api/tests/test_signals.py:174:def test_ambiguous_reels_are_unlabelled_with_a_mention_tag_collab_or_promo_words():
 api/tests/test_signals.py:182:def test_label_creator_sends_reels_accounts_and_comments_but_no_price():
 api/tests/test_signals.py:197:def test_reel_metrics_count_hidden_ads_and_brand_co_authors_as_paid():
-api/truerate/app.py:9:def health() -> dict:
+api/truerate/app.py:27:def submit(fn) -> None:
+api/truerate/app.py:34:class Profile(BaseModel):
+api/truerate/app.py:43:class Decision(BaseModel):
+api/truerate/app.py:48:class WaterfallStep(BaseModel):
+api/truerate/app.py:53:class Comparable(BaseModel):
+api/truerate/app.py:62:class Delivery(BaseModel):
+api/truerate/app.py:70:class Price(BaseModel):
+api/truerate/app.py:82:class Flag(BaseModel):
+api/truerate/app.py:90:class Language(BaseModel):
+api/truerate/app.py:95:class Mix(BaseModel):
+api/truerate/app.py:104:class Audience(BaseModel):
+api/truerate/app.py:114:class Engagement(BaseModel):
+api/truerate/app.py:121:class ReelPoint(BaseModel):
+api/truerate/app.py:131:class FollowerPoint(BaseModel):
+api/truerate/app.py:136:class Ratio(BaseModel):
+api/truerate/app.py:141:class PaidRatio(Ratio):
+api/truerate/app.py:145:class Ad(BaseModel):
+api/truerate/app.py:153:class Placement(BaseModel):
+api/truerate/app.py:165:class Niche(BaseModel):
+api/truerate/app.py:173:class Competitor(BaseModel):
+api/truerate/app.py:179:class Cheaper(BaseModel):
+api/truerate/app.py:186:class Negotiation(BaseModel):
+api/truerate/app.py:193:class Report(BaseModel):
+api/truerate/app.py:213:class Inputs(BaseModel):
+api/truerate/app.py:219:class AnalysisRequest(Inputs):
+api/truerate/app.py:223:class Created(BaseModel):
+api/truerate/app.py:227:class Analysis(BaseModel):
+api/truerate/app.py:241:class AnalysisSummary(BaseModel):
+api/truerate/app.py:251:class Meta(BaseModel):
+api/truerate/app.py:256:class ModelReport(BaseModel):
+api/truerate/app.py:266:def parse_handle(text: str) -> str | None:
+api/truerate/app.py:272:def _models() -> tuple:
+api/truerate/app.py:276:def make_deps(db) -> Deps:
+api/truerate/app.py:284:def _run(analysis_id: str, handle: str, inputs: dict) -> None:
+api/truerate/app.py:287:    def step(i: int) -> None:
+api/truerate/app.py:298:def _read_json(name: str) -> dict | None:
+api/truerate/app.py:307:def health() -> dict:
+api/truerate/app.py:312:def create_analysis(req: AnalysisRequest) -> Created:
+api/truerate/app.py:326:def list_analyses() -> list[AnalysisSummary]:
+api/truerate/app.py:336:def get_analysis(analysis_id: str) -> Analysis:
+api/truerate/app.py:344:def meta() -> Meta:
+api/truerate/app.py:350:def model_report() -> ModelReport:
 api/truerate/cli.py:35:def main() -> None:
 api/truerate/cli.py:40:def import_deals_cmd(csv_path: Annotated[Path, typer.Argument()] = REPO_ROOT / "data" / "creators.csv") -> None:
 api/truerate/cli.py:48:def build_fake_model_cmd(
@@ -148,6 +231,14 @@ api/truerate/instagram.py:154:def collect(hiker: Hiker, handle: str, comment_ree
 api/truerate/instagram.py:175:def fetch_covers(reels: list[dict], limit: int = 6) -> dict[str, bytes]:
 api/truerate/llm.py:7:class Gemini:
 api/truerate/llm.py:15:    def json(self, prompt: str, schema: dict, images: list[bytes] = ()) -> dict:
+api/truerate/pipeline.py:40:class Deps:
+api/truerate/pipeline.py:51:def _flag_text(f: dict, s: dict) -> str:
+api/truerate/pipeline.py:66:def _brand(reel: dict) -> str | None:
+api/truerate/pipeline.py:71:def _days_ago(iso: str) -> int:
+api/truerate/pipeline.py:75:def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] = lambda i: None) -> dict:
+api/truerate/pipeline.py:116:    def kind(r):
+api/truerate/pipeline.py:188:def _decide(v, flags, p, inputs, metrics, typical, fit, fit_share, competitor) -> dict:
+api/truerate/pipeline.py:215:def _negotiation(p: dict, flags: list[dict], metrics: dict, category: str) -> dict:
 api/truerate/pricing.py:15:def round500(x: float) -> int:
 api/truerate/pricing.py:19:def features(m: dict) -> list[float]:
 api/truerate/pricing.py:23:def per_1k(row: dict) -> float:
@@ -205,9 +296,45 @@ api/truerate/signals.py:469:def audience_warnings(signals: dict, forest) -> list
 
 ## TypeScript (web/src/)
 ```
-web/src/app/layout.tsx:15:export const metadata: Metadata = {
-web/src/app/layout.tsx:20:export default function RootLayout({ children }: LayoutProps<"/">) {
-web/src/app/page.tsx:3:export default function Home() {
+web/src/app/(app)/analyses/[id]/analysis-view.tsx:11:export default function AnalysisView({ params }: { params: Promise<{ id: string }> }) {
+web/src/app/(app)/analyses/[id]/page.tsx:6:export default function AnalysisPage({ params }: PageProps<"/analyses/[id]">) {
+web/src/app/(app)/layout.tsx:5:export default function AppLayout({ children }: LayoutProps<"/">) {
+web/src/app/(app)/page.tsx:11:export default function AnalyzePage() {
+web/src/app/(app)/sign-out.tsx:7:export default function SignOut() {
+web/src/app/layout.tsx:12:export const metadata: Metadata = {
+web/src/app/layout.tsx:17:export default function RootLayout({ children }: LayoutProps<"/">) {
+web/src/app/login/login-form.tsx:8:export default function LoginForm() {
+web/src/app/login/page.tsx:3:export default function LoginPage() {
+web/src/components/chips.tsx:7:export function CallChip({ call, large = false }: { call: string; large?: boolean }) {
+web/src/components/chips.tsx:15:export const VERDICTS = ["Real audience", "Some fake activity", "Mostly fake"] as const;
+web/src/components/chips.tsx:16:export const VERDICT_COLOR: Record<string, string> = {
+web/src/components/report/audience.tsx:4:export default function Audience({ r }: { r: Report }) {
+web/src/components/report/authenticity.tsx:27:export default function Authenticity({ r }: { r: Report }) {
+web/src/components/report/decision.tsx:7:export default function Decision({ r }: { r: Report }) {
+web/src/components/report/engagement.tsx:6:export default function Engagement({ r }: { r: Report }) {
+web/src/components/report/evidence.tsx:9:export default function Evidence({ r }: { r: Report }) {
+web/src/components/report/negotiation.tsx:9:export default function Negotiation({ r }: { r: Report }) {
+web/src/components/report/placement.tsx:16:export default function Placement({ r }: { r: Report }) {
+web/src/components/report/report.tsx:13:export default function ReportView({ report: r, inputs }: { report: Report; inputs: Analysis["inputs"] }) {
+web/src/components/report/waterfall.tsx:23:export default function Waterfall({ r }: { r: Report }) {
+web/src/lib/api-types.ts:6:export interface paths {
+web/src/lib/api-types.ts:94:export type webhooks = Record<string, never>;
+web/src/lib/api-types.ts:95:export interface components {
+web/src/lib/api-types.ts:518:export type $defs = Record<string, never>;
+web/src/lib/api-types.ts:519:export interface operations {
+web/src/lib/api.ts:4:export type Analysis = Schemas["Analysis"];
+web/src/lib/api.ts:5:export type AnalysisRequest = Schemas["AnalysisRequest"];
+web/src/lib/api.ts:6:export type AnalysisSummary = Schemas["AnalysisSummary"];
+web/src/lib/api.ts:7:export type Report = Schemas["Report"];
+web/src/lib/api.ts:8:export type Meta = Schemas["Meta"];
+web/src/lib/api.ts:21:export const api = {
+web/src/lib/format.ts:3:export function inr(n: number): string {
+web/src/lib/format.ts:11:export function compact(n: number): string {
+web/src/lib/format.ts:18:export function pct(x: number, digits = 0): string {
+web/src/lib/format.ts:22:export function daysAgo(iso: string): string {
+web/src/lib/format.ts:28:export const SESSION_COOKIE = "truerate_session";
+web/src/proxy.ts:4:export function proxy(request: NextRequest) {
+web/src/proxy.ts:12:export const config = {
 ```
 
-<!-- mapped: .@c8304e8 | paths: api/, web/src/ -->
+<!-- mapped: .@0d51f07 | paths: api/, web/src/ -->

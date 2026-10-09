@@ -6,25 +6,23 @@ Waiting on the paid HikerAPI key for the live steps, in order:
 2. `uv run truerate build-metrics`: about 150 Gemini labelling calls, plus niche calls for the 115 without a CSV niche.
 3. `uv run truerate validate`. Milestone 2 is done when the holdout median error is below both baselines.
 4. `uv run truerate redteam`. Milestone 3 is done when at least 80% are caught on flat views, bot likers, pod comments and bought followers, and the smart-fake rate is reported.
+5. A never-seen face creator on `/`, end to end in under 2 minutes. That closes milestone 4.
 
 The free key has about 50 requests left, kept for checks.
 
-Meanwhile milestone 4 is in flight. Until the 150 are in, the web is built against a dev database seeded with synthetic creators (`MONGODB_DB=truerate_dev`).
+Meanwhile milestone 5 is in flight. Its screens are built against `MONGODB_DB=truerate_dev` and synthetic models until the 150 are in.
 
-### In flight: API + report
-- [ ] test, then `pipeline.analyze()`, recording each step as it goes:
-  - collect, then the face check, then labels, metrics and category
-  - the audience check (band norms, verdict, rings, warnings, commenter mix)
-  - price with the genuine share, then the decision, reasons and negotiation lines
-  - private accounts, fewer than 12 reels and faceless pages end as `out_of_scope`
-- [ ] test, then the API: `POST` and `GET /api/analyses` (background thread pool), `GET /api/meta`, `GET /api/model-report`, with Pydantic response models. Generate `web/src/lib/api-types.ts`
-- [ ] web: login (demo button plus the `@wldd.in` check, cookie, redirect), `/` with the analyze form and recent analyses, and `/analyses/[id]` polling the 4 steps
-- [ ] web: the report, per `DESIGN.md`: decision block, waterfall with the 6 comparables, the five sections, negotiation lines
-- [ ] ui-craft `audit.mjs` passes on `/` and the report
-- [ ] live: a never-seen face creator end to end in under 2 minutes
+### In flight: extras
+- [ ] dev seed: `MODELS_DIR` can point at `data/models_dev`, and a seed script writes synthetic analyses, a price model and both reports there
+- [ ] test, then the quote check: `POST /api/analyses/{id}/quote` gives below, within or above the range, the difference, a counter-offer and 3 talking points, with no new scraping. The report gets a quote checker under the waterfall
+- [ ] test, then batches: `POST /api/batches` (up to 50 handles, product, budget) and `GET /api/batches/{id}`, ranked by cost per 1,000 views. `/batch` and `/batch/[id]` with Export CSV
+- [ ] test, then the rate card: `GET /api/rate-card` gives ₹ per 1,000 views and the typical reel price per category. `/rate-card` with the calculator (category and views wanted give a budget range)
+- [ ] `/analyses/[id]/print`: the decision block, waterfall and red flags on A4, black on white; opens the print dialog. A Download-PDF button on the report
+- [ ] `/about` in five parts: how it works, signals and why, accuracy (band, category, baselines, coverage), the fake-creator test, and other page types plus known limits. Reads `/api/model-report`
+- [ ] header nav: Analyze, Batch, Rate card, About
+- [ ] `web/scripts/ui-check.sh` passes on every new screen
 
 ## Next
-- 5. Extras: batch, rate card + calculator, quote check, competitor conflict, cheaper alternatives, print page, About in five parts
 - 6. Pitch: deck of at most 12 slides answering judging 1–6 with real numbers, plus a 3-minute demo with a cached fallback
 
 ## Done
@@ -42,3 +40,8 @@ Meanwhile milestone 4 is in flight. Until the 150 are in, the web is built again
   - MediaPipe face check, Louvain rings, and IsolationForest and renamed-page warnings
   - the red-team with 6 fake kinds
   - Live on 2 creators: 1 and 5 hidden ads found, plus the languages and commenter mixes.
+- 2026-10-10 M4 code:
+  - `pipeline.analyze()` (decision, reasons, competitor conflict, cheaper alternatives, negotiation lines)
+  - the analyses API with background jobs and typed `Report` models, plus generated web types
+  - login with proxy and `@wldd.in` check, analyze page, polling with 4 steps, and the full report
+  - ui-check passes on `/`, `/login` and two reports (audit, report first screen, slop scan 0 of 12). The live run waits for the 150.
