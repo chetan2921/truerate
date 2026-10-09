@@ -12,7 +12,7 @@ from truerate.db import ensure_indexes, get_db, import_deals, training_rows
 from truerate.instagram import Hiker, HikerError, collect
 from truerate.llm import Gemini
 from truerate.pricing import fit, validate
-from truerate.signals import audience_signals, category_from_niche, label_niche, load_kaggle, minilm_embed, reel_metrics, train_fake_model
+from truerate.signals import audience_signals, category_from_niche, redteam, label_niche, load_kaggle, minilm_embed, reel_metrics, train_fake_model
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -146,3 +146,16 @@ def validate_cmd(out_dir: Path = REPO_ROOT / "data" / "models") -> None:
         typer.echo(f"  {b}: model {err:.0%}" if err is not None else f"  {b}: no holdout creators")
     for c, v in report["by_category"].items():
         typer.echo(f"  {c} ({v['n']}): model {v['model']:.0%}, band median {v['band_median']:.0%}, Modash-style {v['modash']:.0%}")
+
+
+@app.command("redteam")
+def redteam_cmd(out_dir: Path = MODELS_DIR) -> None:
+    """Fakes built from every WLDD creator's latest snapshot: catch rate per kind, and how many real creators get flagged."""
+    db = get_db()
+    snaps = [db.snapshots.find_one({"handle": m["_id"]}, sort=[("fetched_at", -1)]) for m in db.metrics.find({}, {"_id": 1}).sort("_id")]
+    report = redteam(snaps, load_fake_model(), minilm_embed)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "redteam.json").write_text(json.dumps(report, indent=1))
+    typer.echo(f"Red-team on {report['n']} WLDD creators. Unmodified creators flagged: {report['unmodified_flagged']:.0%}")
+    for kind, rate in report["caught"].items():
+        typer.echo(f"  {kind}: caught {rate:.0%}, median genuine share {report['genuine_share'][kind]:.2f}")

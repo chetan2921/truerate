@@ -1,17 +1,26 @@
-import numpy as np
+import json
 
-from truerate.signals import AUDIENCE_SIGNALS, audience_signals, band_norms, comment_signals, genuine_share, train_fake_model, verdict
+import numpy as np
+from typer.testing import CliRunner
+
+from truerate import cli
+
+from truerate.signals import AUDIENCE_SIGNALS, FAKE_KINDS, audience_signals, band_norms, comment_signals, genuine_share, make_fake, redteam, train_fake_model, verdict
 
 
 VOCAB = {}
 
 
 def fake_embed(texts):
-    """Stands in for MiniLM: the same lowercased text gives the same vector, anything else is unrelated."""
-    vecs = np.zeros((len(texts), 512))
-    for i, t in enumerate(texts):
-        vecs[i, VOCAB.setdefault(t.lower().strip(" !."), len(VOCAB))] = 1
-    return vecs
+    """Stands in for MiniLM: the same lowercased text gives the same unit vector; different texts are nearly unrelated."""
+    out = []
+    for t in texts:
+        key = t.lower().strip(" !.")
+        if key not in VOCAB:
+            v = np.random.default_rng(len(VOCAB)).normal(size=256)
+            VOCAB[key] = v / np.linalg.norm(v)
+        out.append(VOCAB[key])
+    return np.array(out)
 
 
 def comment(user, text):
@@ -89,3 +98,59 @@ def test_audience_signals_from_a_snapshot():
     assert (s["fake_likers"], s["n_likers"], s["fake_followers"], s["n_followers"]) == (0.125, 8, 0.5, 4)
     assert (s["likes_per_view"], s["views_per_follower"], s["former_usernames"]) == (0.05, 0.65, 2)
     assert 0.5 < s["views_cv"] < 0.6 and s["likes_cv"] == s["views_cv"]
+
+
+def genuine_snapshot(i, rng):
+    """A believable creator: spiky views, real-looking likers and followers with a few bots, specific comments."""
+    def person(tag):
+        return {"username": f"{tag}.fan", "full_name": "Asha Rao", "has_pic": True, "is_private": False}
+
+    bot = {"username": "user83920174", "full_name": "", "has_pic": False, "is_private": False}
+    followers = int(rng.uniform(25_000, 90_000))
+    lpv = rng.uniform(0.03, 0.07)
+    reels = []
+    for j in range(30):
+        views = int(followers * 0.4 * rng.lognormal(0, 0.8))
+        reels.append({"id": f"c{i}r{j}", "taken_at": f"2026-09-{30 - j:02d}T10:00:00Z", "views": views, "likes": int(views * lpv * rng.lognormal(0, 0.2)),
+                      "comments": 10, "pinned": False, "paid": False, "sponsors": [], "coauthors": [], "caption": ""})
+    likers = {r["id"]: [bot if k % 10 == 0 else person(f"l{k}") for k in range(200)] for r in reels[:3]}
+    comments = {r["id"]: [comment(f"c{i}fan{j}_{k}", f"question {i}-{j}-{k} about this reel") for k in range(8)] for j, r in enumerate(reels[:10])}
+    return {"handle": f"creator{i}", "followers": followers, "data": {
+        "profile": {"followers": followers}, "reels": reels, "likers": likers, "comments": comments,
+        "followers": [bot if k % 7 == 0 else person(f"f{k}") for k in range(25)], "about": {"former_usernames": 0},
+    }}
+
+
+def test_redteam_catches_the_four_main_fakes_and_reports_the_smart_one():
+    rng = np.random.default_rng(5)
+    snaps = [genuine_snapshot(i, rng) for i in range(30)]
+    model = train_fake_model([[1, 0, 2, 0, 0, 0]] * 20 + [[0, 0.67, 0, 0, 0, 0]] * 20, [0] * 20 + [1] * 20)
+    report = redteam(snaps, model, fake_embed)
+    assert report["n"] == 30 and set(report["caught"]) == set(FAKE_KINDS)
+    for kind in ("flat_views", "bot_likers", "pod_comments", "bought_followers"):
+        assert report["caught"][kind] >= 0.8, (kind, report["caught"][kind])
+    assert 0 <= report["caught"]["smart_fake"] <= 1
+    assert report["unmodified_flagged"] <= 0.2
+    assert report["genuine_share"]["bot_likers"] < 0.8 <= report["genuine_share"]["pod_comments"]
+
+
+def test_make_fake_leaves_the_original_alone():
+    snap = genuine_snapshot(0, np.random.default_rng(1))
+    before = snap["data"]["reels"][0]["views"]
+    fake = make_fake(snap, "bought_followers", np.random.default_rng(2))
+    assert fake["followers"] == snap["followers"] * 3 and snap["data"]["reels"][0]["views"] == before
+
+
+def test_redteam_command_uses_the_latest_snapshot_of_each_creator_with_metrics(db, tmp_path, monkeypatch):
+    rng = np.random.default_rng(5)
+    for i in range(12):
+        snap = genuine_snapshot(i, rng)
+        db.snapshots.insert_one(snap)
+        db.metrics.insert_one({"_id": snap["handle"]})
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    monkeypatch.setattr(cli, "load_fake_model", lambda: train_fake_model([[1, 0, 2, 0, 0, 0]] * 5 + [[0, 0.67, 0, 0, 0, 0]] * 5, [0] * 5 + [1] * 5))
+    monkeypatch.setattr(cli, "minilm_embed", fake_embed)
+    result = CliRunner().invoke(cli.app, ["redteam", "--out-dir", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert "Red-team on 12 WLDD creators" in result.output and "bot_likers" in result.output
+    assert json.loads((tmp_path / "redteam.json").read_text())["n"] == 12

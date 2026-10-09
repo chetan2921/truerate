@@ -1,3 +1,4 @@
+import copy
 import csv
 import math
 import re
@@ -239,3 +240,72 @@ def genuine_share(signals: dict, norms: dict) -> float:
         elif f["signal"] == "likes_per_view":
             excess.append(1 - f["value"] / f["median"])
     return round(1 - max(excess), 2)
+
+
+FAKE_KINDS = ["flat_views", "flat_views_noise", "bot_likers", "pod_comments", "bought_followers", "smart_fake"]
+_POD_TEXTS = ["Great content 🔥", "Amazing 😍", "Nice post", "Wow", "Superb 👏"]
+_SMART_TOPICS = ["transition", "colour grade", "hook", "ending", "background score", "outfit", "voiceover", "framing"]
+
+
+def _bot(rng) -> dict:
+    return {"pk": str(rng.integers(10**9, 10**10)), "username": f"user{rng.integers(10**7, 10**8)}", "full_name": "", "has_pic": False,
+            "is_private": False, "is_verified": False}
+
+
+def make_fake(snapshot: dict, kind: str, rng) -> dict:
+    """A copy of a real creator's snapshot with one kind of fakery added. The smart fake is every kind, mild."""
+    snap = copy.deepcopy(snapshot)
+    d = snap["data"]
+    reels = [r for r in d["reels"] if not r["pinned"]]
+    typical = median(r["views"] for r in reels)
+    smart = kind == "smart_fake"
+    if kind in ("flat_views", "flat_views_noise") or smart:
+        for r in reels:
+            if smart:
+                r["views"] = int(0.5 * r["views"] + 0.5 * typical * rng.uniform(0.85, 1.15))
+            else:
+                r["views"] = int(typical * (rng.uniform(0.9, 1.1) if kind == "flat_views_noise" else 1))
+    if kind == "bot_likers" or smart:
+        share = 0.25 if smart else 0.5
+        for rid, accounts in d["likers"].items():
+            n = int(len(accounts) * share)
+            d["likers"][rid] = [_bot(rng) for _ in range(n)] + accounts[n:]
+        for r in reels:
+            r["likes"] = int(r["likes"] / (1 - share))  # bought likes on top of the real ones
+    if kind == "pod_comments" or smart:
+        members = [{"pk": f"pod{m}", "username": f"pod.member{m}", "full_name": "Rahul Verma", "has_pic": True, "is_private": False, "is_verified": False}
+                   for m in range(5 if smart else 12)]
+        reel_ids = list(d["comments"])
+        for rid in reel_ids[: math.ceil(len(reel_ids) * (0.6 if smart else 0.8))]:
+            for m, user in enumerate(members):
+                text = f"the {_SMART_TOPICS[(m + len(rid)) % 8]} at {rng.integers(2, 40)}s is so well done" if smart else str(rng.choice(_POD_TEXTS))
+                d["comments"][rid].append({"text": text, "user": user, "at": "", "likes": 0})
+    if kind == "bought_followers" or smart:
+        mult, share = (1.5, 0.3) if smart else (3, 0.7)
+        snap["followers"] = int(snap["followers"] * mult)
+        n = int(len(d["followers"]) * share)
+        d["followers"] = [_bot(rng) for _ in range(n)] + d["followers"][n:]
+    return snap
+
+
+def redteam(snapshots: list[dict], fake_model, embed, seed: int = 7) -> dict:
+    """Catch rate per fake kind (verdict other than Real audience), the median genuine share each gets, and how many
+    unmodified creators are flagged. Norms come from the unmodified creators."""
+    rng = np.random.default_rng(seed)
+
+    def signals(snap):
+        return audience_signals(snap, reel_metrics(snap), fake_model, embed)
+
+    base = [signals(s) for s in snapshots]
+    norms = band_norms(base)
+    caught, shares = {}, {}
+    for kind in FAKE_KINDS:
+        fakes = [signals(make_fake(s, kind, rng)) for s in snapshots]
+        caught[kind] = round(float(np.mean([verdict(f, norms)["verdict"] != VERDICTS[0] for f in fakes])), 3)
+        shares[kind] = float(median(genuine_share(f, norms) for f in fakes))
+    return {
+        "n": len(snapshots),
+        "unmodified_flagged": round(float(np.mean([verdict(b, norms)["verdict"] != VERDICTS[0] for b in base])), 3),
+        "caught": caught,
+        "genuine_share": shares,
+    }
