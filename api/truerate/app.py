@@ -1,10 +1,351 @@
-from fastapi import FastAPI
+import json
+import re
+import uuid
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
+from functools import lru_cache
+from typing import Literal
+
+import joblib
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+from truerate.config import MODELS_DIR, get_settings
+from truerate.db import ensure_indexes, get_db
+from truerate.instagram import Hiker, collect
+from truerate.llm import Gemini
+from truerate.pipeline import STEPS, Deps, analyze
+from truerate.signals import CATEGORIES, minilm_embed
 
 app = FastAPI(title="TrueRate API")
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000"], allow_methods=["*"], allow_headers=["*"])
+
+EXECUTOR = ThreadPoolExecutor(max_workers=2)
+
+
+def submit(fn) -> None:
+    EXECUTOR.submit(fn)
+
+
+# ---- the report (api-surface contract: the web types are generated from these) ----
+
+
+class Profile(BaseModel):
+    full_name: str
+    followers: int
+    following: int
+    posts: int
+    bio: str
+    is_verified: bool
+
+
+class Decision(BaseModel):
+    call: Literal["Go", "Negotiate", "Avoid"]
+    reasons: list[str]
+
+
+class WaterfallStep(BaseModel):
+    step: str
+    amount: int
+
+
+class Comparable(BaseModel):
+    handle: str
+    price: float
+    views: float
+    followers: int
+    category: str
+    per_1k_views: int
+
+
+class Delivery(BaseModel):
+    views: list[int]
+    likes: int
+    comments: int
+    cost_per_1k: int
+    category_cost_per_1k: int | None
+
+
+class Price(BaseModel):
+    market: int
+    fair: int
+    low: int
+    high: int
+    collab_factor: float
+    genuine_share: float
+    waterfall: list[WaterfallStep]
+    comparables: list[Comparable]
+    delivery: Delivery
+
+
+class Flag(BaseModel):
+    signal: str
+    family: str
+    value: float
+    median: float
+    text: str
+
+
+class Language(BaseModel):
+    language: str
+    share: float
+
+
+class Mix(BaseModel):
+    top: int
+    fake: int
+    brands: int
+    creators: int
+    people: int
+    languages: list[Language]
+
+
+class Audience(BaseModel):
+    verdict: Literal["Real audience", "Some fake activity", "Mostly fake"]
+    failed_families: list[str]
+    flags: list[Flag]
+    signals: dict[str, float | None]
+    medians: dict[str, float]
+    warnings: list[str]
+    mix: Mix
+
+
+class Engagement(BaseModel):
+    rate: float
+    band: Literal["small", "medium", "big"]
+    band_median: float | None
+    percentile: int | None
+
+
+class ReelPoint(BaseModel):
+    code: str
+    taken_at: str
+    views: int
+    likes: int
+    comments: int
+    kind: Literal["own", "paid", "collab"]
+    thumbnail: str
+
+
+class FollowerPoint(BaseModel):
+    at: str
+    followers: int
+
+
+class Ratio(BaseModel):
+    n: int
+    ratio: float | None
+
+
+class PaidRatio(Ratio):
+    typical_ratio: float
+
+
+class Ad(BaseModel):
+    code: str
+    taken_at: str
+    disclosed: bool
+    brand: str | None
+    topic: str | None
+
+
+class Placement(BaseModel):
+    reels: list[ReelPoint]
+    followers_history: list[FollowerPoint]
+    typical_views: float
+    bad_reel_views: float
+    hits_last_10: int
+    trend: float | None
+    paid: PaidRatio
+    collab: Ratio
+    ads: list[Ad]
+
+
+class Niche(BaseModel):
+    category: str
+    topics: dict[str, int]
+    product: str | None
+    fit: Literal["strong", "good", "some", "weak"] | None
+    fit_share: float | None
+
+
+class Competitor(BaseModel):
+    brand: str | None
+    days: int
+    code: str
+
+
+class Cheaper(BaseModel):
+    handle: str
+    per_1k_views: int
+    views: float
+    price: float
+
+
+class Negotiation(BaseModel):
+    start: int
+    target: int
+    walk_away: int
+    lines: list[str]
+
+
+class Report(BaseModel):
+    handle: str
+    profile: Profile
+    fetched_at: str
+    category: str
+    category_source: Literal["wldd", "gemini"]
+    face_share: float | None
+    decision: Decision
+    price: Price
+    audience: Audience
+    engagement: Engagement
+    placement: Placement
+    niche: Niche
+    worth_reaching: str
+    competitor: Competitor | None
+    cheaper: list[Cheaper]
+    suggested: list[str]
+    negotiation: Negotiation
+
+
+class Inputs(BaseModel):
+    category: str | None = None
+    quote: int | None = None
+    budget: int | None = None
+
+
+class AnalysisRequest(Inputs):
+    handle: str
+
+
+class Created(BaseModel):
+    id: str
+
+
+class Analysis(BaseModel):
+    id: str
+    handle: str
+    inputs: Inputs
+    status: Literal["running", "done", "out_of_scope", "failed"]
+    step: int
+    steps: list[str]
+    reason: str | None = None
+    error: str | None = None
+    result: Report | None = None
+    created_at: datetime
+    finished_at: datetime | None = None
+
+
+class AnalysisSummary(BaseModel):
+    id: str
+    handle: str
+    status: str
+    call: str | None
+    fair: int | None
+    verdict: str | None
+    created_at: datetime
+
+
+class Meta(BaseModel):
+    categories: list[str]
+    range_coverage: float | None
+
+
+class ModelReport(BaseModel):
+    validation: dict | None
+    redteam: dict | None
+
+
+# ---- jobs ----
+
+_HANDLE = re.compile(r"^(?:https?://)?(?:www\.)?(?:instagram\.com/)?@?([A-Za-z0-9._]{1,30})/?(?:\?.*)?$")
+
+
+def parse_handle(text: str) -> str | None:
+    m = _HANDLE.match(text.strip())
+    return m.group(1).lower() if m else None
+
+
+@lru_cache
+def _models() -> tuple:
+    return joblib.load(MODELS_DIR / "fake_accounts.joblib"), joblib.load(MODELS_DIR / "price.joblib")
+
+
+def make_deps(db) -> Deps:
+    settings = get_settings()
+    hiker = Hiker(settings.hikerapi_key, db)
+    fake_model, price_model = _models()
+    return Deps(db=db, collect=lambda handle: collect(hiker, handle), llm=Gemini(settings.llm_api_key, settings.llm_model),
+                fake_model=fake_model, embed=minilm_embed, price_model=price_model)
+
+
+def _run(analysis_id: str, handle: str, inputs: dict) -> None:
+    db = get_db()
+
+    def step(i: int) -> None:
+        db.analyses.update_one({"_id": analysis_id}, {"$set": {"step": i}})
+
+    try:
+        out = analyze(handle, inputs, make_deps(db), step)
+        update = {"status": out["status"], "result": out.get("result"), "reason": out.get("reason")}
+    except Exception as e:  # any failure becomes a readable message with a Retry button in the web
+        update = {"status": "failed", "error": str(e)}
+    db.analyses.update_one({"_id": analysis_id}, {"$set": update | {"finished_at": datetime.now(timezone.utc)}})
+
+
+def _read_json(name: str) -> dict | None:
+    path = MODELS_DIR / name
+    return json.loads(path.read_text()) if path.exists() else None
+
+
+# ---- routes ----
 
 
 @app.get("/api/health")
 def health() -> dict:
     return {"ok": True}
+
+
+@app.post("/api/analyses", status_code=202)
+def create_analysis(req: AnalysisRequest) -> Created:
+    handle = parse_handle(req.handle)
+    if not handle:
+        raise HTTPException(422, "Enter an Instagram handle or profile link.")
+    db = get_db()
+    ensure_indexes(db)
+    analysis_id = uuid.uuid4().hex[:12]
+    inputs = req.model_dump(exclude={"handle"})
+    db.analyses.insert_one({"_id": analysis_id, "handle": handle, "inputs": inputs, "status": "running", "step": 0, "created_at": datetime.now(timezone.utc)})
+    submit(lambda: _run(analysis_id, handle, inputs))
+    return Created(id=analysis_id)
+
+
+@app.get("/api/analyses")
+def list_analyses() -> list[AnalysisSummary]:
+    out = []
+    for a in get_db().analyses.find().sort("created_at", -1).limit(20):
+        r = a.get("result") or {}
+        out.append(AnalysisSummary(id=a["_id"], handle=a["handle"], status=a["status"], call=r.get("decision", {}).get("call"),
+                                   fair=r.get("price", {}).get("fair"), verdict=r.get("audience", {}).get("verdict"), created_at=a["created_at"]))
+    return out
+
+
+@app.get("/api/analyses/{analysis_id}")
+def get_analysis(analysis_id: str) -> Analysis:
+    a = get_db().analyses.find_one({"_id": analysis_id})
+    if not a:
+        raise HTTPException(404, "No analysis with that id.")
+    return Analysis(id=a.pop("_id"), steps=STEPS, **a)
+
+
+@app.get("/api/meta")
+def meta() -> Meta:
+    report = _read_json("model_report.json")
+    return Meta(categories=list(CATEGORIES), range_coverage=report["holdout"]["coverage"] if report else None)
+
+
+@app.get("/api/model-report")
+def model_report() -> ModelReport:
+    return ModelReport(validation=_read_json("model_report.json"), redteam=_read_json("redteam.json"))
