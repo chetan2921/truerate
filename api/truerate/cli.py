@@ -1,11 +1,13 @@
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Annotated
 
 import joblib
 import typer
 
-from truerate.config import REPO_ROOT
+from truerate.config import REPO_ROOT, get_settings
 from truerate.db import ensure_indexes, get_db, import_deals
+from truerate.instagram import Hiker, HikerError, collect
 from truerate.signals import load_kaggle, train_fake_model
 
 app = typer.Typer(no_args_is_help=True)
@@ -34,3 +36,49 @@ def build_fake_model_cmd(
     out.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, out)
     typer.echo(f"Fake-account model: {model.score(X_test, y_test):.0%} on {len(y_test)} held-out Kaggle accounts. Saved {out}")
+
+
+def make_hiker(db) -> Hiker:
+    return Hiker(get_settings().hikerapi_key, db)
+
+
+@app.command("collect")
+def collect_cmd(handle: str) -> None:
+    db = get_db()
+    ensure_indexes(db)
+    snap = collect(make_hiker(db), handle.lstrip("@").lower())
+    db.snapshots.insert_one(snap)
+    d = snap["data"]
+    if "reels" not in d:
+        typer.echo(f"{snap['handle']}: private, stopped at the profile")
+        return
+    typer.echo(
+        f"{snap['handle']}: {snap['followers']:,} followers, {len(d['reels'])} reels, "
+        f"{sum(map(len, d['comments'].values()))} comments on {len(d['comments'])} reels, "
+        f"{sum(map(len, d['likers'].values()))} likers on {len(d['likers'])} reels, "
+        f"{len(d['followers'])} newest followers, {len(d['suggested'])} suggested"
+    )
+
+
+@app.command("collect-benchmark")
+def collect_benchmark_cmd() -> None:
+    """Snapshot every deal creator, skipping any fetched in the last 24 h. Stops when HikerAPI credit runs out."""
+    db = get_db()
+    ensure_indexes(db)
+    hiker = make_hiker(db)
+    since = datetime.now(timezone.utc) - timedelta(hours=24)
+    done = skipped = failed = 0
+    for deal in db.deals.find({}, {"handle": 1}).sort("handle"):
+        handle = deal["handle"]
+        if db.snapshots.find_one({"handle": handle, "fetched_at": {"$gt": since}}):
+            skipped += 1
+            continue
+        try:
+            db.snapshots.insert_one(collect(hiker, handle))
+            done += 1
+        except HikerError as e:
+            typer.echo(f"{handle}: {e}")
+            if e.status == 402:
+                raise typer.Exit(1)
+            failed += 1
+    typer.echo(f"Collected {done}, skipped {skipped} fetched in the last 24 h, failed {failed}")

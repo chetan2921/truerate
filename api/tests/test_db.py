@@ -1,10 +1,9 @@
-import mongomock
 import pytest
 from pymongo.errors import DuplicateKeyError
 from typer.testing import CliRunner
 
 from truerate import cli
-from truerate.db import CACHE_TTL_SECONDS, ensure_indexes, import_deals
+from truerate.db import CACHE_TTL_SECONDS, import_deals
 
 
 def write_csv(path, per_tier=11):
@@ -14,13 +13,6 @@ def write_csv(path, per_tier=11):
             rows.append(f'{tier},User_{tier}_{i},"Gadgets, Technology",{1000 * (i + 1)}')
     path.write_text("\n".join(rows) + "\n")
     return path
-
-
-@pytest.fixture
-def db():
-    database = mongomock.MongoClient().truerate
-    ensure_indexes(database)
-    return database
 
 
 def test_indexes(db):

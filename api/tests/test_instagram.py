@@ -1,0 +1,148 @@
+import json
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+import httpx
+import pytest
+from typer.testing import CliRunner
+
+from truerate import cli
+from truerate.instagram import (
+    BASE_URL,
+    Hiker,
+    HikerError,
+    collect,
+    mark_pinned,
+    parse_about,
+    parse_accounts,
+    parse_comments,
+    parse_profile,
+    parse_reels,
+)
+
+# Recorded from public account komalpandeyofficial (not a WLDD deal), trimmed, every other account renamed.
+FIXTURES = Path(__file__).parent / "fixtures"
+ROUTES = {
+    "/v1/user/by/username": "profile",
+    "/gql/user/about": "about",
+    "/v1/user/clips/chunk": "clips",
+    "/v1/media/comments/chunk": "comments",
+    "/v1/media/likers": "likers",
+    "/v1/user/followers/chunk": "followers",
+    "/v2/user/suggested/profiles": "suggested",
+}
+
+
+def fixture(name):
+    return json.loads((FIXTURES / f"{name}.json").read_text())
+
+
+def fake_hiker(db, calls=None, status=200, private=False):
+    def handler(request):
+        if calls is not None:
+            calls.append(request.url.path)
+        if status != 200:
+            return httpx.Response(status, json={"error": "Top up your account", "exc_type": "InsufficientFunds"})
+        if request.url.path == "/v1/user/clips/chunk" and "end_cursor" in request.url.params:
+            return httpx.Response(200, json=[[], None])
+        body = fixture(ROUTES[request.url.path])
+        if private and request.url.path == "/v1/user/by/username":
+            body["is_private"] = True
+        return httpx.Response(200, json=body)
+
+    return Hiker("test-key", db, httpx.Client(base_url=BASE_URL, transport=httpx.MockTransport(handler)))
+
+
+def test_parse_profile_and_about():
+    p = parse_profile(fixture("profile"))
+    assert p["pk"] == "1203962496" and p["username"] == "komalpandeyofficial"
+    assert (p["followers"], p["following"], p["posts"]) == (2061112, 2567, 3413)
+    assert p["is_verified"] and not p["is_private"] and p["has_pic"]
+    assert parse_about(fixture("about")) == {"country": "India", "joined": "March 2014", "former_usernames": 0}
+
+
+def test_parse_reels_reads_counts_ads_and_collabs():
+    reels = parse_reels(fixture("clips")[0])
+    assert len(reels) == 12
+    first = reels[0]
+    assert first["id"] == "3999681092547569165" and first["code"] == "DeBuMMwJOYN"
+    assert (first["views"], first["likes"], first["comments"]) == (1224661, 45915, 574)
+    assert first["taken_at"] == "2026-10-03T09:23:09Z" and first["paid"] is False and first["counts_hidden"] is False
+    by_code = {r["code"]: r for r in reels}
+    assert by_code["DcIhhfPNfcU"]["coauthors"] == ["californiaalmonds_india"]
+    assert "#ad" in by_code["DcssQOCNN-n"]["caption"]
+
+
+def test_parse_reels_reads_tagged_accounts():
+    item = fixture("clips")[0][0] | {"usertags": [{"user": {"pk": 1, "username": "brand.x"}, "x": 0.5, "y": 0.5}]}
+    assert parse_reels([item])[0]["tags"] == ["brand.x"]
+
+
+def test_mark_pinned_flags_reels_older_than_a_later_one():
+    # The recorded page opens with reels from 10-03, 09-19 and 09-11, then 09-25: the 09-19 and 09-11 reels are pinned.
+    pinned = [r["pinned"] for r in mark_pinned(parse_reels(fixture("clips")[0]))]
+    assert pinned[:4] == [False, True, True, False] and not any(pinned[4:])
+
+
+def test_parse_comments_and_accounts():
+    comments = parse_comments(fixture("comments")[0])
+    assert len(comments) == 15
+    assert comments[0]["text"].startswith("layer the belts") and comments[0]["at"] == "2026-10-03T13:04:29Z"
+    assert comments[0]["likes"] == 70 and set(comments[0]["user"]) == {"pk", "username", "full_name", "is_private", "is_verified", "has_pic"}
+    likers = parse_accounts(fixture("likers"))
+    assert len(likers) == 30 and sum(not a["has_pic"] for a in likers) == 5
+    assert sum(not a["has_pic"] for a in parse_accounts(fixture("followers")[0])) == 2
+    assert len(parse_accounts(fixture("suggested")["users"])) == 10
+
+
+def test_hiker_caches_each_call_in_mongo(db):
+    calls = []
+    hiker = fake_hiker(db, calls)
+    assert hiker.profile("komalpandeyofficial")["followers"] == 2061112
+    assert hiker.profile("komalpandeyofficial")["followers"] == 2061112
+    assert calls == ["/v1/user/by/username"]
+    assert db.cache.find_one()["fetched_at"] is not None
+
+
+def test_hiker_raises_with_the_status(db):
+    with pytest.raises(HikerError) as err:
+        fake_hiker(db, status=402).profile("anyone")
+    assert err.value.status == 402 and "Top up" in str(err.value)
+
+
+def test_collect_builds_a_snapshot(db):
+    snap = collect(fake_hiker(db), "komalpandeyofficial")
+    assert snap["handle"] == "komalpandeyofficial" and snap["followers"] == 2061112
+    data = snap["data"]
+    assert len(data["reels"]) == 12 and data["about"]["country"] == "India"
+    # comments on the 10 newest unpinned reels, likers on the 3 newest
+    assert len(data["comments"]) == 10 and len(data["likers"]) == 3
+    assert "3999681092547569165" in data["likers"] and len(data["likers"]["3999681092547569165"]) == 30
+    assert len(data["followers"]) == 48 and len(data["suggested"]) == 10
+
+
+def test_collect_stops_at_the_profile_for_a_private_account(db):
+    calls = []
+    snap = collect(fake_hiker(db, calls, private=True), "someone")
+    assert calls == ["/v1/user/by/username"] and set(snap["data"]) == {"profile"}
+
+
+def test_collect_benchmark_skips_creators_fetched_in_the_last_day(db, monkeypatch):
+    db.deals.insert_many([{"handle": "fresh"}, {"handle": "stale"}])
+    db.snapshots.insert_one({"handle": "fresh", "fetched_at": datetime.now(timezone.utc) - timedelta(hours=2)})
+    db.snapshots.insert_one({"handle": "stale", "fetched_at": datetime.now(timezone.utc) - timedelta(hours=30)})
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    monkeypatch.setattr(cli, "make_hiker", lambda database: fake_hiker(database))
+    result = CliRunner().invoke(cli.app, ["collect-benchmark"])
+    assert result.exit_code == 0, result.output
+    assert "Collected 1, skipped 1 fetched in the last 24 h, failed 0" in result.output
+    assert db.snapshots.count_documents({"handle": "stale"}) == 2
+
+
+def test_collect_benchmark_stops_when_credit_runs_out(db, monkeypatch):
+    db.deals.insert_many([{"handle": "a"}, {"handle": "b"}])
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    monkeypatch.setattr(cli, "make_hiker", lambda database: fake_hiker(database, status=402))
+    result = CliRunner().invoke(cli.app, ["collect-benchmark"])
+    assert result.exit_code == 1
+    assert result.output.count("402") == 1

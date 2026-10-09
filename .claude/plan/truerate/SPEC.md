@@ -74,7 +74,7 @@ The pitch deck uses the same content.
 | The problem: bought followers, seeded views, engagement pods | Followers: newest-follower quality, views per follower. Seeded views: likes per view, likes too even. Pods: repeat commenters, Louvain rings | 3 |
 | Put in any face creator's profile | Handle or profile-link input; face check on reel covers; private or faceless gets `out_of_scope` | 4 |
 | Authenticity: clear verdict | 3-level verdict from 3 check families (likes, followers, comments) | 3 |
-| Red flags: suspicious follower spikes | Share of fake-looking accounts among the 100 newest followers (a proxy; see Known limits) | 3 |
+| Red flags: suspicious follower spikes | Share of fake-looking accounts among the newest followers Instagram shows, 25 to 50 (a proxy; see Known limits) | 3 |
 | Red flags: engagement that doesn't fit the page's reach | Views per follower and likes per view vs similar creators | 3 |
 | Engagement rate and comparison with similar creators | Rate, band median, percentile | 2, 4 |
 | Placement: how content actually performs | Last 30 reels chart, trend | 2, 4 |
@@ -104,7 +104,7 @@ The pitch deck uses the same content.
 | Area | Signal | Why it is there |
 |---|---|---|
 | Authenticity | Fake-looking likers (Kaggle-trained classifier, ~200 likers on 3 reels). It uses only the 6 fields that come with the likers list: 88% on Kaggle's 120 test accounts, against 92% with all 11, which would cost one request per account | Bought likes come from empty accounts. Like counts are cheap to fake; account quality is not |
-| Authenticity | Fake-looking newest followers (up to 100) | Bought followers arrive as a block of empty accounts, so the newest followers show a recent spike |
+| Authenticity | Fake-looking newest followers (the 25 to 50 Instagram shows) | Bought followers arrive as a block of empty accounts, so the newest followers show a recent spike |
 | Authenticity | Views per follower vs similar creators | Followers bought without reach show up as views far below the follower count |
 | Authenticity | Likes per view vs similar creators | Seeded views have no real viewers behind them, so few of those views turn into likes |
 | Authenticity | Likes too even across reels | Bot delivery is flat; real reach is spiky |
@@ -138,7 +138,7 @@ Not in scope: watchlist, post-campaign check, UGC pricing, brand-handle input, d
 | front end | Next.js 16 (App Router, TS), Tailwind 4, shadcn/ui, Recharts | Chetan's choice; look and rules in `DESIGN.md` |
 | back end | FastAPI, Python 3.12 via uv | Python has the ML libraries; mediapipe doesn't run on 3.14 |
 | data | MongoDB (pymongo), URL in `.env`; model files in `data/models/` | Chetan's choice |
-| Instagram data | HikerAPI, every call cached in Mongo for 24 h | WLDD already uses it |
+| Instagram data | HikerAPI, every call cached in Mongo for 24 h; about 20 requests and 1 minute per creator | WLDD already uses it |
 | ML | scikit-learn (Ridge, KNN, RandomForest, IsolationForest), networkx Louvain, MiniLM (`paraphrase-multilingual-MiniLM-L12-v2`), MediaPipe face detection | Decided in planning; nothing optional |
 | LLM | Gemini via `google-genai` on a free key | No Claude API; prices are never sent to it |
 | auth | demo login + `@wldd.in` front-end check | Internal prototype |
