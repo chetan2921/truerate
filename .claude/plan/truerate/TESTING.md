@@ -22,5 +22,10 @@
 |------|------|-------------|-----|-------|
 | api health + settings | yes | no | no | |
 
+## Model validation (judging 4 and 5)
+These are reports, not pass/fail unit tests, and they arrive with milestones 2 and 3:
+- `truerate validate`: 30 held-out creators by follower band, leave-one-out by category, both baselines, range coverage
+- `truerate redteam`: catch rate per fake type (smart fake included) and the flagged share of unmodified creators
+
 ## Gaps
 - `web/` has no tests yet; lint and build only.

@@ -14,9 +14,6 @@ api/truerate/__init__.py
 api/truerate/app.py
 api/truerate/config.py
 web/.gitignore
-web/AGENTS.md
-web/CLAUDE.md
-web/README.md
 web/eslint.config.mjs
 web/next.config.ts
 web/package.json
@@ -42,4 +39,4 @@ web/src/app/layout.tsx:20:export default function RootLayout({ children }: Layou
 web/src/app/page.tsx:3:export default function Home() {
 ```
 
-<!-- mapped: .@543bbb5 | paths: api/, web/src/, Makefile -->
+<!-- mapped: .@9585fbe | paths: api/, web/src/ -->

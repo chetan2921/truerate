@@ -52,10 +52,10 @@ Pink (`#FF006B`, `#FF90E8`) and orange (`#F76B3E`) are Solo colors we don't use.
 | Screen | Loud | Quiet |
 |---|---|---|
 | Analyze (`/`) | The handle input and its button, on the first screen at every size | Optional inputs (product category, quote, budget), recent analyses list |
-| Report (`/analyses/[id]`) | One composed decision block: price range, recommended price, Go/Negotiate/Avoid chip, verdict scale, expected views | Waterfall and quote checker next; then the evidence sections, each a different shape (checks as a dense table, reels as one full-width chart, comparables as a table) |
+| Report (`/analyses/[id]`) | One composed decision block: price range, recommended price, Go/Negotiate/Avoid chip, verdict scale, expected views, likes and comments | Waterfall with its 6 comparable deals, and the quote checker, next. Then the five evidence sections, each a different shape: authenticity checks as a dense table; engagement as one percentile bar; placement as one full-width reel chart with consistency, paid-vs-own and collab-vs-own as plain lines under it; audience as a mix bar plus languages plus one "worth reaching" sentence; comparables as a table |
 | Batch (`/batch/[id]`) | The ranked table | Progress line |
 | Rate card (`/rate-card`) | The calculator result | Categories as a table with an inline bar for ₹ per 1,000 views, not a grid of same-size cards |
-| About (`/about`) | Predicted-vs-actual chart | Tables for bands, baselines, fake-creator test |
+| About (`/about`) | Predicted-vs-actual chart | Input → verdict → price diagram; signals-and-why table; error by band and by category; baselines; fake-creator test; other page types; known limits. The pitch deck reuses these, in the same tokens |
 | Print (`/analyses/[id]/print`) | Same decision block, A4, black on white (print exception to dark-only) | — |
 
 The decision block is earned by the brief: the price is the product's entire answer. Under it, show expected views and cost per 1,000 views as one sentence with its comparison, never as a row of three stat cards.

@@ -5,7 +5,7 @@ TrueRate is an internal WLDD tool. Paste an Instagram face creator, optionally w
 ## Repos
 | Repo | What it is | Mapped from | Context |
 |------|-----------|-------------|---------|
-| truerate (this folder, `.`) | api + web monorepo | `main` @ 543bbb5 | `.claude/truerate/AGENTS.md` |
+| truerate (this folder, `.`) | api + web monorepo | `main` @ 9585fbe | `.claude/truerate/AGENTS.md`; subsystems `.claude/truerate/api/AGENTS.md`, `.claude/truerate/web/AGENTS.md` |
 
 ## Products
 | Product | Repos | Plan |
@@ -26,7 +26,8 @@ changing either side, and update it when a side moves.
 - UI work follows `DESIGN.md` and the ui-craft skill. A screen is done only when ui-craft's `audit.mjs` passes on it.
 
 ## Navigate
-Working in a repo: `.claude/<repo>/AGENTS.md`. Looking for a symbol or a file:
+Working in a repo: `.claude/<repo>/AGENTS.md`, and for `api/` or `web/` their
+own file under `.claude/truerate/`. Looking for a symbol or a file:
 `.claude/<repo>/STRUCTURE.md`. Building a feature: that product's `SPEC.md` for
 what it should do and `IMPLEMENTATION.md` for where the work stands. Building or
 changing UI: `DESIGN.md`. Changing a seam: the contract. Wondering why something

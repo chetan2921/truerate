@@ -15,10 +15,11 @@ Milestone 1, data in. The scaffold is done (api health route, Next.js app). Next
 - [ ] full suite green, then stop here
 
 ## Next
-- 2. Price v1: metrics from snapshots, Ridge+KNN, holdout validation vs baselines
-- 3. Audience check: Kaggle fake-account model, comments and pods, Louvain, IsolationForest, MediaPipe, Gemini labels, verdict in price, red-team
-- 4. API + report: analyses endpoints with background jobs, login, analyze page, report page (per `DESIGN.md`)
-- 5. Extras: batch, rate card + calculator, quote check, competitor conflict, cheaper alternatives, print page, About
+- 2. Price v1: metrics (incl. consistency, paid vs own, collab vs own), Ridge+KNN, expected delivery, validation by band (holdout) and by category (leave-one-out) vs both baselines
+- 3. Audience check: Kaggle fake-account model, comments and pods, Louvain, IsolationForest, MediaPipe, Gemini labels, commenter mix and languages, verdict in price, red-team with smart-fake rate reported
+- 4. API + report: analyses endpoints with background jobs, login, analyze page, report page with all five sections (per `DESIGN.md`)
+- 5. Extras: batch, rate card + calculator, quote check, competitor conflict, cheaper alternatives, print page, About in five parts
+- 6. Pitch: deck of at most 12 slides answering judging 1–6 with real numbers, plus a 3-minute demo with a cached fallback
 
 ## Done
 - 2026-10-10 Scaffold: FastAPI `api/` (Python 3.12, uv) with `/api/health`, Next.js 16 `web/`, `DESIGN.md` on Solo's palette, agent memory.
