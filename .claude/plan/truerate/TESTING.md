@@ -1,0 +1,26 @@
+# truerate testing
+
+## Run
+| Part | Command |
+|------|---------|
+| api | `make test` (runs `uv run pytest -q` in `api/`) |
+| web | `cd web && npm run lint && npm run build` |
+| UI | ui-craft `audit.mjs` and `slop-scan.mjs`, commands in `DESIGN.md` |
+
+## Known-good examples
+- FastAPI route test with `TestClient`, and settings read from env: `api/tests/test_app.py`
+
+## Strategies that work here
+- Goal is prototype, so tests cover the parts being proven: parsers, pricing maths, the verdict rules. Not every branch.
+- A test comes before the code it tests (repo-setup rule for planned products).
+- Mongo in unit tests: `mongomock`, never the real cluster.
+- Instagram in unit tests: recorded HikerAPI JSON in `api/tests/fixtures/`, taken from a public account that is not in WLDD's deals. The repo is public.
+- LLM in unit tests: a fake that returns a fixed reply. Never call Gemini from a test.
+
+## Inventory
+| Area | Unit | Integration | E2E | Notes |
+|------|------|-------------|-----|-------|
+| api health + settings | yes | no | no | |
+
+## Gaps
+- `web/` has no tests yet; lint and build only.
