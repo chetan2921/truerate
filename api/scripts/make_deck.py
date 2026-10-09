@@ -140,7 +140,7 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> No
     d.text(s, 0.6, 4.6, 12, 1.4, [("Paste any face creator. Get a fair price per reel, a range, what it should deliver, and Go, Negotiate or Avoid with the reasons.", 20, TEXT, False)])
 
     s = d.slide("From a handle to a price in about a minute", "Judging 1: architecture")
-    steps = [("Paste a creator", "Handle, optional product, quote, budget"), ("Read Instagram", "About 20 HikerAPI requests, cached 24 h"),
+    steps = [("Paste a creator", "Handle, optional product, quote, budget"), ("Read Instagram", "About 20 HikerAPI requests, each saved once"),
              ("Find ads", "Rules, then Gemini with covers"), ("Check the audience", "3 families against WLDD creators of the same size"),
              ("Price", "Ridge + 6 nearest WLDD deals, adjusted"), ("Decide", "Go, Negotiate or Avoid, with reasons")]
     for i, (t, sub) in enumerate(steps):

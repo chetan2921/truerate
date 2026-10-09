@@ -138,7 +138,7 @@ Not in scope: watchlist, post-campaign check, UGC pricing, brand-handle input, d
 | front end | Next.js 16 (App Router, TS), Tailwind 4, shadcn/ui, Recharts | Chetan's choice; look and rules in `DESIGN.md` |
 | back end | FastAPI, Python 3.12 via uv | Python has the ML libraries; mediapipe doesn't run on 3.14 |
 | data | MongoDB (pymongo), URL in `.env`; model files in `data/models/` | Chetan's choice |
-| Instagram data | HikerAPI, every call cached in Mongo for 24 h; about 20 requests and 1 minute per creator | WLDD already uses it |
+| Instagram data | HikerAPI; every raw response saved once on disk (`data/hikerapi/`, gzipped) and kept, so each call is paid for once; about 20 requests and 1 minute per creator | WLDD already uses it |
 | ML | scikit-learn (Ridge, KNN, RandomForest, IsolationForest), networkx Louvain, MiniLM (`paraphrase-multilingual-MiniLM-L12-v2`), MediaPipe face detection | Decided in planning; nothing optional |
 | LLM | Gemini via `google-genai` on a free key | No Claude API; prices are never sent to it |
 | auth | demo login + `@wldd.in` front-end check | Internal prototype |
@@ -170,7 +170,6 @@ Not in scope: watchlist, post-campaign check, UGC pricing, brand-handle input, d
 | `metrics` | `{_id: handle, computed_at, ...}` |
 | `analyses` | `{_id, handle, inputs, status, steps, result, error, batch_id, created_at, finished_at}` |
 | `batches` | batch records |
-| `cache` | HikerAPI responses, TTL index 24 h |
 | `accounts` | looked-up brand and commenter accounts, TTL index 30 days |
 
 **API:**

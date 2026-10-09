@@ -24,8 +24,8 @@ The Python service: collects Instagram data, runs the audience checks, prices on
 - `truerate/app.py`: the FastAPI `app`, the routes (analyses, quote, batches, rate card, meta, model report), the Pydantic models (the api-surface contract), and the background job (`submit`, `_start`, `make_deps`, `_run`)
 - `truerate/pipeline.py`: `analyze(handle, inputs, deps, step)`: one creator to report, with `Deps` for every outside service so tests swap them; `check_quote(report, quote)`
 - `truerate/cli.py`: the `truerate` Typer command
-- `truerate/db.py`: `get_db()`, `ensure_indexes()` (24 h TTL on `cache`, 30 d on `accounts`, unique `deals.handle`), `import_deals()`, `training_rows()`
-- `truerate/instagram.py`: `Hiker` (HikerAPI client, parsed responses cached in `cache`), the `parse_*` functions, `mark_pinned()`, `collect()`, `fetch_covers()`
+- `truerate/db.py`: `get_db()`, `ensure_indexes()` (30 d TTL on `accounts`, unique `deals.handle`), `import_deals()`, `training_rows()`
+- `truerate/instagram.py`: `Hiker` (HikerAPI client; every raw response saved once under `HIKER_DIR` and kept), the `parse_*` functions, `mark_pinned()`, `collect()`, `fetch_covers()`
 - `truerate/signals.py`, in file order:
   - fake-account model (`account_features`, `train_fake_model`, `fake_share`)
   - `CATEGORIES`, `is_paid`, `recent_reels`, `reel_metrics`, `label_niche`
@@ -34,7 +34,7 @@ The Python service: collects Instagram data, runs the audience checks, prices on
   - `ambiguous`, `label_creator` (Gemini), `commenter_mix`, `face_share`, `commenter_rings` (Louvain), `fit_anomaly` and `audience_warnings`
 - `truerate/pricing.py`: `fit()` gives a `PriceModel`; `price()` gives the range, waterfall, comparables and delivery; `validate()` (with predicted-vs-actual points, no handles); the two baselines; `rate_card()`
 - `truerate/llm.py`: `Gemini.json(prompt, schema, images)`
-- `truerate/config.py`: `Settings` from the repo-root `.env`; `MODELS_DIR` (env `MODELS_DIR` overrides, relative to the repo root)
+- `truerate/config.py`: `Settings` from the repo-root `.env`; `MODELS_DIR` (env `MODELS_DIR` overrides, relative to the repo root); `HIKER_DIR` (`data/hikerapi/`)
 
 ## Folder map
 - `truerate/`: the package. The file-per-job layout is in `.claude/plan/truerate/SPEC.md`, Architecture.
@@ -47,7 +47,7 @@ The Python service: collects Instagram data, runs the audience checks, prices on
 - Fixtures come from public accounts that aren't in WLDD's deals, trimmed, with every other account renamed. The repo is public.
 - Deal prices never go into an LLM prompt; the build-metrics test checks this.
 - HikerAPI credit is limited. `GET /sys/balance` is free: check it before and after a live run. Free tier: 1 request per second.
-- `cache` stores parsed results, not raw JSON (a likers call is 1.4 MB raw). After changing a parser, clear `cache` or wait 24 h.
+- HikerAPI responses live on disk in `data/hikerapi/<endpoint>/<params>-<hash>.json.gz`: raw, gzipped (about 600 KB per creator), kept with no expiry, so each call is paid for once and a parser change needs no new request. Fresh data for a creator means deleting their files; a refresh option is for after the hackathon. Never in Mongo.
 - Views are `play_count`; `view_count` is always 0. Pinned reels have no flag; `mark_pinned` finds them by date order. Instagram shows only the 25 to 50 newest followers.
 - First use downloads models: MiniLM (about 470 MB, Hugging Face cache) and BlazeFace (`data/models/blaze_face_short_range.tflite`).
 - `build-metrics` reuses a creator's stored Gemini labels while the snapshot is the same (`labels_for`). A new snapshot means a new labelling call.

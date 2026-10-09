@@ -24,3 +24,5 @@
   - The deck goes to the git-ignored `data/pitch/`: its charts come from WLDD's prices.
 - 2026-10-10 M6 code: pitch deck generator, decision-block screenshot and the demo script. All six milestones are code-complete; every remaining step is a live run that needs the paid HikerAPI key (IMPLEMENTATION, Now).
   Decided: the deck uses Arial, because a .pptx can't embed fonts. The deck screenshot is the decision block only, so no WLDD deal price next to a creator reaches a slide.
+- 2026-10-10 storage: HikerAPI responses moved from the 24 h Mongo `cache` collection to files on disk (`data/hikerapi/`), raw and gzipped, kept with no expiry. Live check: two lookups cost 1 request.
+  Decided with Chetan: keep each response once, with no expiry or refresh option until after the hackathon. Raw, not parsed, so parser fixes cost no credit. Snapshots stay in Mongo. The old cache documents expire on their own.
