@@ -6,6 +6,11 @@ export type AnalysisRequest = Schemas["AnalysisRequest"];
 export type AnalysisSummary = Schemas["AnalysisSummary"];
 export type Report = Schemas["Report"];
 export type Meta = Schemas["Meta"];
+export type QuoteCheck = Schemas["QuoteCheck"];
+export type Batch = Schemas["Batch"];
+export type BatchRequest = Schemas["BatchRequest"];
+export type RateCard = Schemas["RateCard"];
+export type ModelReport = Schemas["ModelReport"];
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -23,4 +28,9 @@ export const api = {
   getAnalysis: (id: string) => call<Analysis>(`/api/analyses/${id}`),
   listAnalyses: () => call<AnalysisSummary[]>("/api/analyses"),
   meta: () => call<Meta>("/api/meta"),
+  checkQuote: (id: string, quote: number) => call<QuoteCheck>(`/api/analyses/${id}/quote`, { method: "POST", body: JSON.stringify({ quote }) }),
+  createBatch: (req: BatchRequest) => call<Schemas["Created"]>("/api/batches", { method: "POST", body: JSON.stringify(req) }),
+  getBatch: (id: string) => call<Batch>(`/api/batches/${id}`),
+  rateCard: () => call<RateCard>("/api/rate-card"),
+  modelReport: () => call<ModelReport>("/api/model-report"),
 };

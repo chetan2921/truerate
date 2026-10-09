@@ -77,6 +77,11 @@ db.analyses.insert_one({"_id": "demo-failed", "handle": "credit.gone", "inputs":
                         "error": "HikerAPI 402 on /v1/user/by/username: Top up your account", "created_at": now - timedelta(minutes=10)})
 db.analyses.insert_one({"_id": "demo-running", "handle": "still.working", "inputs": {}, "status": "running", "step": 2, "created_at": now - timedelta(minutes=1)})
 
+# A shortlist made of the demo analyses, for the batch table.
+db.batches.delete_many({})
+db.batches.insert_one({"_id": "demo-batch", "inputs": {"category": None, "quote": None, "budget": 22000}, "handles": [], "created_at": now})
+db.analyses.update_many({"_id": {"$in": ["demo-go", "demo-fake", "demo-private", "demo-running"]}}, {"$set": {"batch_id": "demo-batch"}})
+
 # Synthetic models and reports, so the rate card and About have something to show.
 DEV_MODELS.mkdir(parents=True, exist_ok=True)
 rows = synthetic_rows()

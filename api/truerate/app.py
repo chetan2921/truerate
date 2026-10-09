@@ -418,7 +418,8 @@ def get_batch(batch_id: str) -> Batch:
                              verdict=r.get("audience", {}).get("verdict"), fair=p.get("fair"), low=p.get("low"), high=p.get("high"),
                              cost_per_1k=p.get("delivery", {}).get("cost_per_1k"), expected_views=(p.get("delivery", {}).get("views") or [None, None])[1],
                              reason=a.get("reason") or a.get("error")))
-    rows.sort(key=lambda x: (x.cost_per_1k is None, x.cost_per_1k or 0, x.handle))
+    # Cheapest views first, but never ahead of a creator we wouldn't book: Avoid goes after Go and Negotiate.
+    rows.sort(key=lambda x: (x.cost_per_1k is None, x.call == "Avoid", x.cost_per_1k or 0, x.handle))
     return Batch(id=batch_id, inputs=b["inputs"], created_at=b["created_at"], total=len(rows), done=sum(x.status != "running" for x in rows), rows=rows)
 
 

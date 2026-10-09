@@ -71,6 +71,8 @@ def test_validate_beats_both_baselines_on_synthetic_deals():
     assert h["model"]["median_error"] < 0.2
     assert h["model"]["median_error"] < h["band_median"]["median_error"] and h["model"]["median_error"] < h["modash"]["median_error"]
     assert set(report["by_category"]) == set(CAT_PER_1K) and report["by_category"]["Food"]["n"] == 30
+    pts = h["points"]  # predicted vs actual for the About chart, without handles
+    assert len(pts) == 15 and set(pts[0]) == {"actual", "predicted", "band"}
     assert "creator" not in json.dumps(report)  # no handles, so the report can go in the pitch
 
 

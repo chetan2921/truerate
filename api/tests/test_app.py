@@ -115,3 +115,14 @@ def test_rate_card_endpoint(client, tmp_path, monkeypatch):
     joblib.dump(fit(synthetic_rows()), tmp_path / "price.joblib")
     card = client.get("/api/rate-card").json()
     assert len(card["categories"]) == 3 and card["categories"][0]["category"] == "Tech and gadgets"
+
+
+def test_batch_puts_avoid_after_everything_else(client, world, monkeypatch):
+    import numpy as np
+
+    from truerate.signals import make_fake
+
+    fakes = iter([make_fake(make_fake(target_snapshot(), "bot_likers", np.random.default_rng(1)), "pod_comments", np.random.default_rng(2)), target_snapshot()])
+    monkeypatch.setattr(app_module, "make_deps", lambda db: deps(db, next(fakes)))
+    b = client.get(f"/api/batches/{client.post('/api/batches', json={'handles': ['fakeone', 'realone']}).json()['id']}").json()
+    assert [row["call"] for row in b["rows"]][-1] == "Avoid" and b["rows"][0]["handle"] == "realone"

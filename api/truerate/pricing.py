@@ -144,6 +144,8 @@ def validate(rows: list[dict]) -> dict:
         p = price(m, r)
         return {
             "band": band(r["followers"]),
+            "actual": r["price"],
+            "predicted": p["fair"],
             "model": abs(p["fair"] - r["price"]) / r["price"],
             "band_median": abs(band_median_price(others, r["followers"]) - r["price"]) / r["price"],
             "modash": abs(modash_price(others, r) - r["price"]) / r["price"],
@@ -156,6 +158,7 @@ def validate(rows: list[dict]) -> dict:
         "holdout": {
             "n": len(held),
             "coverage": sum(e["covered"] for e in held) / len(held),
+            "points": [{"actual": round(e["actual"]), "predicted": e["predicted"], "band": e["band"]} for e in held],
             **{method: _summary(held, method) for method in ("model", "band_median", "modash")},
         },
         "by_category": {
