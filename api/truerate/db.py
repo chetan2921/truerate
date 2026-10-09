@@ -60,3 +60,13 @@ def import_deals(db: Database, csv_path: Path) -> dict[str, int]:
     db.deals.delete_many({})
     db.deals.insert_many(docs)
     return {"deals": len(docs), "holdout": len(holdout)}
+
+
+def training_rows(db: Database) -> list[dict]:
+    """Every deal that has metrics, as one flat row: the metrics plus handle, price and holdout."""
+    deals = {d["handle"]: d for d in db.deals.find()}
+    return [
+        {**{k: v for k, v in m.items() if k not in ("_id", "computed_at")}, "handle": m["_id"], "price": deals[m["_id"]]["price"], "holdout": deals[m["_id"]]["holdout"]}
+        for m in db.metrics.find().sort("_id")
+        if m["_id"] in deals
+    ]

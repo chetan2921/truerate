@@ -2,13 +2,16 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Annotated
 
+import json
+
 import joblib
 import typer
 
 from truerate.config import REPO_ROOT, get_settings
-from truerate.db import ensure_indexes, get_db, import_deals
+from truerate.db import ensure_indexes, get_db, import_deals, training_rows
 from truerate.instagram import Hiker, HikerError, collect
 from truerate.llm import Gemini
+from truerate.pricing import fit, validate
 from truerate.signals import category_from_niche, label_niche, load_kaggle, reel_metrics, train_fake_model
 
 app = typer.Typer(no_args_is_help=True)
@@ -115,3 +118,24 @@ def build_metrics_cmd() -> None:
         db.metrics.replace_one({"_id": handle}, {**metrics, "category": category, "category_source": source, "computed_at": datetime.now(timezone.utc)}, upsert=True)
         built += 1
     typer.echo(f"Built metrics for {built} creators; skipped {skipped} without a snapshot of 12+ reels")
+
+
+@app.command("validate")
+def validate_cmd(out_dir: Path = REPO_ROOT / "data" / "models") -> None:
+    """Holdout and per-category accuracy against both baselines, then the served price model."""
+    rows = training_rows(get_db())
+    report = validate(rows)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "model_report.json").write_text(json.dumps(report, indent=1))
+    # The holdout numbers come from a model that never saw those 30; the served model learns from every deal.
+    joblib.dump(fit(rows), out_dir / "price.joblib")
+    h = report["holdout"]
+    typer.echo(
+        f"Holdout ({h['n']} creators) median error: model {h['model']['median_error']:.0%}, "
+        f"band median {h['band_median']['median_error']:.0%}, Modash-style {h['modash']['median_error']:.0%}. "
+        f"Range coverage {h['coverage']:.0%}"
+    )
+    for b, err in h["model"]["by_band"].items():
+        typer.echo(f"  {b}: model {err:.0%}" if err is not None else f"  {b}: no holdout creators")
+    for c, v in report["by_category"].items():
+        typer.echo(f"  {c} ({v['n']}): model {v['model']:.0%}, band median {v['band_median']:.0%}, Modash-style {v['modash']:.0%}")
