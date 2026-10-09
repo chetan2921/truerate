@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     mongodb_db: str = "truerate"
     hikerapi_key: str = ""
     llm_api_key: str = ""
-    llm_model: str = "gemini-2.5-flash"
+    llm_model: str = "gemini-3.8-flash"
     data_dir: Path = REPO_ROOT / "data"
 
 
