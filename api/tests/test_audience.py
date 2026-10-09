@@ -5,7 +5,7 @@ from typer.testing import CliRunner
 
 from truerate import cli
 
-from truerate.signals import AUDIENCE_SIGNALS, FAKE_KINDS, audience_signals, commenter_mix, band_norms, comment_signals, genuine_share, make_fake, redteam, train_fake_model, verdict
+from truerate.signals import AUDIENCE_SIGNALS, FAKE_KINDS, audience_signals, commenter_mix, face_share, band_norms, comment_signals, genuine_share, make_fake, redteam, train_fake_model, verdict
 
 
 VOCAB = {}
@@ -173,3 +173,9 @@ def test_commenter_mix_sorts_top_commenters_into_fake_brand_creator_and_person()
 
 def comment_by(user, text):
     return {"text": text, "user": user}
+
+
+def test_face_share_is_the_share_of_covers_with_a_face():
+    covers = {"a": b"face", "b": b"face", "c": b"food", "d": b"text"}
+    assert face_share(covers, lambda img: img == b"face") == 0.5
+    assert face_share({}, lambda img: True) is None

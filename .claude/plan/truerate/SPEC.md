@@ -267,5 +267,6 @@ Response models are Pydantic. The web types are generated from `/openapi.json` (
 - **Follower spikes are a proxy.** Instagram doesn't expose follower history, so the spike signal is the share of fake-looking accounts among the newest followers. Real history builds from our first snapshot onward.
 - **The 150 prices were negotiated at different past dates,** but we only see creators' current stats. That noise sets a floor on accuracy, and we report the error honestly.
 - **Hidden-ad detection is probabilistic.** Reels it can't call are left out of the paid-vs-own comparison.
+- **The face check sees any face.** A fan page full of film stars passes it. It only rejects clearly faceless pages: fewer than 2 of 10 covers with a face.
 
 **Deliberately not built:** real auth, deployment, follower history before our first snapshot.

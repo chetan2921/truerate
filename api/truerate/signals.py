@@ -392,3 +392,39 @@ def commenter_mix(snapshot: dict, fake_model, labels: dict) -> dict:
         key = "fake" if is_fake else "brands" if kind == "brand" else "creators" if user.get("is_verified") or kind == "creator" else "people"
         mix[key] += 1
     return mix | {"languages": labels.get("languages", [])}
+
+
+FACE_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite"
+# Out of scope below this: fewer than 2 of 10 covers with a face. A food creator showed 2 of 10, so stricter rejects real ones.
+FACE_SHARE = 0.15
+
+
+@lru_cache
+def _face_detector():
+    import httpx
+    from mediapipe.tasks.python import BaseOptions, vision
+
+    from truerate.config import MODELS_DIR
+
+    path = MODELS_DIR / "blaze_face_short_range.tflite"
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(httpx.get(FACE_MODEL_URL, timeout=60).raise_for_status().content)
+    return vision.FaceDetector.create_from_options(vision.FaceDetectorOptions(base_options=BaseOptions(model_asset_path=str(path)), min_detection_confidence=0.5))
+
+
+def has_face(image: bytes) -> bool:
+    import io
+
+    import mediapipe as mp
+    from PIL import Image
+
+    rgb = np.asarray(Image.open(io.BytesIO(image)).convert("RGB"))
+    return bool(_face_detector().detect(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)).detections)
+
+
+def face_share(covers: dict[str, bytes], detect=has_face) -> float | None:
+    """Share of reel covers with a face. None without covers to check."""
+    if not covers:
+        return None
+    return round(sum(detect(img) for img in covers.values()) / len(covers), 2)
