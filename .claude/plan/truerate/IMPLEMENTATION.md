@@ -1,7 +1,7 @@
 # truerate implementation
 
 ## Now
-Milestone 1, data in. The Mongo layer and the deals import are built and pass on mongomock. Stopped here, blocked on two values in `.env`: `MONGODB_URI` (for the live import) and `HIKERAPI_KEY` (for fixtures and collection).
+Milestone 1, data in. The Mongo layer and the deals import are built and pass on mongomock. `.env` now has every key (Mongo, HikerAPI, Gemini), so start with the live import below. Still missing: the Kaggle `train.csv` in `data/external/instagram_fake/` (needed from milestone 3) and the submission deadline (decides how much of milestone 5 to keep).
 
 ### In flight: deals and Instagram data into Mongo
 - [x] `api/truerate/db.py`: collections and indexes. Tests (mongomock) check the `cache` TTL index and unique `deals.handle`
