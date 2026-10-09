@@ -1,5 +1,7 @@
 import csv
+import math
 import re
+from functools import lru_cache
 from pathlib import Path
 from statistics import median
 
@@ -40,7 +42,7 @@ def fake_share(model: RandomForestClassifier, accounts: list[dict]) -> float | N
     """Share of accounts the model calls fake. None when there are none to check (likes hidden, say)."""
     if not accounts:
         return None
-    return sum(model.predict([account_features(a) for a in accounts])) / len(accounts)
+    return round(float(sum(model.predict([account_features(a) for a in accounts])) / len(accounts)), 4)
 
 
 # WLDD's categories, each with the CSV genres that fall under it.
@@ -107,3 +109,133 @@ def label_niche(llm, bio: str, captions: list[str]) -> str:
     prompt = f"Pick the one category that fits this Instagram creator best.\n\nBio: {bio}\n\nRecent reel captions:\n{lines}"
     schema = {"type": "OBJECT", "properties": {"category": {"type": "STRING", "enum": list(CATEGORIES)}}, "required": ["category"]}
     return llm.json(prompt, schema)["category"]
+
+
+def band(followers: int) -> str:
+    return "small" if followers < 20_000 else "medium" if followers < 100_000 else "big"
+
+
+@lru_cache
+def _minilm():
+    from sentence_transformers import SentenceTransformer
+
+    return SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
+
+
+def minilm_embed(texts: list[str]) -> np.ndarray:
+    return _minilm().encode(texts, normalize_embeddings=True)
+
+
+# What bought and pod comments look like, in English and Hinglish. MiniLM is multilingual, so close variants match too.
+GENERIC_TEMPLATES = ["nice", "nice post", "great content", "amazing video", "love this", "awesome", "wow", "so beautiful", "superb",
+                     "keep it up", "very nice", "bahut badhiya", "mast hai", "op bhai"]
+GENERIC_SIM = 0.8  # checked on real comments: catches "Wow" and emoji strings, not sentences
+REPEAT_SIM = 0.92
+POD_SHARE = 0.6  # a commenter on this share of reels or more is a repeat commenter
+
+
+def comment_signals(comments_by_reel: dict[str, list[dict]], embed) -> dict:
+    """Share of generic or repeated comments, and how many accounts commented on 60%+ of the reels."""
+    flat = [(rid, c) for rid, cs in comments_by_reel.items() for c in cs]
+    if not flat:
+        return {"generic_comments": None, "repeat_commenters": 0, "n_comments": 0}
+    texts = [c["text"] for _, c in flat]
+    emoji_only = np.array([not re.sub(r"[\W_]+", "", t) for t in texts])
+    vecs = np.asarray(embed(texts))
+    generic = (vecs @ np.asarray(embed(GENERIC_TEMPLATES)).T).max(axis=1) >= GENERIC_SIM
+    other_reel = np.array([[a != b for b, _ in flat] for a, _ in flat])
+    repeated = ((vecs @ vecs.T >= REPEAT_SIM) & other_reel).any(axis=1)
+    reels_by_user: dict[str, set] = {}
+    for rid, c in flat:
+        reels_by_user.setdefault(c["user"]["username"], set()).add(rid)
+    with_comments = sum(1 for cs in comments_by_reel.values() if cs)
+    return {
+        "generic_comments": round(float(np.mean(emoji_only | generic | repeated)), 4),
+        "repeat_commenters": sum(len(rs) >= POD_SHARE * with_comments for rs in reels_by_user.values()),
+        "n_comments": len(flat),
+    }
+
+
+def _cv(values: list[float]) -> float:
+    return round(float(np.std(values) / np.mean(values)), 4)
+
+
+def audience_signals(snapshot: dict, metrics: dict, fake_model, embed) -> dict:
+    d = snapshot["data"]
+    reels = sorted((r for r in d["reels"] if not r["pinned"] and r["views"] > 0), key=lambda r: r["taken_at"], reverse=True)[:30]
+    likers = [a for accounts in d["likers"].values() for a in accounts]
+    return {
+        "followers": snapshot["followers"],
+        "fake_likers": fake_share(fake_model, likers),
+        "n_likers": len(likers),
+        "likes_per_view": metrics["likes_per_view"],
+        "views_cv": _cv([r["views"] for r in reels]),
+        "likes_cv": _cv([r["likes"] for r in reels]),
+        "fake_followers": fake_share(fake_model, d["followers"]),
+        "n_followers": len(d["followers"]),
+        "views_per_follower": metrics["views_per_follower"],
+        **comment_signals(d["comments"], embed),
+        "former_usernames": d["about"]["former_usernames"],
+    }
+
+
+# signal: (family, bad direction, compare in log scale, smallest gap from the band median that counts)
+AUDIENCE_SIGNALS = {
+    "fake_likers": ("likes", "high", False, 0.10),
+    "likes_per_view": ("likes", "low", True, math.log(2)),
+    "views_cv": ("likes", "low", True, math.log(2)),
+    "likes_cv": ("likes", "low", True, math.log(2)),
+    "fake_followers": ("followers", "high", False, 0.10),
+    "views_per_follower": ("followers", "low", True, math.log(2)),
+    "generic_comments": ("comments", "high", False, 0.15),
+    "repeat_commenters": ("comments", "high", False, 3),
+}
+VERDICTS = ["Real audience", "Some fake activity", "Mostly fake"]
+
+
+def _scale(value: float, log: bool) -> float:
+    return math.log(max(value, 1e-6)) if log else value
+
+
+def band_norms(rows: list[dict]) -> dict:
+    """Per follower band (and "all"), each signal's median and its box-plot fence (1.5 IQR past the quartile, toward bad)."""
+    groups = {"all": rows} | {b: [r for r in rows if band(r["followers"]) == b] for b in ("small", "medium", "big")}
+    norms = {}
+    for name, group in groups.items():
+        if len(group) < 10:
+            continue
+        norms[name] = {}
+        for s, (_, direction, log, _) in AUDIENCE_SIGNALS.items():
+            values = [r[s] for r in group if r.get(s) is not None]
+            q1, q3 = np.percentile([_scale(v, log) for v in values], [25, 75])
+            fence = q3 + 1.5 * (q3 - q1) if direction == "high" else q1 - 1.5 * (q3 - q1)
+            norms[name][s] = {"median": float(median(values)), "fence": float(fence)}
+    return norms
+
+
+def verdict(signals: dict, norms: dict) -> dict:
+    """A signal is bad when it is past its band's fence and at least its minimum gap from the band median.
+    A family with a bad signal fails; 0, 1, or 2+ failed families give the three verdicts."""
+    ref = norms.get(band(signals["followers"]), norms["all"])
+    flags = []
+    for s, (family, direction, log, gap) in AUDIENCE_SIGNALS.items():
+        if signals.get(s) is None:
+            continue
+        value, mid, fence = _scale(signals[s], log), _scale(ref[s]["median"], log), ref[s]["fence"]
+        bad = value > fence and value - mid >= gap if direction == "high" else value < fence and mid - value >= gap
+        if bad:
+            flags.append({"signal": s, "family": family, "value": signals[s], "median": ref[s]["median"]})
+    failed = [f for f in ("likes", "followers", "comments") if any(x["family"] == f for x in flags)]
+    return {"verdict": VERDICTS[min(len(failed), 2)], "failed_families": failed, "flags": flags, "medians": {s: v["median"] for s, v in ref.items()}}
+
+
+def genuine_share(signals: dict, norms: dict) -> float:
+    """1 minus the largest fake share above the band median, counted only for flagged signals: fake likers, fake followers,
+    and seeded views (likes per view below the band). Pod comments flag the creator but come from real accounts, so no discount."""
+    excess = [0.0]
+    for f in verdict(signals, norms)["flags"]:
+        if f["signal"] in ("fake_likers", "fake_followers"):
+            excess.append(f["value"] - f["median"])
+        elif f["signal"] == "likes_per_view":
+            excess.append(1 - f["value"] / f["median"])
+    return round(1 - max(excess), 2)

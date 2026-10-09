@@ -6,14 +6,10 @@ import numpy as np
 from sklearn.linear_model import RidgeCV
 from sklearn.preprocessing import StandardScaler
 
-from truerate.signals import CATEGORIES
+from truerate.signals import CATEGORIES, band
 
 K = 6  # past deals compared against
 SHRINK = 3  # the population's paid-reel drop counts as this many ads of the creator's own
-
-
-def band(followers: int) -> str:
-    return "small" if followers < 20_000 else "medium" if followers < 100_000 else "big"
 
 
 def round500(x: float) -> int:

@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 import joblib
+import numpy as np
 from typer.testing import CliRunner
 
 from truerate import cli
@@ -39,6 +40,7 @@ def test_fake_share_scores_accounts(tmp_path):
     real = {"username": "meera.sings", "full_name": "Meera Iyer", "has_pic": True, "is_private": False}
     fake = {"username": "user83920174", "full_name": "", "has_pic": False, "is_private": False}
     assert fake_share(model, [real, real, real, fake]) == 0.25
+    assert type(fake_share(model, [real, fake])) is float  # numpy floats can't go into Mongo
     assert fake_share(model, []) is None
 
 
@@ -104,7 +106,10 @@ def test_label_niche_sends_bio_and_12_captions_only():
 
 def snapshot(handle, n_reels=15, followers=50_000):
     reels = [make_reel(f"09-{30 - i:02d}", 10_000 + i * 1000, caption=f"recipe {i}") for i in range(n_reels)]
-    return {"handle": handle, "fetched_at": datetime.now(timezone.utc), "followers": followers, "data": {"profile": {"bio": f"{handle} bio"}, "reels": reels}}
+    liker = {"username": "meera", "full_name": "Meera Iyer", "has_pic": True, "is_private": False}
+    data = {"profile": {"bio": f"{handle} bio"}, "reels": reels, "likers": {"r0": [liker] * 4}, "followers": [liker] * 2,
+            "comments": {"r0": [{"text": "Recipe please", "user": {"username": "fan"}}]}, "about": {"former_usernames": 0}}
+    return {"handle": handle, "fetched_at": datetime.now(timezone.utc), "followers": followers, "data": data}
 
 
 def test_build_metrics_uses_wldd_niche_first_and_gemini_otherwise(db, monkeypatch):
@@ -118,12 +123,15 @@ def test_build_metrics_uses_wldd_niche_first_and_gemini_otherwise(db, monkeypatc
     llm = FakeLLM({"category": "Food"})
     monkeypatch.setattr(cli, "get_db", lambda: db)
     monkeypatch.setattr(cli, "make_llm", lambda: llm)
+    monkeypatch.setattr(cli, "load_fake_model", lambda: train_fake_model([[1, 0, 2, 0, 0, 0]] * 5 + [[0, 0.6, 0, 0, 0, 0]] * 5, [0] * 5 + [1] * 5))
+    monkeypatch.setattr(cli, "minilm_embed", lambda texts: np.eye(len(texts), 8))
     result = CliRunner().invoke(cli.app, ["build-metrics"])
     assert result.exit_code == 0, result.output
     assert "Built metrics for 2 creators; skipped 2 without a snapshot of 12+ reels" in result.output
     assert db.metrics.find_one({"_id": "known"})["category"] == "Tech and gadgets"
     unknown = db.metrics.find_one({"_id": "unknown"})
     assert (unknown["category"], unknown["category_source"], unknown["n_reels"]) == ("Food", "gemini", 15)
+    assert (unknown["fake_likers"], unknown["n_likers"], unknown["n_comments"]) == (0.0, 4, 1)  # audience signals feed the band norms
     assert len(llm.prompts) == 1 and "37000" not in llm.prompts[0] and "37,000" not in llm.prompts[0]
     # a rebuild reuses the stored Gemini label instead of asking again
     CliRunner().invoke(cli.app, ["build-metrics"])

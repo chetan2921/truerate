@@ -7,12 +7,12 @@ import json
 import joblib
 import typer
 
-from truerate.config import REPO_ROOT, get_settings
+from truerate.config import MODELS_DIR, REPO_ROOT, get_settings
 from truerate.db import ensure_indexes, get_db, import_deals, training_rows
 from truerate.instagram import Hiker, HikerError, collect
 from truerate.llm import Gemini
 from truerate.pricing import fit, validate
-from truerate.signals import category_from_niche, label_niche, load_kaggle, reel_metrics, train_fake_model
+from truerate.signals import audience_signals, category_from_niche, label_niche, load_kaggle, minilm_embed, reel_metrics, train_fake_model
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -88,6 +88,10 @@ def collect_benchmark_cmd() -> None:
     typer.echo(f"Collected {done}, skipped {skipped} fetched in the last 24 h, failed {failed}")
 
 
+def load_fake_model():
+    return joblib.load(MODELS_DIR / "fake_accounts.joblib")
+
+
 def make_llm() -> Gemini:
     settings = get_settings()
     return Gemini(settings.llm_api_key, settings.llm_model)
@@ -95,9 +99,10 @@ def make_llm() -> Gemini:
 
 @app.command("build-metrics")
 def build_metrics_cmd() -> None:
-    """Metrics and category for every deal creator, from their latest snapshot."""
+    """Metrics, category and audience signals for every deal creator, from their latest snapshot."""
     db = get_db()
     llm = None
+    fake_model = load_fake_model()
     built = skipped = 0
     for deal in db.deals.find().sort("handle"):
         handle = deal["handle"]
@@ -115,7 +120,9 @@ def build_metrics_cmd() -> None:
             llm = llm or make_llm()
             captions = [r["caption"] for r in sorted(snap["data"]["reels"], key=lambda r: r["taken_at"], reverse=True)]
             category, source = label_niche(llm, snap["data"]["profile"].get("bio", ""), captions), "gemini"
-        db.metrics.replace_one({"_id": handle}, {**metrics, "category": category, "category_source": source, "computed_at": datetime.now(timezone.utc)}, upsert=True)
+        audience = audience_signals(snap, metrics, fake_model, minilm_embed)
+        doc = {**metrics, **audience, "category": category, "category_source": source, "computed_at": datetime.now(timezone.utc)}
+        db.metrics.replace_one({"_id": handle}, doc, upsert=True)
         built += 1
     typer.echo(f"Built metrics for {built} creators; skipped {skipped} without a snapshot of 12+ reels")
 
