@@ -81,6 +81,11 @@ def test_validate_beats_both_baselines_on_synthetic_deals():
     assert h["model"]["median_error"] < 0.2
     assert h["model"]["median_error"] < h["band_median"]["median_error"] and h["model"]["median_error"] < h["modash"]["median_error"]
     assert set(report["by_category"]) == set(CAT_PER_1K) and report["by_category"]["Food"]["n"] == 30
+    # The scores judges know, for every method: share within 2x of the price paid, R² on log price, rank correlation.
+    for method in ("model", "band_median", "modash"):
+        assert 0 <= h[method]["within_2x"] <= 1 and h[method]["r2_log"] <= 1 and -1 <= h[method]["spearman"] <= 1
+    assert h["model"]["within_2x"] >= h["band_median"]["within_2x"] and h["model"]["r2_log"] > h["band_median"]["r2_log"] > -10
+    assert h["model"]["spearman"] > 0.8  # synthetic prices follow views closely, so the order should come out right
     pts = h["points"]  # predicted vs actual for the About chart, without handles
     assert len(pts) == 15 and set(pts[0]) == {"actual", "predicted", "band"}
     assert "creator" not in json.dumps(report)  # no handles, so the report can go in the pitch

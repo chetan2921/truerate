@@ -4,6 +4,7 @@ from statistics import median
 
 import numpy as np
 from mapie.regression import CrossConformalRegressor
+from scipy.stats import spearmanr
 from sklearn.linear_model import RidgeCV
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
@@ -240,8 +241,15 @@ def modash_price(rows: list[dict], m: dict) -> float:
 
 
 def _summary(errors: list[dict], method: str) -> dict:
+    """Median error by band, plus the scores judges know: the share of prices within 2x, R² on log price, and the rank
+    correlation between predicted and paid (is the order of creators right)."""
     by_band = {b: [e[method] for e in errors if e["band"] == b] for b in ("small", "medium", "big")}
-    return {"median_error": median(e[method] for e in errors), "by_band": {b: median(v) if v else None for b, v in by_band.items()}}
+    actual = np.log([e["actual"] for e in errors])
+    predicted = np.log([max(e[f"{method}_price"], 1) for e in errors])
+    residual, spread = np.sum((actual - predicted) ** 2), np.sum((actual - actual.mean()) ** 2)
+    return {"median_error": median(e[method] for e in errors), "by_band": {b: median(v) if v else None for b, v in by_band.items()},
+            "within_2x": float(np.mean(np.abs(actual - predicted) <= math.log(2))), "r2_log": float(1 - residual / spread) if spread else None,
+            "spearman": float(spearmanr(actual, predicted).statistic)}
 
 
 def validate(rows: list[dict]) -> dict:
@@ -251,13 +259,13 @@ def validate(rows: list[dict]) -> dict:
 
     def errors(r: dict, m: PriceModel, others: list[dict]) -> dict:
         p = price(m, r)
+        prices = {"model": p["fair"], "band_median": band_median_price(others, r["followers"]), "modash": modash_price(others, r)}
         return {
             "band": band(r["followers"]),
             "actual": r["price"],
             "predicted": p["fair"],
-            "model": abs(p["fair"] - r["price"]) / r["price"],
-            "band_median": abs(band_median_price(others, r["followers"]) - r["price"]) / r["price"],
-            "modash": abs(modash_price(others, r) - r["price"]) / r["price"],
+            **{method: abs(v - r["price"]) / r["price"] for method, v in prices.items()},
+            **{f"{method}_price": v for method, v in prices.items()},
             "covered": p["low"] <= r["price"] <= p["high"],
         }
 
