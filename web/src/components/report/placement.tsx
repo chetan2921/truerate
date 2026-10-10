@@ -6,8 +6,8 @@ import { Bar, BarChart, Cell, Line, LineChart, ResponsiveContainer, Tooltip, XAx
 import type { Report } from "@/lib/api";
 import { compact, pct } from "@/lib/format";
 
-const KIND_COLOR = { own: "var(--accent)", paid: "var(--negotiate)", collab: "var(--info)" } as const;
-const KIND_LABEL = { own: "Own reel", paid: "Paid", collab: "Collab with a creator" } as const;
+const KIND_COLOR = { own: "var(--accent)", paid: "var(--negotiate)", collab: "var(--info)", repost: "rgb(251 251 251 / 0.35)" } as const;
+const KIND_LABEL = { own: "Own reel", paid: "Paid", collab: "Collab with a creator", repost: "Repost of someone else's reel" } as const;
 const METRICS = ["views", "likes", "comments", "followers"] as const;
 type Metric = (typeof METRICS)[number];
 
@@ -96,10 +96,35 @@ export default function Placement({ r }: { r: Report }) {
             ? `${p.paid.n} paid reels keep ${pct(p.paid.ratio ?? 0)} of own-reel views; a typical WLDD creator's keep ${pct(p.paid.typical_ratio)}.`
             : `no paid reels in the last 30. A typical WLDD creator's paid reels keep ${pct(p.paid.typical_ratio)} of own-reel views.`}
         </li>
+        {p.n_reposts > 0 && (
+          <li>
+            <b>Reposts:</b> {p.n_reposts} of the last 30 reels are someone else&apos;s work, by Instagram&apos;s own label, so they stay out of the own-reel numbers.
+          </li>
+        )}
         <li>
           <b>Collab vs own:</b> {p.collab.n ? `${p.collab.n} posts co-authored with other creators get ${pct(p.collab.ratio ?? 0)} of own-reel views.` : "no posts co-authored with other creators."}
         </li>
       </ul>
+
+      {p.brand_tags.length > 0 && (
+        <div className="mt-6">
+          <h3 className="font-semibold">Brands that tagged this creator from their own page</h3>
+          <ul className="mt-2 flex flex-wrap gap-2 text-sm">
+            {p.brand_tags.map((t) => (
+              <li key={t.code} className="rounded-lg px-3 py-1 ring-1 ring-line">
+                <a href={`https://www.instagram.com/p/${t.code}/`} target="_blank" rel="noreferrer">
+                  @{t.brand}
+                </a>
+                <span className="basis">
+                  {" "}
+                  · {day(t.taken_at)}
+                  {t.topic ? ` · ${t.topic}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {p.ads.length > 0 && (
         <div className="mt-6">
