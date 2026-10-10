@@ -278,3 +278,36 @@ def test_hidden_like_counts_are_not_zero_likes():
     assert m["likes_per_view"] is None
     mixed = [make_reel(f"09-{30 - i:02d}", 10_000) | ({"likes": 0, "counts_hidden": True} if i % 2 else {}) for i in range(14)]
     assert reel_metrics({"followers": 50_000, "data": {"reels": mixed}})["likes_per_view"] == 0.1  # only reels that show likes
+
+
+def test_deal_window_metrics_use_own_reels_in_the_90_days_before_the_payout():
+    from truerate.signals import deal_window_metrics
+
+    reels = [make_reel("04-01", 1), make_reel("06-10", 2000), make_reel("07-01", 4000), make_reel("08-01", 6000),
+             make_reel("07-15", 100_000, paid=True), make_reel("07-20", 50_000, repost_of="someone"), make_reel("09-01", 90_000)]
+    snap = {"handle": "x", "followers": 10_000, "data": {"reels": reels}}
+    m = deal_window_metrics(snap, datetime(2026, 8, 15))  # Mongo hands the date back without a zone
+    assert (m["views_then"], m["n_then"]) == (4000, 3)
+    assert (m["engagement_then"], m["comments_per_1k_then"], m["likes_per_view_then"]) == (0.11, 10.0, 0.1)
+
+
+def test_deal_window_metrics_need_three_own_reels():
+    from truerate.signals import deal_window_metrics
+
+    snap = {"handle": "x", "followers": 10_000, "data": {"reels": [make_reel("08-01", 6000), make_reel("08-02", 7000)]}}
+    m = deal_window_metrics(snap, datetime(2026, 8, 15, tzinfo=timezone.utc))
+    assert m["views_then"] is None and m["n_then"] == 2
+
+
+def test_build_metrics_adds_the_stats_around_the_payout_date(db, monkeypatch):
+    db.deals.insert_one({"handle": "dated", "tier": "medium", "niche": ["Gadgets"], "price": 41_000, "holdout": False, "payout_date": datetime(2026, 10, 1)})
+    db.snapshots.insert_one(snapshot("dated"))
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    monkeypatch.setattr(cli, "make_llm", lambda: SchemaLLM())
+    monkeypatch.setattr(cli, "fetch_covers", lambda reels: {})
+    monkeypatch.setattr(cli, "load_fake_model", lambda: train_fake_model([[1, 0, 2, 0, 0, 0]] * 5 + [[0, 0.6, 0, 0, 0, 0]] * 5, [0] * 5 + [1] * 5))
+    monkeypatch.setattr(cli, "minilm_embed", lambda texts: np.eye(len(texts), 8))
+    result = CliRunner().invoke(cli.app, ["build-metrics"])
+    assert result.exit_code == 0, result.output
+    m = db.metrics.find_one({"_id": "dated"})
+    assert m["n_then"] == 15 and m["views_then"] == 17_000  # the 15 reels of 16 to 30 Sept, all within 90 days of 1 Oct

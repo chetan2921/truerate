@@ -20,6 +20,7 @@ from truerate.signals import (
     category_from_niche,
     commenter_mix,
     commenter_rings,
+    deal_window_metrics,
     label_creator,
     label_niche,
     load_kaggle,
@@ -188,6 +189,8 @@ def build_metrics_cmd(workers: int = 1) -> None:
         commenters = sorted({c["user"]["username"] for cs in snap["data"]["comments"].values() for c in cs})
         doc = {**metrics, **audience, "mix": mix, "labels": labels, "labels_for": snap["_id"], "commenters": commenters,
                "category": category, "category_source": source, "computed_at": datetime.now(timezone.utc)}
+        if deal.get("payout_date"):  # what the creator was delivering when WLDD paid them, beside today's numbers
+            doc |= deal_window_metrics(snap, deal["payout_date"])
         db.metrics.replace_one({"_id": handle}, doc, upsert=True)
         built += 1
     rings = commenter_rings({m["_id"]: set(m["commenters"]) for m in db.metrics.find({}, {"commenters": 1})})

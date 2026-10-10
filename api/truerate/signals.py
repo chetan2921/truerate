@@ -2,6 +2,7 @@ import copy
 import csv
 import math
 import re
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 from statistics import median
@@ -132,6 +133,32 @@ def reel_metrics(snapshot: dict, labels: dict | None = None) -> dict:
         "collab_n": len(collab),
         "collab_ratio": ratio(collab),
         "n_reposts": len(reposts),
+    }
+
+
+WINDOW_DAYS = 90  # the reels in the 90 days before a payout show what the creator was delivering when booked
+MIN_WINDOW_REELS = 3
+
+
+def deal_window_metrics(snapshot: dict, paid_on: datetime) -> dict:
+    """Views and engagement of the creator's own reels in the WINDOW_DAYS before a deal's payout: the stats WLDD saw
+    when it booked them, not today's. Ads count by the rules only (Gemini labels cover the newest reels), and reposts
+    and collabs are left out. None when fewer than MIN_WINDOW_REELS reels qualify."""
+    paid_on = paid_on if paid_on.tzinfo else paid_on.replace(tzinfo=timezone.utc)
+    start = paid_on - timedelta(days=WINDOW_DAYS)
+    when = lambda r: datetime.fromisoformat(r["taken_at"].replace("Z", "+00:00"))  # noqa: E731
+    reels = [r for r in snapshot["data"]["reels"] if not r["pinned"] and r["views"] > 0 and start <= when(r) <= paid_on]
+    own = [r for r in reels if not r["coauthors"] and not is_paid(r) and not r.get("repost_of")]
+    base = own or [r for r in reels if not r.get("repost_of")]
+    if len(base) < MIN_WINDOW_REELS:
+        return {"views_then": None, "engagement_then": None, "comments_per_1k_then": None, "likes_per_view_then": None, "n_then": len(base)}
+    liked = [r for r in base if r["likes"] > 0 and not r.get("counts_hidden")]
+    return {
+        "views_then": median(r["views"] for r in base),
+        "engagement_then": round(median((r["likes"] + r["comments"]) / r["views"] for r in (liked or base)), 4),
+        "comments_per_1k_then": round(median(r["comments"] * 1000 / r["views"] for r in base), 4),
+        "likes_per_view_then": round(median(r["likes"] / r["views"] for r in liked), 4) if liked else None,
+        "n_then": len(base),
     }
 
 
