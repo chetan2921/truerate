@@ -31,3 +31,4 @@
   Decided:
   - The sponsored-performance factor is bounded to 0.5–1.0, from systematic debugging. Ridge alone scored 57%; the unbounded factor reached 120× because viral reels were labelled as ads, giving 83%. Discount-only won on leave-one-out over the training creators (39%), not by peeking at the holdout.
   - Leave-one-out gives the 6-nearest-deals estimate zero weight, so the copy now says the market price is the regression.
+- 2026-10-10 M3 done on real data: red-team caught 99 to 100% of the four main fakes and 74% of the smart fake. 18% of WLDD's own creators are flagged, mostly for low likes per view; thresholds left as they are, since there is no ground truth to tune them against.

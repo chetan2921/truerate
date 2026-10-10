@@ -5,7 +5,7 @@ Waiting on the paid HikerAPI key for the live steps, in order:
 1. ~~`uv run truerate collect-benchmark`~~ done 2026-10-10: 149 creators, 148 with 12+ reels (one account deleted from Instagram), about 4,400 requests, 93 MB in `data/hikerapi/`. Use `--workers 12`.
 2. ~~`uv run truerate build-metrics --workers 6`~~ done: 148 creators. About 40 minutes the first time (one labelling call is about 45 s). Labels are now saved per creator in `labels`, so a rerun only labels what's missing.
 3. ~~`uv run truerate validate`~~ done, milestone 2 met: holdout median error 56% against 65% (band median) and 62% (Modash-style), range coverage 77%. By band: under 20K 29%, 20K to 100K 75%, 100K+ 63%. The first run gave 83%; the cause was an unbounded sponsored-performance factor, now 0.5–1.0.
-4. `uv run truerate redteam`. Milestone 3 is done when at least 80% are caught on flat views, bot likers, pod comments and bought followers, and the smart-fake rate is reported.
+4. ~~`uv run truerate redteam`~~ done, milestone 3 met: flat views, flat views with noise, bot likers and pod comments caught 100%; bought followers 99%; smart fake 74%. 18% of unmodified WLDD creators are flagged (27 of 148, mostly low likes per view). Takes about 30 minutes.
 5. A never-seen face creator on `/`, end to end in under 2 minutes. That closes milestone 4.
 6. Batch, rate card, quote check, print and About on real data. That closes milestone 5.
 
