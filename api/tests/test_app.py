@@ -46,6 +46,7 @@ def test_analysis_runs_and_reports(client):
     assert a["result"]["decision"]["call"] in ("Go", "Negotiate") and a["result"]["price"]["fair"] > 0
     recent = client.get("/api/analyses").json()
     assert recent[0]["id"] == res.json()["id"] and recent[0]["call"] == a["result"]["decision"]["call"] and recent[0]["fair"] == a["result"]["price"]["fair"]
+    assert (recent[0]["low"], recent[0]["high"]) == (a["result"]["price"]["low"], a["result"]["price"]["high"])  # the list shows the range
 
 
 def test_bad_handle_is_rejected(client):
@@ -74,7 +75,11 @@ def _with_collect(d, fn):
 
 def test_meta_lists_categories_and_coverage(client, tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "MODELS_DIR", tmp_path)
-    assert client.get("/api/meta").json() == {"categories": list(app_module.CATEGORIES), "range_coverage": None}
+    meta = client.get("/api/meta").json()
+    assert meta["categories"] == list(app_module.CATEGORIES) and meta["range_coverage"] is None
+    # The product list is broader than WLDD's 7 pricing categories; each product is priced through one of them.
+    assert len(meta["products"]) >= 40 and {p["category"] for p in meta["products"]} == set(app_module.CATEGORIES)
+    assert {"name": "Skincare", "category": "Fashion and beauty"} in meta["products"]
     (tmp_path / "model_report.json").write_text(json.dumps({"holdout": {"coverage": 0.8}}))
     (tmp_path / "redteam.json").write_text(json.dumps({"n": 150}))
     assert client.get("/api/meta").json()["range_coverage"] == 0.8
@@ -115,6 +120,7 @@ def test_rate_card_endpoint(client, tmp_path, monkeypatch):
     joblib.dump(fit(synthetic_rows()), tmp_path / "price.joblib")
     card = client.get("/api/rate-card").json()
     assert len(card["categories"]) == 3 and card["categories"][0]["category"] == "Tech and gadgets"
+    assert {c["category"] for c in card["thin"]} == set(app_module.CATEGORIES) - {c["category"] for c in card["categories"]}
 
 
 def test_batch_puts_avoid_after_everything_else(client, world, monkeypatch):
@@ -126,3 +132,21 @@ def test_batch_puts_avoid_after_everything_else(client, world, monkeypatch):
     monkeypatch.setattr(app_module, "make_deps", lambda db: deps(db, next(fakes)))
     b = client.get(f"/api/batches/{client.post('/api/batches', json={'handles': ['fakeone', 'realone']}).json()['id']}").json()
     assert [row["call"] for row in b["rows"]][-1] == "Avoid" and b["rows"][0]["handle"] == "realone"
+
+
+def test_removing_an_analysis_hides_it_from_recent_but_keeps_its_report(client):
+    first = client.post("/api/analyses", json={"handle": "newcreator"}).json()["id"]
+    second = client.post("/api/analyses", json={"handle": "newcreator"}).json()["id"]
+    assert client.delete(f"/api/analyses/{first}").status_code == 204
+    assert [a["id"] for a in client.get("/api/analyses").json()] == [second]
+    assert client.get(f"/api/analyses/{first}").json()["status"] == "done"  # a shared report link still opens
+    assert client.delete("/api/analyses/nope").status_code == 404
+
+
+def test_analyses_left_running_by_a_stopped_server_are_marked_failed(world):
+    world.analyses.insert_many([{"_id": "orphan", "handle": "x", "status": "running", "step": 1},
+                                {"_id": "finished", "handle": "y", "status": "done", "step": 3}])
+    app_module.fail_interrupted(world)
+    orphan = world.analyses.find_one({"_id": "orphan"})
+    assert orphan["status"] == "failed" and "stopped" in orphan["error"]
+    assert world.analyses.find_one({"_id": "finished"})["status"] == "done"

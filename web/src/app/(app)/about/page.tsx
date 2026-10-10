@@ -9,7 +9,7 @@ import { compact, inr, pct } from "@/lib/format";
 import { FAKE_KINDS, FLOW, LIMITS, OTHER_PAGES, SIGNALS } from "./content";
 
 type Holdout = { n: number; coverage: number; points: { actual: number; predicted: number; band: string }[] } & Record<string, { median_error: number; by_band: Record<string, number | null> }>;
-const METHODS: [string, string][] = [["model", "TrueRate"], ["band_median", "Band median price"], ["modash", "Modash-style formula"]];
+const METHODS: [string, string][] = [["model", "TruRate"], ["band_median", "Band median price"], ["modash", "Modash-style formula"]];
 // Log axes read best on 1-3-10 steps.
 const STEPS = [1e3, 3e3, 1e4, 3e4, 1e5, 3e5, 1e6, 3e6, 1e7, 3e7];
 
@@ -27,7 +27,7 @@ export default function AboutPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-6 pb-24 pt-[min(6vh,3rem)]">
-      <h1 className="max-w-3xl text-3xl font-bold">How TrueRate prices a reel, and how well it does</h1>
+      <h1 className="max-w-3xl text-3xl font-bold">How TruRate prices a reel, and how well it does</h1>
 
       <section aria-labelledby="accuracy" className="pt-8">
         <h2 id="accuracy" className="section-title">
@@ -46,13 +46,13 @@ export default function AboutPage() {
                     <YAxis type="number" dataKey="predicted" name="Predicted" scale="log" domain={[lo * 0.8, hi * 1.2]} ticks={ticks} tickFormatter={compact} tick={{ fill: "var(--text-muted)", fontSize: 12 }}
                       axisLine={false} tickLine={false} width={44} />
                     <ReferenceLine segment={[{ x: lo, y: lo }, { x: hi, y: hi }]} stroke="var(--line)" strokeDasharray="4 4" />
-                    <Tooltip formatter={(x) => inr(Number(x))} contentStyle={{ background: "var(--surface)", border: "none", borderRadius: 8 }} />
+                    <Tooltip formatter={(x) => inr(Number(x))} contentStyle={{ background: "var(--surface)", border: "none", borderRadius: 8 }} labelStyle={{ color: "var(--text)" }} itemStyle={{ color: "var(--text)" }} />
                     <Scatter data={pts} fill="var(--accent)" isAnimationActive={false} />
                   </ScatterChart>
                 </ResponsiveContainer>
               </div>
               <p className="basis mt-1">
-                {v.holdout.n} creators held out of training. On the dashed line, the prediction equals what WLDD paid. {pct(v.holdout.coverage)} of their prices fall inside TrueRate&apos;s range.
+                {v.holdout.n} creators held out of training. On the dashed line, the prediction equals what WLDD paid. {pct(v.holdout.coverage)} of their prices fall inside TruRate&apos;s range.
               </p>
             </div>
             <div>
@@ -87,7 +87,7 @@ export default function AboutPage() {
                   <tr>
                     <th className="py-2 pr-3 font-normal">Category</th>
                     <th className="py-2 pr-3 text-right font-normal">Deals</th>
-                    <th className="py-2 pr-3 text-right font-normal">TrueRate</th>
+                    <th className="py-2 pr-3 text-right font-normal">TruRate</th>
                     <th className="py-2 pr-3 text-right font-normal">Band median</th>
                     <th className="py-2 text-right font-normal">Modash-style</th>
                   </tr>

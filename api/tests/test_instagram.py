@@ -228,3 +228,30 @@ def test_collect_fetches_the_per_reel_lists_in_parallel_with_the_same_result(tmp
     one = collect(fake_hiker(tmp_path / "a"), "komalpandeyofficial", workers=1)["data"]
     many = collect(fake_hiker(tmp_path / "b"), "komalpandeyofficial", workers=8)["data"]
     assert one == many
+
+
+def test_comments_start_while_older_reel_pages_are_still_loading(tmp_path):
+    import threading
+
+    comments_seen = threading.Event()
+    comments_before_last_page = []
+    clips = fixture("clips")[0]
+    # Page 2: the same reels a year older, under new ids, so the pages never overlap.
+    older = [c | {"pk": c["pk"] + "2", "id": c["id"] + "2", "code": c["code"] + "2", "taken_at": c["taken_at"].replace("2026", "2025")} for c in clips]
+
+    def handler(request):
+        path, params = request.url.path, request.url.params
+        if path == "/v1/media/comments/chunk":
+            comments_seen.set()
+        if path == "/v1/user/clips/chunk":
+            cursor = params.get("end_cursor")
+            if cursor == "page3":  # the last page waits briefly: comments for the first page's reels should already be on their way
+                comments_before_last_page.append(comments_seen.wait(timeout=3))
+                return httpx.Response(200, json=[[], None])
+            return httpx.Response(200, json=[clips, "page2"] if cursor is None else [older, "page3"])
+        return httpx.Response(200, json=fixture(ROUTES[path]))
+
+    snap = collect(Hiker("test-key", tmp_path, httpx.Client(base_url=BASE_URL, transport=httpx.MockTransport(handler))), "komalpandeyofficial", workers=8)
+    assert comments_before_last_page == [True]
+    recent = [r for r in snap["data"]["reels"] if not r["pinned"]]
+    assert list(snap["data"]["comments"]) == [r["id"] for r in recent[:10]] and list(snap["data"]["likers"]) == [r["id"] for r in recent[:3]]

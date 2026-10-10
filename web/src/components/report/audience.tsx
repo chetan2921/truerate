@@ -39,7 +39,7 @@ export default function Audience({ r }: { r: Report }) {
         <p className="mt-5 text-lg">{r.worth_reaching}</p>
         {r.competitor && (
           <p className="mt-4 text-negotiate">
-            Possible competitor: promoted {r.competitor.brand ? `@${r.competitor.brand}` : "a brand"} in {r.niche.product}{" "}
+            Possible competitor: promoted {r.competitor.brand ? `@${r.competitor.brand}` : "a brand"} in {r.competitor.category ?? r.niche.product}{" "}
             {r.competitor.days === 0 ? "today" : r.competitor.days === 1 ? "yesterday" : `${r.competitor.days} days ago`}. Check exclusivity before booking.
           </p>
         )}

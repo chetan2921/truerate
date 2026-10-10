@@ -13,6 +13,7 @@ from truerate.pricing import PriceModel, _group, inr, per_1k, price
 from truerate.signals import (
     CATEGORIES,
     FACE_SHARE,
+    PRODUCT_CATEGORY,
     ambiguous,
     audience_signals,
     audience_warnings,
@@ -98,14 +99,15 @@ def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] =
         return {"status": "out_of_scope", "reason": f"@{handle} is private, so its reels and audience can't be read."}
     reels = recent_reels(snap)
     if len(reels) < MIN_REELS:
-        return {"status": "out_of_scope", "reason": f"@{handle} has {len(reels)} recent reels with visible views; TrueRate needs at least {MIN_REELS}."}
+        return {"status": "out_of_scope", "reason": f"@{handle} has {len(reels)} recent reels with visible views; TruRate needs at least {MIN_REELS}."}
 
     step(1)
     covers = deps.fetch_covers(reels, limit=10)
     faces = face_share(covers, deps.detect_face)
-    if faces is not None and faces < FACE_SHARE:
-        return {"status": "out_of_scope", "reason": f"Only {round(faces * len(covers))} of {len(covers)} reel covers show a face. TrueRate prices face creators; About explains the plan for other pages."}
     deal = db.deals.find_one({"handle": handle})
+    # A creator WLDD has booked is a face creator by WLDD's own records, whatever their covers show.
+    if faces is not None and faces < FACE_SHARE and not deal:
+        return {"status": "out_of_scope", "reason": f"Only {round(faces * len(covers))} of {len(covers)} reel covers show someone on camera. TruRate prices face creators; About explains the plan for other pages."}
     category = category_from_niche(deal["niche"]) if deal else None
     category_source = "wldd" if category else "gemini"
     with ThreadPoolExecutor(max_workers=3) as pool:  # niche and spoken-ad calls run alongside the long labelling call
@@ -147,20 +149,21 @@ def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] =
     by_category = {c: median(per_1k(r) for r in model.rows if r["category"] == c) for c in CATEGORIES if any(r["category"] == c for r in model.rows)}
     rank = sorted(by_category, key=lambda c: -by_category[c])
     product = inputs.get("category")
+    group = PRODUCT_CATEGORY.get(product, product) if product else None  # "Skincare" is checked as Fashion and beauty
     topics = list(labels.get("topics", {}).values())
-    fit_share = (sum(t == product for t in topics) / len(topics) if topics else 0.0) if product else None
-    fit = None if not product else "strong" if product == category else "good" if fit_share >= 0.2 else "weak" if fit_share < 0.1 else "some"
+    fit_share = (sum(t == group for t in topics) / len(topics) if topics else 0.0) if product else None
+    fit = None if not product else "strong" if group == category else "good" if fit_share >= 0.2 else "weak" if fit_share < 0.1 else "some"
     worth = f"{category} audiences rank {rank.index(category) + 1} of {len(rank)} by WLDD's past ₹ per 1,000 views" if category in rank else f"WLDD has no past {category} deals to rank against"
     if product:
-        worth += f"; {fit_share:.0%} of recent reels are about {product}, a {fit} fit."
+        worth += f"; {fit_share:.0%} of recent reels are about {group if group == product else f'{group}, where {product} sits'}, a {fit} fit."
     else:
         worth += "."
     # Brands that tagged the creator from their own page: collabs that never show on the creator's grid.
     brand_tags = sorted(({"code": t["code"], "taken_at": t["taken_at"], "brand": t["owner"], "topic": labels.get("topics", {}).get(t["code"])}
                          for t in d.get("tagged", []) if kinds.get(t["owner"]) == "brand"), key=lambda t: t["taken_at"], reverse=True)
-    recent_same = sorted((x for x in ads + brand_tags if product and x["topic"] == product and _days_ago(x["taken_at"]) <= COMPETITOR_DAYS),
+    recent_same = sorted((x for x in ads + brand_tags if product and x["topic"] == group and _days_ago(x["taken_at"]) <= COMPETITOR_DAYS),
                          key=lambda x: x["taken_at"], reverse=True)
-    competitor = {"brand": recent_same[0]["brand"], "days": _days_ago(recent_same[0]["taken_at"]), "code": recent_same[0]["code"]} if recent_same else None
+    competitor = {"brand": recent_same[0]["brand"], "days": _days_ago(recent_same[0]["taken_at"]), "code": recent_same[0]["code"], "category": group} if recent_same else None
 
     decision = _decide(v, flags, p, inputs, metrics, model.paid_typical, fit, fit_share, competitor)
     cheaper = sorted((r for r in model.rows if r["category"] == category and per_1k(r) < p["delivery"]["cost_per_1k"]
@@ -223,9 +226,10 @@ def _decide(v, flags, p, inputs, metrics, typical, fit, fit_share, competitor) -
     else:
         good.append("Real audience: likes, followers and comments all look like similar creators'")
     if fit == "weak":
-        avoid.append(f"Weak fit for {inputs['category']}: {fit_share:.0%} of recent reels are about it")
+        group = PRODUCT_CATEGORY.get(inputs["category"], inputs["category"])
+        avoid.append(f"Weak fit for {inputs['category']}: {fit_share:.0%} of recent reels are about {'it' if group == inputs['category'] else group}")
     if competitor:  # any brand in the category, not necessarily WLDD's client's rival, so it's a question, not a veto
-        negotiate.append(f"Promoted {competitor['brand'] or 'a brand'} in {inputs['category']} {when(competitor['days'])}: check exclusivity before booking")
+        negotiate.append(f"Promoted {competitor['brand'] or 'a brand'} in {competitor['category']} {when(competitor['days'])}: check exclusivity before booking")
     quote, budget = inputs.get("quote"), inputs.get("budget")
     if quote:
         if quote > p["high"]:

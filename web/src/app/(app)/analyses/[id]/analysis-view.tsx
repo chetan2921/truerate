@@ -8,6 +8,22 @@ import { use, useEffect, useState } from "react";
 import ReportView from "@/components/report/report";
 import { api, type Analysis } from "@/lib/api";
 
+// The API stores UTC without a zone marker; without the "Z" a browser in India would read it 5.5 hours off.
+function Elapsed({ since }: { since: string }) {
+  const start = new Date(/[zZ]$|[+-]\d\d:?\d\d$/.test(since) ? since : `${since}Z`).getTime();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const seconds = Math.max(0, Math.round((now - start) / 1000));
+  return (
+    <span className="figure text-text">
+      {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}
+    </span>
+  );
+}
+
 export default function AnalysisView({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
@@ -62,7 +78,10 @@ export default function AnalysisView({ params }: { params: Promise<{ id: string 
   if (analysis.status === "running") {
     return (
       <Shell title={`@${analysis.handle}`}>
-        <p className="basis mt-2">Usually under a minute. Instagram data, then the checks, then the price.</p>
+        <p className="basis mt-2">
+          Running for <Elapsed since={analysis.created_at} />. Usually about 35 seconds for a creator seen for the first time, about 25 for one seen before. Instagram
+          data, then the checks, then the price.
+        </p>
         <ol className="mt-8 max-w-md space-y-4" aria-live="polite">
           {analysis.steps.map((label, i) => {
             const state = i < analysis.step ? "done" : i === analysis.step ? "current" : "next";

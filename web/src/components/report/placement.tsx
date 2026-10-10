@@ -47,7 +47,7 @@ export default function Placement({ r }: { r: Report }) {
             <LineChart data={history} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
               <XAxis dataKey="day" tick={{ fill: "var(--text-muted)", fontSize: 12 }} axisLine={{ stroke: "var(--line)" }} tickLine={false} />
               <YAxis tickFormatter={compact} tick={{ fill: "var(--text-muted)", fontSize: 12 }} axisLine={false} tickLine={false} width={48} domain={["auto", "auto"]} />
-              <Tooltip formatter={(v) => compact(Number(v))} contentStyle={{ background: "var(--surface)", border: "none", borderRadius: 8 }} />
+              <Tooltip formatter={(v) => compact(Number(v))} contentStyle={{ background: "var(--surface)", border: "none", borderRadius: 8 }} labelStyle={{ color: "var(--text)" }} itemStyle={{ color: "var(--text)" }} />
               <Line dataKey="followers" stroke="var(--accent)" strokeWidth={2} dot={{ r: 4, fill: "var(--accent)" }} isAnimationActive={false} />
             </LineChart>
           ) : (
@@ -56,7 +56,7 @@ export default function Placement({ r }: { r: Report }) {
               <YAxis tickFormatter={compact} tick={{ fill: "var(--text-muted)", fontSize: 12 }} axisLine={false} tickLine={false} width={48} />
               <Tooltip
                 cursor={{ fill: "rgb(251 251 251 / 0.06)" }}
-                contentStyle={{ background: "var(--surface)", border: "none", borderRadius: 8 }}
+                contentStyle={{ background: "var(--surface)", border: "none", borderRadius: 8 }} labelStyle={{ color: "var(--text)" }} itemStyle={{ color: "var(--text)" }}
                 formatter={(v, _n, item) => [compact(Number(v)), KIND_LABEL[(item.payload as (typeof reels)[number]).kind]]}
               />
               <Bar dataKey={metric} radius={[3, 3, 0, 0]} isAnimationActive={false}>
@@ -70,7 +70,7 @@ export default function Placement({ r }: { r: Report }) {
       </div>
       <p className="basis mt-2 flex flex-wrap gap-x-5 gap-y-1">
         {metric === "followers" ? (
-          <span>Instagram doesn&apos;t share follower history, so this builds from TrueRate&apos;s first snapshot ({history.length} so far).</span>
+          <span>Instagram doesn&apos;t share follower history, so this builds from TruRate&apos;s first snapshot ({history.length} so far).</span>
         ) : (
           (Object.keys(KIND_COLOR) as (keyof typeof KIND_COLOR)[]).map((k) => (
             <span key={k} className="inline-flex items-center gap-2">

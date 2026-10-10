@@ -10,7 +10,7 @@ const urbanist = Urbanist({
 });
 
 export const metadata: Metadata = {
-  title: "TrueRate",
+  title: "TruRate",
   description: "What one reel is worth, and whether WLDD should book the creator.",
 };
 

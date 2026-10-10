@@ -156,12 +156,15 @@ class Hiker:
     def about(self, pk: str) -> dict:
         return self._get("/gql/user/about", parse_about, id=pk)
 
-    def reels(self, pk: str, pages: int = 3) -> list[dict]:
+    def reels(self, pk: str, pages: int = 3, on_page=None) -> list[dict]:
+        """`on_page` gets the reels so far after each page, so work on the newest can start before the older pages arrive."""
         reels, cursor = [], None
         for _ in range(pages):
             params = {"user_id": pk} | ({"end_cursor": cursor} if cursor else {})
             page = self._get("/v1/user/clips/chunk", lambda raw: {"reels": parse_reels(raw[0]), "cursor": raw[1]}, **params)
             reels += page["reels"]
+            if on_page:
+                on_page(reels)
             cursor = page["cursor"]
             if not cursor or not page["reels"]:
                 break
@@ -198,20 +201,30 @@ def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int
     if profile["is_private"]:
         return snap
     pk = profile["pk"]
-    reels = hiker.reels(pk)
-    recent = [r for r in reels if not r["pinned"]]
     with ThreadPoolExecutor(max_workers=workers) as pool:
+        # These need only the profile id, so they run while the reel pages arrive one after another.
         about = pool.submit(_or_empty, hiker.about, pk, {"country": "", "joined": "", "former_usernames": 0})
-        comments = {r["id"]: pool.submit(_or_empty, hiker.comments, r["id"]) for r in recent[:comment_reels]}
-        likers = {r["id"]: pool.submit(_or_empty, hiker.likers, r["id"]) for r in recent[:liker_reels]}
         followers = pool.submit(_or_empty, hiker.followers, pk)
         suggested = pool.submit(_or_empty, hiker.suggested, pk)
         tagged = pool.submit(_or_empty, hiker.tagged, pk)
+        comments, likers = {}, {}
+
+        def per_reel(reels):
+            """Comments and likers for the newest reels as soon as a page lists them (usually all on the first page)."""
+            recent = [r for r in mark_pinned(reels) if not r["pinned"]]
+            for r in recent[:comment_reels]:
+                comments.setdefault(r["id"], pool.submit(_or_empty, hiker.comments, r["id"]))
+            for r in recent[:liker_reels]:
+                likers.setdefault(r["id"], pool.submit(_or_empty, hiker.likers, r["id"]))
+            return recent
+
+        reels = hiker.reels(pk, on_page=per_reel)
+        recent = per_reel(reels)  # the final newest reels: anything a later page changed is fetched now
         data |= {
             "about": about.result(),
             "reels": reels,
-            "comments": {k: f.result() for k, f in comments.items()},
-            "likers": {k: f.result() for k, f in likers.items()},
+            "comments": {r["id"]: comments[r["id"]].result() for r in recent[:comment_reels]},
+            "likers": {r["id"]: likers[r["id"]].result() for r in recent[:liker_reels]},
             "followers": followers.result(),
             "suggested": suggested.result(),
             "tagged": [t for t in tagged.result() if t["owner"] != profile["username"]],
@@ -232,13 +245,13 @@ def _or_empty(fetch, key: str, empty=None):
 
 def fetch_covers(reels: list[dict], limit: int = 6) -> dict[str, bytes]:
     """Cover images by reel code, from Instagram's CDN (not HikerAPI, so no credit). Failures are skipped."""
-    covers = {}
-    with httpx.Client(timeout=10, follow_redirects=True) as http:
-        for r in reels[:limit]:
-            try:
-                resp = http.get(r["thumbnail"])
-            except httpx.HTTPError:
-                continue
-            if resp.status_code == 200:
-                covers[r["code"]] = resp.content
-    return covers
+    def one(http, r):
+        try:
+            resp = http.get(r["thumbnail"])
+        except httpx.HTTPError:
+            return r["code"], None
+        return r["code"], resp.content if resp.status_code == 200 else None
+
+    # In parallel: one at a time took 6 s for 10 covers.
+    with httpx.Client(timeout=10, follow_redirects=True) as http, ThreadPoolExecutor(max_workers=10) as pool:
+        return {code: img for code, img in pool.map(lambda r: one(http, r), reels[:limit]) if img}

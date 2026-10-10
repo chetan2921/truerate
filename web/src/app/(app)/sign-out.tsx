@@ -9,7 +9,7 @@ export default function SignOut() {
   return (
     <button
       type="button"
-      className="basis rounded-lg px-2 py-1 hover:text-text"
+      className="rounded-lg px-3 py-2 text-base text-muted hover:text-text"
       onClick={() => {
         document.cookie = `${SESSION_COOKIE}=; path=/; max-age=0`;
         router.replace("/login");

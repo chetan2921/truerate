@@ -6,7 +6,8 @@ import numpy as np
 from typer.testing import CliRunner
 
 from truerate import cli
-from truerate.pricing import MARKET_SOURCE, band, band_median_price, collab_factor, fit, modash_price, price, rate_card, round500, validate
+from truerate.signals import CATEGORIES
+from truerate.pricing import MARKET_SOURCE, band, band_median_price, collab_factor, fit, modash_price, price, rate_card, round500, thin_categories, validate
 
 # Synthetic deals: price = the category's ₹ per 1,000 views × views, with 15% noise.
 CAT_PER_1K = {"Tech and gadgets": 1500, "Food": 600, "Entertainment": 1000}
@@ -123,6 +124,9 @@ def test_a_creator_bigger_than_any_wldd_deal_gets_a_note():
 def test_rate_card_leaves_out_categories_with_fewer_than_3_deals():
     rows = synthetic_rows() + [synthetic_rows(n=3, seed=9)[0] | {"category": "Fitness", "handle": "only.one"}]
     assert "Fitness" not in {c["category"] for c in rate_card(fit(rows))}
+    # ...but they are still listed, with how many deals they have, so no category silently disappears.
+    assert {"category": "Fitness", "n": 1} in thin_categories(fit(rows))
+    assert {c["category"] for c in thin_categories(fit(rows))} | {c["category"] for c in rate_card(fit(rows))} == set(CATEGORIES)
 
 
 def test_every_price_carries_the_published_asking_range_for_its_size():

@@ -101,7 +101,11 @@ export interface paths {
         get: operations["get_analysis_api_analyses__analysis_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Hide Analysis
+         * @description Takes it off the recent list. The report itself stays, so a link someone was sent still opens.
+         */
+        delete: operations["hide_analysis_api_analyses__analysis_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -229,6 +233,10 @@ export interface components {
             call: string | null;
             /** Fair */
             fair: number | null;
+            /** Low */
+            low?: number | null;
+            /** High */
+            high?: number | null;
             /** Verdict */
             verdict: string | null;
             /**
@@ -370,6 +378,8 @@ export interface components {
             days: number;
             /** Code */
             code: string;
+            /** Category */
+            category?: string | null;
         };
         /** Created */
         Created: {
@@ -469,6 +479,8 @@ export interface components {
         Meta: {
             /** Categories */
             categories: string[];
+            /** Products */
+            products: components["schemas"]["Product"][];
             /** Range Coverage */
             range_coverage: number | null;
         };
@@ -599,6 +611,13 @@ export interface components {
             comparables: components["schemas"]["Comparable"][];
             delivery: components["schemas"]["Delivery"];
         };
+        /** Product */
+        Product: {
+            /** Name */
+            name: string;
+            /** Category */
+            category: string;
+        };
         /** Profile */
         Profile: {
             /** Full Name */
@@ -639,6 +658,11 @@ export interface components {
         RateCard: {
             /** Categories */
             categories: components["schemas"]["CategoryRate"][];
+            /**
+             * Thin
+             * @default []
+             */
+            thin: components["schemas"]["ThinCategory"][];
         };
         /** Ratio */
         Ratio: {
@@ -697,6 +721,13 @@ export interface components {
             /** Suggested */
             suggested: string[];
             negotiation: components["schemas"]["Negotiation"];
+        };
+        /** ThinCategory */
+        ThinCategory: {
+            /** Category */
+            category: string;
+            /** N */
+            n: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -905,6 +936,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Analysis"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    hide_analysis_api_analyses__analysis_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                analysis_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

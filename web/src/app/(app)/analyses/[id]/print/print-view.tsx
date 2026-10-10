@@ -28,7 +28,7 @@ export default function PrintView({ params }: { params: Promise<{ id: string }> 
     <main className="mx-auto my-6 max-w-[210mm] bg-white p-[14mm] text-black print:m-0 print:max-w-none">
       <div className="flex items-baseline justify-between">
         <h1 className="text-2xl font-bold">@{r.handle}</h1>
-        <span className="text-sm text-neutral-700">TrueRate by WLDD · {new Date(r.fetched_at).toLocaleDateString("en-IN")}</span>
+        <span className="text-sm text-neutral-700">TruRate by WLDD · {new Date(r.fetched_at).toLocaleDateString("en-IN")}</span>
       </div>
       <p className="mt-1 text-sm text-neutral-700">
         {r.profile.full_name} · {compact(r.profile.followers)} followers · {r.category}
@@ -36,10 +36,9 @@ export default function PrintView({ params }: { params: Promise<{ id: string }> 
 
       <div className="mt-6 flex items-end justify-between border-y border-neutral-300 py-5">
         <div>
-          <p className="text-sm text-neutral-700">Recommended price for one reel</p>
-          <p className="figure text-5xl font-bold">{inr(p.fair)}</p>
-          <p className="figure mt-1">
-            Fair range {inr(p.low)} to {inr(p.high)}
+          <p className="text-sm text-neutral-700">Fair price range for one reel</p>
+          <p className="figure text-4xl font-bold">
+            {inr(p.low)} to {inr(p.high)}
           </p>
         </div>
         <div className="text-right">
@@ -61,9 +60,10 @@ export default function PrintView({ params }: { params: Promise<{ id: string }> 
       <h2 className="mt-6 font-semibold">How the price was reached</h2>
       <table className="mt-2 w-full text-sm">
         <tbody className="divide-y divide-neutral-200">
-          {p.waterfall.map((s) => (
+          {p.waterfall.map((s, i) => (
             <tr key={s.step}>
-              <td className="py-1.5">{s.step}</td>
+              {/* Reports saved before the range became the headline call the last step "Recommended price". */}
+              <td className="py-1.5">{i === p.waterfall.length - 1 ? "Middle of the fair range" : s.step}</td>
               <td className="figure py-1.5 text-right">{s.amount < 0 ? "−" : ""}{inr(Math.abs(s.amount))}</td>
             </tr>
           ))}

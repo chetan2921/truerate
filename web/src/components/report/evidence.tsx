@@ -51,7 +51,7 @@ export default function Evidence({ r }: { r: Report }) {
             </tbody>
           </table>
         )}
-        <p className="basis mt-2">This creator: {inr(r.price.delivery.cost_per_1k)} per 1,000 typical views at the recommended price.</p>
+        <p className="basis mt-2">This creator: {inr(r.price.delivery.cost_per_1k)} per 1,000 typical views at the middle of the fair range.</p>
       </div>
 
       <div className="lg:pt-9">

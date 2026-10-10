@@ -45,10 +45,10 @@ export const OTHER_PAGES: [string, string][] = [
 ];
 
 export const LIMITS = [
-  "Follower spikes are a proxy: Instagram doesn't share follower history, so the check reads the newest followers. Real history builds from TrueRate's first snapshot.",
+  "Follower spikes are a proxy: Instagram doesn't share follower history, so the check reads the newest followers. Real history builds from TruRate's first snapshot.",
   "WLDD's 150 prices were agreed at different past dates, but only today's stats are visible. That noise sets a floor on accuracy.",
   "Hidden-ad detection is probabilistic. Reels it can't call stay out of the paid-vs-own comparison.",
-  "The face check sees any face, so a fan page full of film stars passes. It only turns away clearly faceless pages.",
+  "The on-camera check looks for a person or a face in 10 reel covers, so a meme page full of film stars passes. It only turns away pages where almost no cover shows anyone, and never a creator WLDD has booked.",
   "WLDD's own prices are noisy: two near-identical creators differ by a median 53%. No model or feature tried beat the current one beyond that noise.",
   "For creators bigger than any WLDD deal, the price is WLDD's extrapolation and the range stretches to published market asking prices, which WLDD usually pays below.",
 ];

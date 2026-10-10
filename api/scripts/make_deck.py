@@ -3,7 +3,7 @@
     cd api && uv run python scripts/make_deck.py                      # real reports in data/models
     cd api && uv run python scripts/make_deck.py --models-dir data/models_dev
 
-Writes data/pitch/TrueRate.pptx. The deck stays out of git: its chart comes from WLDD's prices.
+Writes data/pitch/TruRate.pptx. The deck stays out of git: its chart comes from WLDD's prices.
 Arial, not Urbanist: a .pptx can't embed fonts and must look right on any judging laptop.
 """
 
@@ -123,7 +123,7 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> No
     model_err = h["model"]["median_error"]
 
     s = d.slide("")
-    d.text(s, 0.6, 2.2, 12, 1.4, [("TrueRate", 66, TEXT, True)])
+    d.text(s, 0.6, 2.2, 12, 1.4, [("TruRate", 66, TEXT, True)])
     d.text(s, 0.6, 3.6, 11, 1.2, [("What one reel is worth, and whether WLDD should book the creator", 26, ACCENT, False)])
     d.text(s, 0.6, 5.2, 11, 1, [(f"Held-out median error {pct(model_err)} against {pct(h['modash']['median_error'])} for a Modash-style formula. "
                                  f"Smart fakes caught: {pct(rt['caught']['smart_fake'])}.", 18, TEXT, False),
@@ -131,7 +131,7 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> No
 
     s = d.slide("Brands overpay for audiences that aren't there")
     d.table(s, 0.6, 1.6, [3.2, 4.6, 4.3], [
-        ["Fraud", "What it looks like", "How TrueRate catches it"],
+        ["Fraud", "What it looks like", "How TruRate catches it"],
         ["Bought followers", "A block of empty accounts, views far below followers", "Fake-looking newest followers; views per follower"],
         ["Seeded views", "Views with no real viewers behind them", "Likes per view; views and likes too even"],
         ["Engagement pods", "Real accounts trading comments", "Repeat commenters; Louvain rings across WLDD creators"],
@@ -176,7 +176,7 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> No
          f"It held {report['holdout']['coverage']:.0%} of held-out real prices.", 14, TEXT, False),
         ("Past WLDD's largest creator the range stretches up, to at least the published market asking price for that size.", 14, TEXT, False),
     ])
-    d.table(s, 7.6, 1.6, [2.0, 1.6, 1.6], [["Follower band", "TrueRate", "Band median"]] +
+    d.table(s, 7.6, 1.6, [2.0, 1.6, 1.6], [["Follower band", "TruRate", "Band median"]] +
             [[label, pct(h["model"]["by_band"][b]), pct(h["band_median"]["by_band"][b])] for b, label in BANDS], size=14)
 
     s = d.slide("Tested against prices WLDD actually paid", "Judging 5: tested against known prices. Points are held-out creators, never seen in training.")
@@ -193,7 +193,7 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> No
     chart = s.shapes.add_chart(XL_CHART_TYPE.XY_SCATTER, Inches(0.6), Inches(1.4), Inches(6.4), Inches(5.2), data).chart
     chart.has_legend = False
     _log_axes(chart)
-    for ax, title in ((chart.category_axis, "What WLDD paid (₹ lakh)"), (chart.value_axis, "TrueRate's price (₹ lakh)")):
+    for ax, title in ((chart.category_axis, "What WLDD paid (₹ lakh)"), (chart.value_axis, "TruRate's price (₹ lakh)")):
         ax.minimum_scale, ax.maximum_scale = lo, hi
         ax.tick_labels.number_format, ax.tick_labels.number_format_is_linked = "General", False
         ax.has_major_gridlines = False
@@ -215,14 +215,14 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> No
     line.format.line.dash_style = MSO_LINE.DASH
     line.format.line.width = Pt(1.25)
     d.table(s, 7.4, 1.6, [3.2, 1.8], [["Method", "Median error"],
-                                     ["TrueRate", pct(model_err)],
+                                     ["TruRate", pct(model_err)],
                                      ["Band median price", pct(h["band_median"]["median_error"])],
                                      ["Modash-style formula", pct(h["modash"]["median_error"])]], size=14, bold_row=1)
-    d.text(s, 7.4, 3.6, 5.4, 2.4, [(f"{h['n']} creators held out, 10 per follower tier. {pct(h['coverage'])} of their real prices fall inside TrueRate's range.", 15, TEXT, False),
+    d.text(s, 7.4, 3.6, 5.4, 2.4, [(f"{h['n']} creators held out, 10 per follower tier. {pct(h['coverage'])} of their real prices fall inside TruRate's range.", 15, TEXT, False),
                                    ("Prices were agreed at different past dates but only today's stats are visible, so some error is a floor.", 13, MUTED, False)])
 
     s = d.slide("Error by category", f"Leave-one-out over all {report['n_deals']} deals: each deal priced by a model that never saw it.")
-    rows = [["Category", "Deals", "TrueRate", "Band median", "Modash-style"]]
+    rows = [["Category", "Deals", "TruRate", "Band median", "Modash-style"]]
     rows += [[c, v["n"], pct(v["model"]), pct(v["band_median"]), pct(v["modash"])] for c, v in report["by_category"].items()]
     d.table(s, 0.6, 1.5, [4.0, 1.4, 1.8, 1.9, 1.9], rows, size=14)
 
@@ -280,7 +280,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--models-dir", default=str(REPO / "data" / "models"))
     ap.add_argument("--screenshot", default=str(REPO / "data" / "pitch" / "report.png"))
-    ap.add_argument("--out", default=str(REPO / "data" / "pitch" / "TrueRate.pptx"))
+    ap.add_argument("--out", default=str(REPO / "data" / "pitch" / "TruRate.pptx"))
     a = ap.parse_args()
     models = Path(a.models_dir) if Path(a.models_dir).is_absolute() else REPO / a.models_dir
     build_deck(json.loads((models / "model_report.json").read_text()), json.loads((models / "redteam.json").read_text()), Path(a.screenshot), Path(a.out))

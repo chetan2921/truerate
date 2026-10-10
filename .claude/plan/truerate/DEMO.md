@@ -12,7 +12,7 @@ Open them at `/analyses/<id>` with the API on the real database:
 |---|---|---|
 | sejalkumar1195 | `b254c99898a5` | Negotiate: a possible competitor (exclusivity check) and the note for a creator bigger than any WLDD deal. The deck screenshot comes from this one |
 | mostlysane | `bee87c3f8952` | Negotiate: competitor, weak sponsored reach, out-of-range note |
-| shresthvg | `b563b4ebfc74` | Out of scope: only 1 of 10 covers shows a face |
+| foodtalkindia | `a93e7df66811` | Out of scope: a food platform, only 1 of 10 covers shows someone on camera. (shresthvg used to be the example; the better on-camera check now prices him: `147697733498`) |
 | riddhiii.vaishnav | `512ada822e9d` | Some fake activity (likes too even), 3.4K followers. A private individual: use it on screen, never on a slide |
 
 A fresh unseen creator takes 90 to 111 s live. One whose Instagram data is already saved takes about 45 s.

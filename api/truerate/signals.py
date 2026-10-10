@@ -58,6 +58,19 @@ CATEGORIES = {
 }
 _GENRE_CATEGORY = {g: c for c, genres in CATEGORIES.items() for g in genres}
 
+# What a brand can be selling, broader than the 7 categories. WLDD's deals only cover those 7, so each product is
+# priced and fit-checked through the category it sits in.
+PRODUCTS = {
+    "Tech and gadgets": ["Smartphones and gadgets", "Laptops and computers", "Gaming", "Apps and software", "Automobiles and bikes", "Electronics and appliances"],
+    "Fashion and beauty": ["Clothing and fashion", "Beauty and makeup", "Skincare", "Haircare", "Fragrances", "Jewellery and accessories", "Footwear", "Men's grooming"],
+    "Lifestyle and travel": ["Travel and hotels", "Home and decor", "Parenting and kids", "Pets", "Weddings", "Lifestyle and vlogs", "Photography"],
+    "Entertainment": ["Comedy", "Movies and OTT", "Music", "Dance", "Storytelling and sketches", "Art and DIY", "Memes"],
+    "Education, finance and news": ["Education and courses", "Finance and investing", "Business and careers", "News and current affairs", "Books", "Personal development"],
+    "Food": ["Recipes and cooking", "Restaurants and cafes", "Packaged food and snacks", "Beverages"],
+    "Fitness": ["Gym and fitness", "Sports", "Yoga and wellness", "Health and nutrition"],
+}
+PRODUCT_CATEGORY = {c: c for c in CATEGORIES} | {p: c for c, products in PRODUCTS.items() for p in products}
+
 
 def category_from_niche(genres: list[str]) -> str | None:
     """The category of WLDD's first listed genre, or None when the CSV has no niche."""
@@ -412,37 +425,57 @@ def commenter_mix(snapshot: dict, fake_model, labels: dict) -> dict:
     return mix | {"languages": labels.get("languages", [])}
 
 
-FACE_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite"
-# Out of scope below this: fewer than 2 of 10 covers with a face. A food creator showed 2 of 10, so stricter rejects real ones.
+FACE_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_full_range/float16/latest/blaze_face_full_range.tflite"
+PERSON_MODEL_URL = "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/latest/efficientdet_lite0.tflite"
+# A cover counts when a person (0.6) or a face (full-range model, 0.8) is found. The short-range face model it replaces
+# only saw selfie-distance faces: it turned away 14 of WLDD's 148 face creators. This turns away 2 (whose covers are
+# food and scenery; WLDD's records keep them in) and still rejects faceless food, travel and wildlife pages.
+PERSON_SCORE, FACE_SCORE = 0.6, 0.8
+# Out of scope below this: fewer than 2 of 10 covers with someone on camera.
 FACE_SHARE = 0.15
+
+
+def _model(url: str):
+    import httpx
+
+    from truerate.config import MODELS_DIR
+
+    path = MODELS_DIR / url.rsplit("/", 1)[1]
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(httpx.get(url, timeout=60).raise_for_status().content)
+    return str(path)
 
 
 @lru_cache
 def _face_detector():
-    import httpx
     from mediapipe.tasks.python import BaseOptions, vision
 
-    from truerate.config import MODELS_DIR
+    return vision.FaceDetector.create_from_options(
+        vision.FaceDetectorOptions(base_options=BaseOptions(model_asset_path=_model(FACE_MODEL_URL)), min_detection_confidence=FACE_SCORE))
 
-    path = MODELS_DIR / "blaze_face_short_range.tflite"
-    if not path.exists():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(httpx.get(FACE_MODEL_URL, timeout=60).raise_for_status().content)
-    return vision.FaceDetector.create_from_options(vision.FaceDetectorOptions(base_options=BaseOptions(model_asset_path=str(path)), min_detection_confidence=0.5))
+
+@lru_cache
+def _person_detector():
+    from mediapipe.tasks.python import BaseOptions, vision
+
+    return vision.ObjectDetector.create_from_options(
+        vision.ObjectDetectorOptions(base_options=BaseOptions(model_asset_path=_model(PERSON_MODEL_URL)), score_threshold=PERSON_SCORE, category_allowlist=["person"]))
 
 
 def has_face(image: bytes) -> bool:
+    """Someone on camera: a person, or a face, even small or far from the camera."""
     import io
 
     import mediapipe as mp
     from PIL import Image
 
-    rgb = np.asarray(Image.open(io.BytesIO(image)).convert("RGB"))
-    return bool(_face_detector().detect(mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)).detections)
+    frame = mp.Image(image_format=mp.ImageFormat.SRGB, data=np.asarray(Image.open(io.BytesIO(image)).convert("RGB")))
+    return bool(_person_detector().detect(frame).detections or _face_detector().detect(frame).detections)
 
 
 def face_share(covers: dict[str, bytes], detect=has_face) -> float | None:
-    """Share of reel covers with a face. None without covers to check."""
+    """Share of reel covers with someone on camera. None without covers to check."""
     if not covers:
         return None
     return round(sum(detect(img) for img in covers.values()) / len(covers), 2)

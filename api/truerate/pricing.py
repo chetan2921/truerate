@@ -171,7 +171,7 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
             {"step": "Market price from WLDD's past deals", "amount": steps[0]},
             {"step": "Sponsored-performance adjustment", "amount": steps[1] - steps[0]},
             {"step": "Fake-engagement adjustment", "amount": steps[2] - steps[1]},
-            {"step": "Recommended price", "amount": steps[2]},
+            {"step": "Middle of the fair range", "amount": steps[2]},
         ],
         "comparables": [
             {"handle": r["handle"], "price": r["price"], "views": r["views"], "followers": r["followers"], "category": r["category"], "per_1k_views": round(per_1k(r))}
@@ -257,3 +257,9 @@ def rate_card(model: PriceModel) -> list[dict]:
         card.append({"category": c, "n": len(rows), "per_1k": {"p25": p25, "median": mid, "p75": p75},
                      "typical_price": round(median(r["price"] for r in rows)), "typical_views": round(median(r["views"] for r in rows))})
     return sorted(card, key=lambda x: -x["per_1k"]["median"])
+
+
+def thin_categories(model: PriceModel) -> list[dict]:
+    """The categories with too few deals for a rate, and how many they have, so the rate card can still list them."""
+    counts = {c: sum(r["category"] == c for r in model.rows) for c in CATEGORIES}
+    return [{"category": c, "n": n} for c, n in counts.items() if n < MIN_RATE_DEALS]

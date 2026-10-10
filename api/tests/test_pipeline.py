@@ -175,3 +175,28 @@ def test_the_creators_own_handle_is_never_the_brand(world):
     reel["caption"] = "new drop with @newcreator x @realbrand #ad"
     r = analyze("newcreator", {}, deps(world, snap))["result"]
     assert next(a for a in r["placement"]["ads"] if a["code"] == reel["code"])["brand"] == "realbrand"
+
+
+def test_a_specific_product_is_matched_through_its_pricing_category(world):
+    r = analyze("newcreator", {"category": "Recipes and cooking"}, deps(world, target_snapshot()))["result"]
+    assert r["niche"]["fit"] == "strong" and r["niche"]["product"] == "Recipes and cooking"
+    assert "Recipes and cooking" in r["worth_reaching"] and "Food" in r["worth_reaching"]
+    other = analyze("newcreator", {"category": "Skincare"}, deps(world, target_snapshot()))["result"]
+    assert other["niche"]["fit"] == "weak" and other["decision"]["call"] == "Avoid"
+
+
+def test_a_competitor_for_a_specific_product_is_named_by_the_category_it_was_matched_in(world):
+    snap = target_snapshot()
+    recent = (datetime.now(timezone.utc) - timedelta(days=12)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    snap["data"]["tagged"] = [{"code": "TAG1", "taken_at": recent, "owner": "rivalbrand", "caption": "new flavour with our favourite cook", "paid": False}]
+    r = analyze("newcreator", {"category": "Beverages"}, deps(world, snap))["result"]
+    # The tagged post is labelled Food, not Beverages: say what was matched, not more.
+    assert r["competitor"]["category"] == "Food"
+    assert any("rivalbrand in Food" in x for x in r["decision"]["reasons"])
+
+
+def test_a_creator_wldd_has_booked_is_never_turned_away_by_the_cover_check(world):
+    # Some booked creators post covers of food or scenery; WLDD's own records say they are face creators.
+    world.deals.insert_one({"handle": "newcreator", "tier": "big", "niche": ["Food"], "price": 140_000, "holdout": False})
+    out = analyze("newcreator", {}, deps(world, target_snapshot(), face=False))
+    assert out["status"] == "done"

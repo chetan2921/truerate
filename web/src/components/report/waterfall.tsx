@@ -43,7 +43,8 @@ export default function Waterfall({ r }: { r: Report }) {
           {rows.map((row) => (
             <li key={row.step}>
               <div className="flex items-baseline justify-between gap-4">
-                <span className={row.isTotal ? "font-semibold" : ""}>{row.step}</span>
+                {/* Reports saved before the range became the headline call the last step "Recommended price". */}
+                <span className={row.isTotal ? "font-semibold" : ""}>{row.isLast ? "Middle of the fair range" : row.step}</span>
                 <span className={`figure ${row.negative ? "text-avoid" : ""} ${row.isTotal ? "font-semibold" : ""}`}>
                   {row.isTotal ? inr(row.amount) : row.amount === 0 ? "No change" : `${row.amount < 0 ? "−" : "+"}${inr(Math.abs(row.amount))}`}
                 </span>

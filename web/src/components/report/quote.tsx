@@ -43,7 +43,7 @@ export default function QuoteChecker({ id, initial }: { id: string; initial: num
         <div className="mt-4">
           <p className="text-lg">
             {inr(check.quote)} is <b className={POSITION[check.position]}>{check.position} the fair range</b>,{" "}
-            {check.difference === 0 ? "exactly the recommended price" : `${inr(Math.abs(check.difference))} ${check.difference > 0 ? "above" : "below"} the recommended price`}.{" "}
+            {check.difference === 0 ? "exactly the middle of the range" : `${inr(Math.abs(check.difference))} ${check.difference > 0 ? "above" : "below"} the middle of the range`}.{" "}
             {check.counter_offer < check.quote ? `Counter at ${inr(check.counter_offer)}.` : "Take it."}
           </p>
           <ul className="mt-3 space-y-1.5">

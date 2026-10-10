@@ -18,20 +18,26 @@ from truerate.db import ensure_indexes, get_db
 from truerate.instagram import Hiker, collect
 from truerate.llm import Gemini
 from truerate.pipeline import STEPS, Deps, analyze, check_quote
-from truerate.pricing import rate_card
-from truerate.signals import CATEGORIES, _face_detector, minilm_embed
+from truerate.pricing import rate_card, thin_categories
+from truerate.signals import CATEGORIES, PRODUCTS, _face_detector, _person_detector, minilm_embed
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     threading.Thread(target=_warm, daemon=True).start()
+    threading.Thread(target=lambda: fail_interrupted(get_db()), daemon=True).start()
     yield
 
 
-app = FastAPI(title="TrueRate API", lifespan=lifespan)
+app = FastAPI(title="TruRate API", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000"], allow_methods=["*"], allow_headers=["*"])
 
 EXECUTOR = ThreadPoolExecutor(max_workers=2)
 MAX_BATCH = 50
+
+
+def fail_interrupted(db) -> None:
+    """Jobs run inside this process, so any analysis still "running" at startup was cut off by a stop or restart."""
+    db.analyses.update_many({"status": "running"}, {"$set": {"status": "failed", "error": "The server stopped before this analysis finished. Run it again."}})
 
 
 def submit(fn) -> None:
@@ -205,6 +211,7 @@ class Competitor(BaseModel):
     brand: str | None
     days: int
     code: str
+    category: str | None = None  # the WLDD category the ad was matched in; older analyses didn't store it
 
 
 class Cheaper(BaseModel):
@@ -275,6 +282,8 @@ class AnalysisSummary(BaseModel):
     status: str
     call: str | None
     fair: int | None
+    low: int | None = None
+    high: int | None = None
     verdict: str | None
     created_at: datetime
 
@@ -332,12 +341,24 @@ class CategoryRate(BaseModel):
     typical_views: int
 
 
+class ThinCategory(BaseModel):
+    category: str
+    n: int
+
+
 class RateCard(BaseModel):
     categories: list[CategoryRate]
+    thin: list[ThinCategory] = []  # too few deals for a rate; listed so no category silently disappears
+
+
+class Product(BaseModel):
+    name: str
+    category: str
 
 
 class Meta(BaseModel):
     categories: list[str]
+    products: list[Product]
     range_coverage: float | None
 
 
@@ -368,6 +389,7 @@ def _warm() -> None:
         _models()
         minilm_embed(["warm up"])
         _face_detector()
+        _person_detector()
     except Exception:
         pass
 
@@ -468,16 +490,17 @@ def get_rate_card() -> RateCard:
     path = MODELS_DIR / "price.joblib"
     if not path.exists():
         raise HTTPException(503, "The price model isn't built yet. Run `truerate validate`.")
-    return RateCard(categories=rate_card(joblib.load(path)))
+    model = joblib.load(path)
+    return RateCard(categories=rate_card(model), thin=thin_categories(model))
 
 
 @app.get("/api/analyses")
 def list_analyses() -> list[AnalysisSummary]:
     out = []
-    for a in get_db().analyses.find().sort("created_at", -1).limit(20):
+    for a in get_db().analyses.find({"hidden": {"$ne": True}}).sort("created_at", -1).limit(50):
         r = a.get("result") or {}
         out.append(AnalysisSummary(id=a["_id"], handle=a["handle"], status=a["status"], call=r.get("decision", {}).get("call"),
-                                   fair=r.get("price", {}).get("fair"), verdict=r.get("audience", {}).get("verdict"), created_at=a["created_at"]))
+                                   fair=r.get("price", {}).get("fair"), low=r.get("price", {}).get("low"), high=r.get("price", {}).get("high"), verdict=r.get("audience", {}).get("verdict"), created_at=a["created_at"]))
     return out
 
 
@@ -487,6 +510,13 @@ def get_analysis(analysis_id: str) -> Analysis:
     if not a:
         raise HTTPException(404, "No analysis with that id.")
     return Analysis(id=a.pop("_id"), steps=STEPS, **a)
+
+
+@app.delete("/api/analyses/{analysis_id}", status_code=204)
+def hide_analysis(analysis_id: str) -> None:
+    """Takes it off the recent list. The report itself stays, so a link someone was sent still opens."""
+    if not get_db().analyses.update_one({"_id": analysis_id}, {"$set": {"hidden": True}}).matched_count:
+        raise HTTPException(404, "No analysis with that id.")
 
 
 @app.post("/api/analyses/{analysis_id}/quote")
@@ -502,7 +532,7 @@ def quote_check(analysis_id: str, req: QuoteRequest) -> QuoteCheck:
 @app.get("/api/meta")
 def meta() -> Meta:
     report = _read_json("model_report.json")
-    return Meta(categories=list(CATEGORIES), range_coverage=report["holdout"]["coverage"] if report else None)
+    return Meta(categories=list(CATEGORIES), products=[Product(name=n, category=c) for c, names in PRODUCTS.items() for n in names], range_coverage=report["holdout"]["coverage"] if report else None)
 
 
 @app.get("/api/model-report")

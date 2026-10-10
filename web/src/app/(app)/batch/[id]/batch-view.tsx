@@ -73,7 +73,7 @@ export default function BatchView({ params }: { params: Promise<{ id: string }> 
               <th className="py-2 pr-3 font-normal">Creator</th>
               <th className="py-2 pr-3 font-normal">Decision</th>
               <th className="py-2 pr-3 font-normal">Audience</th>
-              <th className="py-2 pr-3 text-right font-normal">Recommended</th>
+              <th className="py-2 pr-3 text-right font-normal">Fair range</th>
               <th className="py-2 pr-3 text-right font-normal">Per 1,000 views</th>
               <th className="py-2 text-right font-normal">Expected views</th>
             </tr>
@@ -90,7 +90,11 @@ export default function BatchView({ params }: { params: Promise<{ id: string }> 
                     <td className="py-2.5 pr-3">{r.call && <CallChip call={r.call} />}</td>
                     <td className="py-2.5 pr-3">{r.verdict}</td>
                     <td className="figure py-2.5 pr-3 text-right">
-                      {r.fair != null && inr(r.fair)}
+                      {r.low != null && r.high != null && (
+                        <span className="whitespace-nowrap">
+                          {inr(r.low)} to {inr(r.high)}
+                        </span>
+                      )}
                       {budget && r.fair != null && r.fair > budget && <span className="block text-xs text-negotiate">over budget</span>}
                     </td>
                     <td className="figure py-2.5 pr-3 text-right">{r.cost_per_1k != null && inr(r.cost_per_1k)}</td>

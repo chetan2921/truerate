@@ -11,12 +11,9 @@ export default function Decision({ r }: { r: Report }) {
     <section aria-label="Decision" className="panel p-6 sm:p-8">
       <div className="flex flex-wrap items-start justify-between gap-6">
         <div>
-          <p className="basis">Recommended price for one reel</p>
-          <p className="figure font-bold leading-none" style={{ fontSize: "clamp(2.75rem, min(6vw, 12vh), 5rem)" }}>
-            {inr(p.fair)}
-          </p>
-          <p className="figure mt-3 text-lg">
-            Fair range {inr(p.low)} to {inr(p.high)}
+          <p className="basis">Fair price range for one reel</p>
+          <p className="figure font-bold leading-none" style={{ fontSize: "clamp(2.5rem, min(5vw, 11vh), 4.5rem)" }}>
+            {inr(p.low)} to {inr(p.high)}
           </p>
           {p.note && <p className="mt-2 max-w-xl text-sm text-negotiate">{p.note}</p>}
           {p.market_reference && (
@@ -47,7 +44,7 @@ export default function Decision({ r }: { r: Report }) {
 
       <p className="mt-6 max-w-3xl text-base">
         On the sponsored reel, expect about <b className="figure">{compact(d.views[1])} views</b> (a weak one {compact(d.views[0])}, a strong one {compact(d.views[2])}),{" "}
-        {compact(d.likes)} likes and {compact(d.comments)} comments. That is {inr(d.cost_per_1k)} per 1,000 typical views
+        {compact(d.likes)} likes and {compact(d.comments)} comments. At the middle of the range that is {inr(d.cost_per_1k)} per 1,000 typical views
         {d.category_cost_per_1k ? `, against ${inr(d.category_cost_per_1k)} for the ${r.category} creators WLDD has booked` : ""}.
       </p>
 
