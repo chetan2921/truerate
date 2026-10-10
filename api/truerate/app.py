@@ -8,14 +8,17 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from typing import Literal
 
+import httpx
 import joblib
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from truerate.brand import STEPS as BRAND_STEPS
+from truerate.brand import BrandDeps, instagram_brand, run_brand, site_text
 from truerate.config import HIKER_DIR, MODELS_DIR, get_settings
 from truerate.db import ensure_indexes, get_db
-from truerate.instagram import Hiker, collect
+from truerate.instagram import Hiker, HikerError, collect
 from truerate.llm import Gemini
 from truerate.outputs import outputs
 from truerate.pipeline import STEPS, Deps, analyze, check_quote
@@ -369,6 +372,83 @@ class BatchSummary(BaseModel):
     done: int
 
 
+class BrandRequest(BaseModel):
+    brand: str  # an Instagram handle or link, a website, or a name
+    product: str | None = None
+    budget: int | None = None
+    count: int = 10
+
+
+class BrandAnswer(BaseModel):
+    key: str
+    status: Literal["good", "warn", "bad", "info"]
+    title: str
+
+
+class BrandPick(BaseModel):
+    handle: str
+    sources: list[str]  # where the creator came from: WLDD booked, Analysed before, Worked with the brand
+    category: str | None
+    verdict: str | None
+    fair: int
+    likely_low: int | None
+    likely_high: int | None
+    cost_per_1k: int | None
+    category_cost_per_1k: int | None
+    expected_views: int | None
+    followers: int | None
+    analysis_id: str | None
+    score: float
+    answers: list[BrandAnswer]
+    reasons: list[str]
+
+
+class BrandProfile(BaseModel):
+    name: str
+    category: str
+    product: str
+    audience: str
+    tone: str
+    price_tier: str
+    rivals: list[str]
+    source: Literal["instagram", "website", "name"]
+    handle: str | None
+    url: str | None
+
+
+class BrandPlan(BaseModel):
+    handles: list[str]
+    cost: int
+    views: int
+
+
+class BrandResult(BaseModel):
+    brand: BrandProfile
+    picks: list[BrandPick]
+    plan: BrandPlan | None
+    to_price: list[str]  # accounts seen with the brand that have no analysis yet
+    pool_size: int
+
+
+class BrandRun(BaseModel):
+    id: str
+    request: BrandRequest
+    status: Literal["running", "done", "failed"]
+    step: int
+    steps: list[str]
+    result: BrandResult | None = None
+    error: str | None = None
+    created_at: datetime
+
+
+class BrandSummary(BaseModel):
+    id: str
+    brand: str
+    name: str | None
+    status: str
+    created_at: datetime
+
+
 class Per1k(BaseModel):
     p25: int
     median: int
@@ -452,6 +532,31 @@ def make_deps(db) -> Deps:
                 fake_model=fake_model, embed=minilm_embed, price_model=price_model)
 
 
+def make_brand_deps(db) -> BrandDeps:
+    settings = get_settings()
+    hiker = Hiker(settings.hikerapi_key, HIKER_DIR)
+    http = httpx.Client(headers={"user-agent": "Mozilla/5.0 (TruRate brand check)"})
+    return BrandDeps(db=db, llm=Gemini(settings.llm_api_key, settings.llm_model), price_model=_models()[1],
+                     fetch_instagram=lambda handle: instagram_brand(hiker, handle), fetch_site=lambda url: site_text(http, url))
+
+
+def _run_brand(run_id: str, req: dict) -> None:
+    db = get_db()
+
+    def step(i: int) -> None:
+        db.brands.update_one({"_id": run_id}, {"$set": {"step": i}})
+
+    try:
+        update = {"status": "done", "result": run_brand(make_brand_deps(db), req, step)}
+    except HikerError as e:
+        handle = req["brand"].strip().lstrip("@")
+        message = f"Instagram has no account called @{handle}. Check the spelling, or try the brand's website." if e.status == 404 else str(e)
+        update = {"status": "failed", "error": message}
+    except Exception as e:  # any failure becomes a readable message with a Retry button in the web
+        update = {"status": "failed", "error": str(e)}
+    db.brands.update_one({"_id": run_id}, {"$set": update | {"finished_at": datetime.now(timezone.utc)}})
+
+
 def _run(analysis_id: str, handle: str, inputs: dict) -> None:
     db = get_db()
 
@@ -495,6 +600,31 @@ def _start(db, handle: str, inputs: dict, batch_id: str | None = None) -> str:
                             "created_at": datetime.now(timezone.utc)})
     submit(lambda: _run(analysis_id, handle, inputs))
     return analysis_id
+
+
+@app.post("/api/brands", status_code=202)
+def create_brand_run(req: BrandRequest) -> Created:
+    if not req.brand.strip():
+        raise HTTPException(422, "Type the brand's Instagram handle, website or name.")
+    db = get_db()
+    run_id = uuid.uuid4().hex[:12]
+    db.brands.insert_one({"_id": run_id, "request": req.model_dump(), "status": "running", "step": 0, "created_at": datetime.now(timezone.utc)})
+    submit(lambda: _run_brand(run_id, req.model_dump()))
+    return Created(id=run_id)
+
+
+@app.get("/api/brands")
+def list_brand_runs() -> list[BrandSummary]:
+    return [BrandSummary(id=b["_id"], brand=b["request"]["brand"], name=((b.get("result") or {}).get("brand") or {}).get("name"), status=b["status"],
+                         created_at=b["created_at"]) for b in get_db().brands.find().sort("created_at", -1).limit(10)]
+
+
+@app.get("/api/brands/{run_id}")
+def get_brand_run(run_id: str) -> BrandRun:
+    b = get_db().brands.find_one({"_id": run_id})
+    if not b:
+        raise HTTPException(404, "No brand run with that id.")
+    return BrandRun(id=b.pop("_id"), steps=BRAND_STEPS, **{k: v for k, v in b.items() if k != "finished_at"})
 
 
 @app.post("/api/batches", status_code=202)

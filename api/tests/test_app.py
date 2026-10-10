@@ -181,3 +181,31 @@ def test_reports_saved_before_the_likely_band_get_it_when_read(client, world):
     assert (p["likely_low"], p["likely_high"]) == (new["result"]["price"]["likely_low"], new["result"]["price"]["likely_high"])
     row = client.get("/api/batches/b1").json()["rows"][0]
     assert (row["likely_low"], row["likely_high"]) == (p["likely_low"], p["likely_high"])
+
+
+def test_a_brand_run_is_started_polled_and_listed(client, monkeypatch):
+    from test_brand import BRAND_DATA, BrandLLM
+    from test_pricing import synthetic_rows
+
+    from truerate.brand import BrandDeps
+    from truerate.instagram import HikerError
+    from truerate.pricing import fit
+
+    def brand_deps(fetch):
+        return lambda db: BrandDeps(db=db, llm=BrandLLM(), price_model=fit(synthetic_rows()), fetch_instagram=fetch, fetch_site=lambda url: "")
+
+    monkeypatch.setattr(app_module, "make_brand_deps", brand_deps(lambda handle: BRAND_DATA))
+    res = client.post("/api/brands", json={"brand": "@somebrand", "budget": 100000, "count": 5})
+    assert res.status_code == 202
+    b = client.get(f"/api/brands/{res.json()['id']}").json()
+    assert b["status"] == "done" and b["result"]["brand"]["category"] == "Food" and len(b["result"]["picks"]) == 5 and len(b["steps"]) == 4
+    assert client.get("/api/brands").json()[0]["id"] == res.json()["id"]
+    assert client.post("/api/brands", json={"brand": "  "}).status_code == 422
+    assert client.get("/api/brands/nope").status_code == 404
+
+    def missing(handle):
+        raise HikerError(404, "not found")
+
+    monkeypatch.setattr(app_module, "make_brand_deps", brand_deps(missing))
+    failed = client.get(f"/api/brands/{client.post('/api/brands', json={'brand': '@nobrand'}).json()['id']}").json()
+    assert failed["status"] == "failed" and "no account called @nobrand" in failed["error"]

@@ -39,6 +39,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/brands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Brand Runs */
+        get: operations["list_brand_runs_api_brands_get"];
+        put?: never;
+        /** Create Brand Run */
+        post: operations["create_brand_run_api_brands_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/brands/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Brand Run */
+        get: operations["get_brand_run_api_brands__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/batches": {
         parameters: {
             query?: never;
@@ -364,6 +399,150 @@ export interface components {
             total: number;
             /** Done */
             done: number;
+        };
+        /** BrandAnswer */
+        BrandAnswer: {
+            /** Key */
+            key: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "good" | "warn" | "bad" | "info";
+            /** Title */
+            title: string;
+        };
+        /** BrandPick */
+        BrandPick: {
+            /** Handle */
+            handle: string;
+            /** Sources */
+            sources: string[];
+            /** Category */
+            category: string | null;
+            /** Verdict */
+            verdict: string | null;
+            /** Fair */
+            fair: number;
+            /** Likely Low */
+            likely_low: number | null;
+            /** Likely High */
+            likely_high: number | null;
+            /** Cost Per 1K */
+            cost_per_1k: number | null;
+            /** Category Cost Per 1K */
+            category_cost_per_1k: number | null;
+            /** Expected Views */
+            expected_views: number | null;
+            /** Followers */
+            followers: number | null;
+            /** Analysis Id */
+            analysis_id: string | null;
+            /** Score */
+            score: number;
+            /** Answers */
+            answers: components["schemas"]["BrandAnswer"][];
+            /** Reasons */
+            reasons: string[];
+        };
+        /** BrandPlan */
+        BrandPlan: {
+            /** Handles */
+            handles: string[];
+            /** Cost */
+            cost: number;
+            /** Views */
+            views: number;
+        };
+        /** BrandProfile */
+        BrandProfile: {
+            /** Name */
+            name: string;
+            /** Category */
+            category: string;
+            /** Product */
+            product: string;
+            /** Audience */
+            audience: string;
+            /** Tone */
+            tone: string;
+            /** Price Tier */
+            price_tier: string;
+            /** Rivals */
+            rivals: string[];
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "instagram" | "website" | "name";
+            /** Handle */
+            handle: string | null;
+            /** Url */
+            url: string | null;
+        };
+        /** BrandRequest */
+        BrandRequest: {
+            /** Brand */
+            brand: string;
+            /** Product */
+            product?: string | null;
+            /** Budget */
+            budget?: number | null;
+            /**
+             * Count
+             * @default 10
+             */
+            count: number;
+        };
+        /** BrandResult */
+        BrandResult: {
+            brand: components["schemas"]["BrandProfile"];
+            /** Picks */
+            picks: components["schemas"]["BrandPick"][];
+            plan: components["schemas"]["BrandPlan"] | null;
+            /** To Price */
+            to_price: string[];
+            /** Pool Size */
+            pool_size: number;
+        };
+        /** BrandRun */
+        BrandRun: {
+            /** Id */
+            id: string;
+            request: components["schemas"]["BrandRequest"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "running" | "done" | "failed";
+            /** Step */
+            step: number;
+            /** Steps */
+            steps: string[];
+            result?: components["schemas"]["BrandResult"] | null;
+            /** Error */
+            error?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** BrandSummary */
+        BrandSummary: {
+            /** Id */
+            id: string;
+            /** Brand */
+            brand: string;
+            /** Name */
+            name: string | null;
+            /** Status */
+            status: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** BrandTag */
         BrandTag: {
@@ -906,6 +1085,90 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Created"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_brand_runs_api_brands_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandSummary"][];
+                };
+            };
+        };
+    };
+    create_brand_run_api_brands_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Created"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_brand_run_api_brands__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrandRun"];
                 };
             };
             /** @description Validation Error */
