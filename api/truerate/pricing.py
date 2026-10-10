@@ -123,6 +123,22 @@ MARKET_RATES = [  # (followers below, tier, low, high)
 ]
 
 
+MIN_DISCOUNT_DEALS = 10  # deals a tier needs before WLDD's discount on the market is read from it
+BEYOND_FULL = 3  # this many times WLDD's largest creator or more, and the price is the market estimate
+
+
+def market_discount(rows: list[dict]) -> float:
+    """WLDD's median price over the published market's middle, in the largest follower tier where WLDD has at least
+    MIN_DISCOUNT_DEALS deals. On WLDD's deals that is 1L to 5L followers: WLDD pays about 0.19 of the market's middle."""
+    found, prev = 1.0, 0
+    for below, _tier, low, high in MARKET_RATES:
+        prices = [r["price"] for r in rows if prev <= r["followers"] < below]
+        if len(prices) >= MIN_DISCOUNT_DEALS:
+            found = median(prices) / math.sqrt(low * high)
+        prev = below
+    return found
+
+
 def market_reference(followers: int) -> dict:
     below, tier, low, high = next(t for t in MARKET_RATES if followers < t[0])
     return {"tier": tier, "low": low, "high": high, "source": MARKET_SOURCE}
@@ -141,16 +157,24 @@ def collab_factor(n: int, ratio: float | None, typical: float, prior: float | No
 def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
     ridge_log, knn_log, near = model.core.predict_logs(m)
     market = math.exp(model.w * ridge_log + (1 - model.w) * knn_log)
-    shrunk, factor = collab_factor(m["paid_n"], m["paid_ratio"], model.paid_typical)
-    fair = market * factor * genuine_share
-    steps = [round500(market), round500(market * factor), round500(fair)]
-    in_category = [per_1k(r) for r in model.rows if r["category"] == m["category"]]
-    # Outside WLDD's deals the range widens about 1.4x per doubling beyond them, toward the side being extrapolated:
-    # up for a bigger creator (who will likely ask more), down for a smaller one. The range stays WLDD's own; the
-    # published asking price for the creator's size is returned beside it, never merged in (user decision, 2026-10-10).
     top_followers, top_views = max(r["followers"] for r in model.rows), max(r["views"] for r in model.rows)
     least_followers = min(r["followers"] for r in model.rows)
     above = max(m["followers"] / top_followers, m["views"] / top_views, 1.0)
+    ref = market_reference(m["followers"])
+    # Past WLDD's largest deal its own data can't say what a creator will accept (user decision, 2026-10-11): the price
+    # moves toward the published rate for the creator's size, times how far below that rate WLDD really pays, fully so
+    # from BEYOND_FULL times WLDD's largest creator.
+    toward_market = min(math.log(above) / math.log(BEYOND_FULL), 1.0)
+    discount = market_discount(model.rows)
+    anchor = discount * math.sqrt(ref["low"] * ref["high"])
+    anchored = math.exp((1 - toward_market) * math.log(market) + toward_market * math.log(anchor))
+    shrunk, factor = collab_factor(m["paid_n"], m["paid_ratio"], model.paid_typical)
+    fair = anchored * factor * genuine_share
+    steps = [round500(market), round500(anchored), round500(anchored * factor), round500(fair)]
+    in_category = [per_1k(r) for r in model.rows if r["category"] == m["category"]]
+    # Outside WLDD's deals the range widens about 1.4x per doubling beyond them, toward the side being extrapolated:
+    # up for a bigger creator (who will likely ask more), down for a smaller one. The published asking price for the
+    # creator's size is returned beside the range, never merged into it (user decision, 2026-10-10).
     below = max(least_followers / m["followers"], 1.0)
     if model.conformal is not None:
         pred, pis = model.conformal.predict_interval(np.array([features(m)]))
@@ -159,18 +183,18 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
         lo_off, hi_off = model.lo, model.hi
     low = fair * math.exp(lo_off) / math.sqrt(2) ** math.log2(below)
     high = fair * math.exp(hi_off) * math.sqrt(2) ** math.log2(above)
-    ref = market_reference(m["followers"])
     note = None
     if m["followers"] > top_followers or m["views"] > top_views:
         note = (f"Bigger than any creator WLDD has booked (largest: {_group(top_followers)} followers, {_group(top_views)} typical views). "
-                "The range is what WLDD's past deals suggest, wider because it reaches past them. The market's published asking "
-                "price for this size is shown separately, not mixed into the range.")
+                f"WLDD's deals can't say what a creator this size accepts, so the price leans on the published rate for "
+                f"{ref['tier'].split(' (')[0].lower()} creators, discounted the way WLDD pays (about {discount:.2f} of the market's "
+                "middle in its biggest tier with enough deals). The published asking price is shown separately.")
     elif m["followers"] < least_followers:
         note = f"Smaller than any creator WLDD has booked (smallest: {_group(least_followers)} followers), so the range is wider."
-    likely_low, likely_high = likely_band(steps[2], low, high)
+    likely_low, likely_high = likely_band(steps[3], low, high)
     return {
         "market": steps[0],
-        "fair": steps[2],
+        "fair": steps[3],
         "low": round500(low),
         "high": round500(high),
         "likely_low": likely_low,
@@ -182,9 +206,11 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
         "market_reference": ref,
         "waterfall": [
             {"step": "Market price from WLDD's past deals", "amount": steps[0]},
-            {"step": "Sponsored-performance adjustment", "amount": steps[1] - steps[0]},
-            {"step": "Fake-engagement adjustment", "amount": steps[2] - steps[1]},
-            {"step": "Middle of the fair range", "amount": steps[2]},
+            *([{"step": "Bigger than WLDD's deals: toward the market rate, discounted the way WLDD pays", "amount": steps[1] - steps[0]}]
+              if toward_market > 0 else []),
+            {"step": "Sponsored-performance adjustment", "amount": steps[2] - steps[1]},
+            {"step": "Fake-engagement adjustment", "amount": steps[3] - steps[2]},
+            {"step": "Middle of the fair range", "amount": steps[3]},
         ],
         "comparables": [
             {"handle": r["handle"], "price": r["price"], "views": r["views"], "followers": r["followers"], "category": r["category"], "per_1k_views": round(per_1k(r))}
@@ -194,7 +220,7 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
             "views": [round(m["views_p25"] * shrunk), round(m["views"] * shrunk), round(m["views_p75"] * shrunk)],
             "likes": round(m["views"] * shrunk * (m["likes_per_view"] or 0)),
             "comments": round(m["views"] * shrunk * m["comments_per_1k"] / 1000),
-            "cost_per_1k": round(steps[2] / (m["views"] / 1000)),
+            "cost_per_1k": round(steps[3] / (m["views"] / 1000)),
             "category_cost_per_1k": round(median(in_category)) if in_category else None,
         },
     }

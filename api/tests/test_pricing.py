@@ -7,7 +7,7 @@ from typer.testing import CliRunner
 
 from truerate import cli
 from truerate.signals import CATEGORIES
-from truerate.pricing import MARKET_SOURCE, band, band_median_price, collab_factor, fit, likely_band, modash_price, price, rate_card, round500, thin_categories, validate
+from truerate.pricing import MARKET_SOURCE, band, band_median_price, collab_factor, fit, likely_band, market_discount, modash_price, price, rate_card, round500, thin_categories, validate
 
 # Synthetic deals: price = the category's ₹ per 1,000 views × views, with 15% noise.
 CAT_PER_1K = {"Tech and gadgets": 1500, "Food": 600, "Entertainment": 1000}
@@ -136,20 +136,27 @@ def test_every_price_carries_the_published_asking_range_for_its_size():
     assert price(model, synthetic_rows()[0] | {"followers": 3_000_000})["market_reference"]["low"] == 6_00_000
 
 
-def test_beyond_wldds_largest_creator_the_range_widens_and_the_market_price_stays_separate():
+def test_beyond_wldds_largest_creator_the_price_leans_on_the_market_discounted_the_way_wldd_pays():
+    # User decision, 2026-10-11: past WLDD's largest deal its own data can't say what a creator will accept, so the
+    # price moves toward the published rate for the creator's size, times how far below that rate WLDD really pays.
     rows = synthetic_rows()
     model = fit(rows)
     top = max(r["followers"] for r in rows)
-    inside = price(model, rows[0])
-    # Many followers but few views: WLDD's deals price this well under the market's mega-creator asking price.
-    big = price(model, rows[0] | {"followers": top * 8, "views": min(r["views"] for r in rows)})
-    # A bigger creator is likely to ask more, not less: only the top of the range widens (a mega creator at ₹6,000 is nonsense)
-    assert big["high"] / big["fair"] > inside["high"] / inside["fair"]
-    assert abs(big["fair"] / big["low"] - inside["fair"] / inside["low"]) < 0.25
-    # The range is WLDD's own, even when the published asking price for that size starts higher (user decision, 2026-10-10):
-    # merging the two made ranges like ₹18,500 to ₹6,00,000. The market price comes back beside it.
-    assert big["high"] < big["market_reference"]["low"] == 6_00_000
-    assert "published asking price" in big["note"] and "runs up to" not in big["note"]
+    base = rows[0] | {"paid_n": 0, "paid_ratio": None}
+    discount = market_discount(rows)
+    assert 0 < discount < 10
+    anchor = discount * math.sqrt(6_00_000 * 25_00_000)  # the mega tier's published middle, discounted
+    inside, near, far = (price(model, base | {"followers": f}) for f in (base["followers"], int(top * 1.5), top * 8))
+    assert "toward the market rate" not in str(inside["waterfall"])  # inside WLDD's deals nothing changes
+    assert abs(far["fair"] - anchor) <= 500  # 3x or more beyond: the market estimate
+    # 1.5x beyond: partly each, so between this creator's WLDD-only price ("market") and the market estimate.
+    assert min(near["market"], anchor) - 500 <= near["fair"] <= max(near["market"], anchor) + 500 and near["fair"] != near["market"]
+    steps = [s["step"] for s in far["waterfall"]]
+    assert steps[1].startswith("Bigger than WLDD's deals") and far["waterfall"][-1]["amount"] == far["fair"]
+    assert sum(s["amount"] for s in far["waterfall"][:-1]) == far["fair"]
+    # Wider on the side being extrapolated, never lifted artificially; the published asking price still comes separately.
+    assert far["high"] / far["fair"] > inside["high"] / inside["fair"] and far["market_reference"]["low"] == 6_00_000
+    assert "published" in far["note"] and "runs up to" not in far["note"]
 
 
 def test_below_wldds_smallest_creator_only_the_bottom_widens():

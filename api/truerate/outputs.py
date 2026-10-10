@@ -121,6 +121,9 @@ def outputs(r: dict, inputs: dict) -> list[dict]:
         add("trend", "good", "Views are rising", "Recent reels get clearly more views than the ones before.")
 
     if note := p.get("note"):
-        add("size", "warn", "Bigger than any creator WLDD has booked" if note.startswith("Bigger") else "Smaller than any creator WLDD has booked",
-            "The price is less certain this far from WLDD's deals.")
+        if note.startswith("Bigger"):
+            add("size", "warn", "Bigger than any creator WLDD has booked",
+                "So the price leans on the market rate for this size, discounted the way WLDD pays. Expect them to ask more.")
+        else:
+            add("size", "warn", "Smaller than any creator WLDD has booked", "The price is less certain this far from WLDD's deals.")
     return out
