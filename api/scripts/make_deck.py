@@ -162,7 +162,7 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> No
         ["Audience", "Niche, commenter mix, languages, product fit", "The same views are worth more in some categories"],
     ], size=12)
 
-    s = d.slide("Pricing that holds for small, medium and big creators", "Judging 3: pricing logic")
+    s = d.slide("Pricing across small, medium and big creators", "Judging 3: pricing logic")
     d.text(s, 0.6, 1.5, 6.6, 4.5, [
         ("Market price", 18, ACCENT, True),
         (("Ridge regression on log price over WLDD's deals: views, followers, engagement, comments and category. Leave-one-out gave the 6-nearest-deals estimate "
