@@ -231,6 +231,20 @@ class Negotiation(BaseModel):
     lines: list[str]
 
 
+class Source(BaseModel):
+    title: str
+    url: str
+
+
+class WebRate(BaseModel):
+    """What the web states a big creator charges per reel (only creators bigger than anyone WLDD has booked)."""
+    found: bool
+    low: int | None
+    high: int | None
+    summary: str
+    sources: list[Source]
+
+
 class Report(BaseModel):
     handle: str
     profile: Profile
@@ -238,6 +252,7 @@ class Report(BaseModel):
     category: str
     category_source: Literal["wldd", "gemini"]
     face_share: float | None
+    web_rate: WebRate | None = None  # creators bigger than anyone WLDD has booked; older reports don't have it
     decision: Decision
     price: Price
     audience: Audience

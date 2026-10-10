@@ -82,3 +82,11 @@ def test_every_finished_analysis_gets_verdicts(world):
     r = analyze("newcreator", {}, deps(world, target_snapshot()))["result"]
     o = outputs(r, {})
     assert {x["status"] for x in o} <= {"good", "warn", "bad", "info"} and {"audience", "reach", "consistency", "ads"} <= {x["key"] for x in o}
+
+
+def test_the_web_check_reads_as_a_plain_answer():
+    found = {"found": True, "low": 2_50_000, "high": 4_00_000, "summary": "An agency listing quotes 2.5 to 4 lakh.", "sources": []}
+    o = by_key(result(web_rate=found))["web"]
+    assert o["status"] == "info" and "₹2,50,000 to ₹4,00,000" in o["title"] and o["detail"] == found["summary"]
+    assert "No published rate" in by_key(result(web_rate=found | {"found": False, "low": None, "high": None}))["web"]["title"]
+    assert "web" not in by_key(result())  # small creators get no web check

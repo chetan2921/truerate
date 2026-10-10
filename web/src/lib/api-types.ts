@@ -769,6 +769,7 @@ export interface components {
             category_source: "wldd" | "gemini";
             /** Face Share */
             face_share: number | null;
+            web_rate?: components["schemas"]["WebRate"] | null;
             decision: components["schemas"]["Decision"];
             price: components["schemas"]["Price"];
             audience: components["schemas"]["Audience"];
@@ -783,6 +784,13 @@ export interface components {
             /** Suggested */
             suggested: string[];
             negotiation: components["schemas"]["Negotiation"];
+        };
+        /** Source */
+        Source: {
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
         };
         /** ThinCategory */
         ThinCategory: {
@@ -810,6 +818,22 @@ export interface components {
             step: string;
             /** Amount */
             amount: number;
+        };
+        /**
+         * WebRate
+         * @description What the web states a big creator charges per reel (only creators bigger than anyone WLDD has booked).
+         */
+        WebRate: {
+            /** Found */
+            found: boolean;
+            /** Low */
+            low: number | null;
+            /** High */
+            high: number | null;
+            /** Summary */
+            summary: string;
+            /** Sources */
+            sources: components["schemas"]["Source"][];
         };
     };
     responses: never;

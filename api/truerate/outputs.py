@@ -120,6 +120,12 @@ def outputs(r: dict, inputs: dict) -> list[dict]:
     elif trend is not None and trend >= 1.3:
         add("trend", "good", "Views are rising", "Recent reels get clearly more views than the ones before.")
 
+    if web := r.get("web_rate"):
+        if web["found"]:
+            add("web", "info", f"Published online: {inr(web['low'])} to {inr(web['high'])} a reel", web["summary"])
+        else:
+            add("web", "info", "No published rate for this creator online", "A web search found no rate card, listing or reported deal.")
+
     if note := p.get("note"):
         if note.startswith("Bigger"):
             add("size", "warn", "Bigger than any creator WLDD has booked",

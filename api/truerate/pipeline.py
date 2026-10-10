@@ -35,6 +35,7 @@ from truerate.signals import (
     spoken_candidates,
     verdict,
 )
+from truerate.webcheck import web_rate
 
 STEPS = ["Reading profile, reels and audience", "Spotting ads and measuring reels", "Checking audience quality", "Calculating fair price"]
 MIN_REELS = 12
@@ -83,6 +84,14 @@ def _days_ago(iso: str) -> int:
     return (datetime.now(timezone.utc) - datetime.fromisoformat(iso.replace("Z", "+00:00"))).days
 
 
+def _safe_web_rate(llm, handle: str, full_name: str, followers: int, category: str) -> dict | None:
+    """The web check is extra evidence: if the search fails, the analysis goes on without it."""
+    try:
+        return web_rate(llm, handle, full_name, followers, category)
+    except Exception:
+        return None
+
+
 def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] = lambda i: None) -> dict:
     """One creator end to end. Returns {"status": "done", "result": ...} or {"status": "out_of_scope", "reason": ...}."""
     db = deps.db
@@ -110,12 +119,16 @@ def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] =
         return {"status": "out_of_scope", "reason": f"Only {round(faces * len(covers))} of {len(covers)} reel covers show someone on camera. TruRate prices face creators; About explains the plan for other pages."}
     category = category_from_niche(deal["niche"]) if deal else None
     category_source = "wldd" if category else "gemini"
-    with ThreadPoolExecutor(max_workers=3) as pool:  # niche and spoken-ad calls run alongside the long labelling call
+    # Bigger than anyone WLDD has booked: also ask the web what this creator states they charge (user decision, 2026-10-11).
+    big = snap["followers"] > max(r["followers"] for r in deps.price_model.rows)
+    with ThreadPoolExecutor(max_workers=4) as pool:  # niche, spoken-ad and web calls run alongside the long labelling call
         niche = None if category else pool.submit(label_niche, deps.llm, d["profile"]["bio"], [r["caption"] for r in reels])
         spoken = pool.submit(lambda: label_spoken(deps.llm, deps.fetch_audio(spoken_candidates(reels))))
+        web = pool.submit(_safe_web_rate, deps.llm, handle, d["profile"].get("full_name", ""), snap["followers"], category or d["profile"].get("category", "")) if big else None
         labels = label_creator(deps.llm, snap, {code: img for code, img in covers.items() if any(r["code"] == code and ambiguous(r) for r in reels)})
         category = category or niche.result()
         spoken = spoken.result()
+        web = web.result() if web else None
     # Ads said out loud ("use my code", a brand named) count as paid, like the ones Gemini finds in captions and covers.
     labels = labels | {"ads": labels["ads"] + [c for c in spoken if c not in labels["ads"]], "spoken": spoken}
     metrics = reel_metrics(snap, labels)
@@ -175,6 +188,7 @@ def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] =
         "category": category,
         "category_source": category_source,
         "face_share": faces,
+        "web_rate": web,
         "decision": decision,
         "price": p,
         "audience": {

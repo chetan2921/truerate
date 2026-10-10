@@ -29,3 +29,20 @@ class Gemini:
                 # A dropped connection or a Gemini 5xx is usually gone on the next try; one live analysis failed on it.
                 if attempt == ATTEMPTS - 1:
                     raise
+
+    def search(self, prompt: str) -> dict:
+        """A Google-grounded answer and the pages behind it: {"text", "sources": [{"title", "url"}]}."""
+        config = types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())])
+        for attempt in range(ATTEMPTS):
+            try:
+                r = self.client.models.generate_content(model=self.model, contents=prompt, config=config)
+                break
+            except (httpx.TransportError, errors.ServerError):
+                if attempt == ATTEMPTS - 1:
+                    raise
+        meta = r.candidates[0].grounding_metadata if r.candidates else None
+        sources = {}
+        for chunk in (meta.grounding_chunks or []) if meta else []:
+            if chunk.web and chunk.web.uri:
+                sources.setdefault(chunk.web.title or chunk.web.domain or "source", chunk.web.uri)
+        return {"text": r.text or "", "sources": [{"title": t, "url": u} for t, u in sources.items()]}

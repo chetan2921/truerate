@@ -28,6 +28,19 @@ export default function Decision({ r, outputs }: { r: Report; outputs: Output[] 
               Published asking price for {p.market_reference.tier.toLowerCase()}: {inr(p.market_reference.low)} to {inr(p.market_reference.high)}.
             </p>
           )}
+          {r.web_rate && r.web_rate.sources.length > 0 && (
+            <p className="basis mt-1 max-w-xl">
+              Web check read:{" "}
+              {r.web_rate.sources.slice(0, 3).map((s, i) => (
+                <span key={s.url}>
+                  {i > 0 && ", "}
+                  <a href={s.url} target="_blank" rel="noreferrer">
+                    {s.title}
+                  </a>
+                </span>
+              ))}
+            </p>
+          )}
         </div>
         <CallChip call={r.decision.call} large />
       </div>
