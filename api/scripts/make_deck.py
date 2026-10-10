@@ -249,7 +249,7 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> No
         ["Batch shortlist", "Up to 50 creators ranked by cost per 1,000 views, Avoid last, export to CSV"],
         ["Rate card", "₹ per 1,000 views by category, and a calculator from views wanted to budget"],
         ["Client one-pager", "Decision, waterfall and red flags on A4"],
-        ["Competitor conflict", "Flags a creator who promoted the same category in the last 60 days"],
+        ["Possible competitor", "A brand in the product's category in the last 60 days, on the grid or tagging the creator: check exclusivity"],
     ], size=15)
 
     s = d.slide("Pages without a face", "Judging 6: strategy for other page types")

@@ -127,7 +127,9 @@ def test_a_brand_that_tagged_the_creator_recently_is_a_competitor(world):
     recent = (datetime.now(timezone.utc) - timedelta(days=12)).strftime("%Y-%m-%dT%H:%M:%SZ")
     snap["data"]["tagged"] = [{"code": "TAG1", "taken_at": recent, "owner": "rivalbrand", "caption": "new flavour with our favourite cook", "paid": False}]
     r = analyze("newcreator", {"category": "Food"}, deps(world, snap))["result"]
-    assert r["competitor"]["brand"] == "rivalbrand" and r["competitor"]["days"] == 12 and r["decision"]["call"] == "Avoid"
+    # Creators promote brands in their own niche all the time, and TrueRate doesn't know WLDD's client: Negotiate, not Avoid.
+    assert r["competitor"]["brand"] == "rivalbrand" and r["competitor"]["days"] == 12 and r["decision"]["call"] == "Negotiate"
+    assert any("rivalbrand" in x and "check exclusivity" in x for x in r["decision"]["reasons"])
     assert r["placement"]["brand_tags"][0]["brand"] == "rivalbrand"
 
 

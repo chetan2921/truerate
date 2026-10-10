@@ -38,8 +38,9 @@ export default function Audience({ r }: { r: Report }) {
         {topics.length > 0 && <p className="basis mt-1">Reel topics: {topics.map(([t, n]) => `${t} ${n}`).join(" · ")}</p>}
         <p className="mt-5 text-lg">{r.worth_reaching}</p>
         {r.competitor && (
-          <p className="mt-4 text-avoid">
-            Competitor conflict: promoted {r.competitor.brand ? `@${r.competitor.brand}` : "a brand"} in {r.niche.product} {r.competitor.days} days ago.
+          <p className="mt-4 text-negotiate">
+            Possible competitor: promoted {r.competitor.brand ? `@${r.competitor.brand}` : "a brand"} in {r.niche.product}{" "}
+            {r.competitor.days === 0 ? "today" : r.competitor.days === 1 ? "yesterday" : `${r.competitor.days} days ago`}. Check exclusivity before booking.
           </p>
         )}
       </div>

@@ -202,8 +202,8 @@ Response models are Pydantic. The web types are generated from `/openapi.json` (
 - **Range:** the 10th/90th percentile of leave-one-out residuals.
 - **Expected delivery:** own-reel views (25th/50th/75th percentile) × the adjusted ratio. Likes and comments are those views × the creator's likes and comments per view.
 - **Decision:**
-  - Avoid = mostly fake, weak product fit, or a competitor promoted in the last 60 days: an ad on the creator's grid in the product's category, or a brand in that category that tagged the creator from its own page.
-  - Negotiate = some fake activity, quote above range, or paid reels drop more than usual.
+  - Avoid = mostly fake or weak product fit.
+  - Negotiate = some fake activity, quote above range, paid reels drop more than usual, or a possible competitor: a brand in the product's category promoted in the last 60 days, as an ad on the creator's grid or a brand post that tags the creator. TrueRate doesn't know WLDD's client, so it can't tell a real rival from any brand in the category; it asks for an exclusivity check instead of vetoing (decided with Chetan after all 6 live runs came out Avoid).
   - Otherwise Go.
 
 **Audience check:**

@@ -214,8 +214,8 @@ def _decide(v, flags, p, inputs, metrics, typical, fit, fit_share, competitor) -
         good.append("Real audience: likes, followers and comments all look like similar creators'")
     if fit == "weak":
         avoid.append(f"Weak fit for {inputs['category']}: {fit_share:.0%} of recent reels are about it")
-    if competitor:
-        avoid.append(f"Promoted {competitor['brand'] or 'a brand'} in {inputs['category']} {when(competitor['days'])}")
+    if competitor:  # any brand in the category, not necessarily WLDD's client's rival, so it's a question, not a veto
+        negotiate.append(f"Promoted {competitor['brand'] or 'a brand'} in {inputs['category']} {when(competitor['days'])}: check exclusivity before booking")
     quote, budget = inputs.get("quote"), inputs.get("budget")
     if quote:
         if quote > p["high"]:
