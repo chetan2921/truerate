@@ -74,6 +74,8 @@ Each step lists its proof of done.
 - 50% "most likely" band as the headline: **decide after step 2** measures its held-out coverage.
 - Creators beyond WLDD's deals: show WLDD's range and the published market price **separately**, not merged.
 - Report tabs: **the five in step 3**.
+- 2026-10-11: the report and batch show **answers, not measurements** (the founders read outputs). Headline is "Pay about" plus a **likely band 3× wide** (holds about half of real prices on unseen deals) and the full range. A narrower honest range isn't possible with WLDD's data: a 2× range held 30% (held out) and 16% (fresh).
+- 2026-10-11: past WLDD's largest deal, the price leans on the **published market rate discounted the way WLDD pays** (0.19 of the market middle at 1L to 5L), fully from 3× beyond. A **web check** (Gemini + Google Search) looks for the big creator's own listed price; it is shown as **information only**, not used in the price. The quote checker stays.
 - Stand-out extras (audience overlap, delivery tracker, brand safety, lookalikes): **dropped** (user, 2026-10-10). Order from here: report tabs → market price shown separately → brand page → notes and pitch → demo prep → housekeeping → model work (metrics judges know, anti-gaming chart, ensemble, model-card slides).
 - Brand page pool: **both**, each pick labelled with where it came from (WLDD's creators and past analyses, plus the brand's and rivals' tagged creators and their suggestions).
 

@@ -36,7 +36,9 @@ The Python service: collects Instagram data, runs the audience checks, prices on
   - `ambiguous`, `label_creator` (Gemini), `commenter_mix`, `face_share`, `commenter_rings` (Louvain), `fit_anomaly` and `audience_warnings`
 - `truerate/pricing.py`: `fit()` gives a `PriceModel`; `price()` gives the range, waterfall, comparables, delivery and an out-of-range `note`; `collab_factor` (bounded 0.5–1.0); `validate()` (with predicted-vs-actual points, no handles); the two baselines; `rate_card()` (3+ deals per category); `inr()` and `_group()` (Indian grouping)
 - `truerate/experiment.py`: `extra_features` (account age, reel length, posting rate, YouTube link, contact email, verified), `deal_rows`, `fresh_rows` (rebuilds a stored analysis's exact metrics from its snapshot and listed paid reels), the candidates (`POINT_FNS`; signed split-conformal ranges at 80% and 50%, global or per follower band), `repeated_cv`, `pick`, `beats`, `run`, `learning_curve`, `importance` (exact linear SHAP) and `report_table`. `experiment_plots.py` draws the graphs (matplotlib, dark theme).
-- `truerate/llm.py`: `Gemini.json(prompt, schema, images)`
+- `truerate/outputs.py`: `outputs(result, inputs)`, the plain verdicts (key, status good/warn/bad/info, title, detail), worked out on every read, so older analyses get them too.
+- `truerate/webcheck.py`: `web_rate(llm, handle, full_name, followers, category)`, a Google-grounded Gemini search for a big creator's own stated rate; found only when readable, plausible and sourced.
+- `truerate/llm.py`: `Gemini.json(prompt, schema, images)` and `Gemini.search(prompt)` (Google Search grounding, returns text and sources)
 - `truerate/config.py`: `Settings` from the repo-root `.env`; `MODELS_DIR` (env `MODELS_DIR` overrides, relative to the repo root); `HIKER_DIR` (`data/hikerapi/`)
 
 ## Folder map

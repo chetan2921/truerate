@@ -25,6 +25,8 @@
 - LLM in unit tests: `FakeLLM` in `api/tests/test_signals.py` returns a fixed reply and records each prompt, so a test can check that no price went in. Never call Gemini from a test.
 - Model selection is tested for honesty, not just output: `test_experiment.py` multiplies the held-out and fresh prices, and the pick and every CV number must stay identical while the test scores change.
 - Rebuilt features are checked by re-pricing: a real `analyze()` run is stored the way the app stores it, rebuilt by `fresh_rows`, and must give the same fair, low and high. Live, all 19 fresh deals reproduce their stored prices.
+- Web bugs with no unit-test setup are reproduced first with a short Playwright script in real Chrome (API calls that would start real work are intercepted with `page.route`), then fixed until the same script passes. Next 16 keeps visited pages alive with `<Activity>`: test navigating away and back, and read only visible elements, because hidden pages stay in the DOM.
+- Verdicts (`test_outputs.py`) are tested on a small hand-made result plus one real `analyze()` run; the web check (`test_webcheck.py`) uses a `SearchLLM` stand-in and checks that no deal price reaches the search prompt.
 - A test that passes on its first run gets a mutation check: break the code it guards, watch it fail, restore.
 - Statistical properties (range coverage) are pooled over several synthetic seeds: 15 held-out deals swing too much by chance to test one seed.
 - Pricing tests: `synthetic_rows(n, seed)` in `api/tests/test_pricing.py` makes deals whose true price is known.
@@ -46,6 +48,7 @@
 | Audience signals, band norms, verdict, genuine share, warnings | yes | no | no | synthetic genuine band; live signals on 2 creators |
 | Gemini labels, hidden-ad split, commenter mix | yes | no | no | `FakeLLM` / `SchemaLLM`; live on 2 creators |
 | Face check, Louvain rings | yes | no | no | stand-in detector in the unit test; real MediaPipe live on 2 creators' covers |
+| Plain verdicts (`outputs.py`), web check (`webcheck.py`), market anchoring past WLDD's deals | yes | no | no | hand-made results and the synthetic world; live: one big creator end to end |
 | Model v2 experiments (`experiment.py`, `truerate experiment`) | yes | no | no | synthetic deals; the pick ignores held-out prices; ranges hold their level; the live run writes `data/models/experiments/` |
 | Red-team (`make_fake`, `redteam`, command) | yes | no | no | synthetic creators; live run waits for the 150 |
 | `pipeline.analyze` (Go, bot likers, quote, product fit, out of scope) | yes | no | no | synthetic WLDD world (`world` fixture in `test_pipeline.py`) |

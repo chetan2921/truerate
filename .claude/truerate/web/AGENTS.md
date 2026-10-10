@@ -24,6 +24,8 @@ The Next.js front end the WLDD team uses: login, analyze, report with a quote ch
 - `src/app/(app)/about/`: `page.tsx` (accuracy chart and tables, fake test, flow, signals, other pages, limits) and `content.ts` (static text, condensed from SPEC)
 - `src/app/(app)/nav.tsx`: header nav; `layout.tsx` wraps it in Suspense because it reads the path
 - `src/components/report/`: `report.tsx` lays the report out in five tabs through `tabs.tsx` (ARIA tabs, `#tab` deep links, sticky bar, each panel mounted on first open): Summary (`decision`, `negotiation`), Price (`waterfall` with the 6 comparables, `quote`, `CheaperCreators` from `evidence`), Audience (`authenticity`, `engagement`, `audience`), Content (`placement`, Recharts), Similar (`Suggestions` from `evidence`). A heading id must never equal a tab key, or the hash would scroll to it.
+- `src/components/verdicts.tsx`: the plain verdict list and `StatusIcon` (icon plus word, never colour alone)
+- `src/components/batch/compare.tsx`: the batch page's recommendation, scorecard and three CSS bar charts (price against budget, what ₹10,000 buys, expected views)
 - `src/components/chips.tsx`: decision chip and verdict colours
 - `src/lib/api.ts` (fetch calls), `src/lib/api-types.ts` (generated, `make types`), `src/lib/format.ts` (₹ with Indian grouping, K/L/Cr, percentages)
 
@@ -35,6 +37,7 @@ The Next.js front end the WLDD team uses: login, analyze, report with a quote ch
 
 ## Sharp edges
 - This Next.js has breaking changes from older versions. Read the guide in `web/node_modules/next/dist/docs/` before writing a route, layout or data-fetching code.
+- Next keeps visited pages alive (`<Activity>`): state survives navigation. Reset transient state (busy flags, submitted forms) in a `useLayoutEffect` cleanup; effects re-run when a page is shown again.
 - `cacheComponents` is on: reading `params`, `searchParams` or `usePathname()` outside `<Suspense>` fails the build. Read params inside Suspense, and query strings in the browser.
 - Section rhythm: put the gap on the `section` itself (padding), varied by weight. ui-craft's slop scan reads section padding, and one gap everywhere fires it.
 - In the in-app browser, Next's live-reload socket fails, so reload by hand after an edit; a page can sit on "Loading…" while the dev server compiles a new route.

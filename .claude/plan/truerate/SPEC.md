@@ -23,7 +23,7 @@ A one-click "Demo login" button, or an email that must end in `@wldd.in` (checke
 2. Submit: `POST /api/analyses` returns an id, and the page moves to `/analyses/[id]`.
 3. The page polls every 1.5 s and shows 4 steps: reading profile, reels and audience · spotting ads and measuring reels · checking audience quality · calculating fair price.
 4. The report: the handle line and the client one-pager link, then five tabs in a sticky bar. Summary opens by default; `#summary`, `#price`, `#audience`, `#content` and `#similar` open a tab directly. A tab mounts the first time it opens and stays, so a quote check survives a look elsewhere.
-   - **Summary.** The decision block: price range, Go/Negotiate/Avoid with reasons, the verdict scale (Real audience · Some fake activity · Mostly fake), and expected delivery (views, likes and comments on the sponsored reel, cost per 1,000 views against the category). Then the negotiation lines with Copy.
+   - **Summary.** The decision block: "Pay about" (the middle price), the likely band (3× wide, holds about half of real prices on unseen deals) and the full range, the Go/Negotiate/Avoid call, the verdict scale (Real audience · Some fake activity · Mostly fake), and the plain verdicts from `outputs.py` (quote, budget, audience, value, expected views, reliability, ads, fit, rival ad, engagement, trend, size, web check). Then the negotiation lines with Copy.
    - **Price.** How the price was reached: the waterfall (market price from WLDD's past deals → sponsored-performance adjustment → fake-engagement adjustment → middle of the fair range) and the 6 past deals it compared against. The quote checker. Cheaper creators WLDD has booked in the category.
    - **Audience.** Authenticity (verdict plus every check, with its value, sample size and the similar-creator median), engagement against similar creators, and audience and niche (who engages, comment languages, category value rank, product fit, competitor warning).
    - **Content.** The last 30 reels chart (views, likes, comments, followers; sponsored reels marked), consistency, trend, paid and collab reels against own reels, brand tags and the detected ads.
@@ -36,7 +36,7 @@ A one-click "Demo login" button, or an email that must end in `@wldd.in` (checke
 Type a quote on the report: `POST /api/analyses/{id}/quote` returns below/within/above range, the difference, a counter-offer and 3 talking points. No re-scraping.
 
 ### Batch shortlist
-`/batch`: paste up to 50 handles plus product and budget. `/batch/[id]` polls a table ranked by cost per 1,000 views, with Avoid creators after the rest, and an Export CSV button. Judges can run their unseen set here.
+`/batch`: paste up to 50 handles plus product and budget; recent batches are listed below the form with their progress. `/batch/[id]` polls and shows who to book first and why (with what to watch and the cheapest-views alternative), a scorecard of verdicts per creator, and three charts: price against the budget, what ₹10,000 buys against WLDD's usual rate, and expected views. Export CSV keeps every number.
 
 ### Rate card
 `/rate-card`: ₹ per 1,000 views and typical reel price per category, from WLDD's deals, plus a calculator: category + views wanted → total budget range.
@@ -180,6 +180,8 @@ Response models are Pydantic. The web types are generated from `/openapi.json` (
 - Market price is a blend in log space of Ridge on log(price) (log views, log followers, engagement, comments per 1K views, category) and KNN, where the 6 nearest past deals' ₹ per 1,000 views is multiplied by this creator's views. Nearest means the same category first, then the closest views and followers. The blend weight is picked by leave-one-out.
 - Fair price = market × collab factor × genuine share, rounded to ₹500.
 - Past WLDD's largest or smallest creator, the 80% range widens about 1.4× per doubling toward the side being extrapolated. The published market asking price for the creator's size (`market_reference`) is shown on its own line, never merged into the range (user decision, 2026-10-10).
+- Past WLDD's largest creator the price also leans on the published market rate for the creator's size, times WLDD's measured discount on it (median WLDD price over the market middle in its biggest tier with 10+ deals: 0.19 at 1L to 5L), fully from 3× beyond (user decision, 2026-10-11). For those creators a Google-grounded Gemini search looks for their own stated rate; it is shown with its sources as information only, never used in the price, and never given a WLDD price.
+- The likely band is the middle price ÷ and × √3, inside the full range. A quote above it reads "on the high side" and makes the call Negotiate.
 - On WLDD's 148 deals, leave-one-out picked a Ridge weight of 1.0, so the market price is the regression alone and the 6 nearest deals are comparables in the report.
 - **Collab factor:**
   - Measure how many views this creator's paid reels keep, relative to their own reels.
