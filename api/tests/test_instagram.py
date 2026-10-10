@@ -222,3 +222,9 @@ def test_collect_benchmark_fresh_hours_zero_collects_again(db, tmp_path, monkeyp
     monkeypatch.setattr(cli, "make_hiker", lambda: fake_hiker(tmp_path))
     result = CliRunner().invoke(cli.app, ["collect-benchmark", "--fresh-hours", "0"])
     assert "Collected 1, skipped 0" in result.output and db.snapshots.count_documents({"handle": "fresh"}) == 2
+
+
+def test_collect_fetches_the_per_reel_lists_in_parallel_with_the_same_result(tmp_path):
+    one = collect(fake_hiker(tmp_path / "a"), "komalpandeyofficial", workers=1)["data"]
+    many = collect(fake_hiker(tmp_path / "b"), "komalpandeyofficial", workers=8)["data"]
+    assert one == many

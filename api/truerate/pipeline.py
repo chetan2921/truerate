@@ -1,4 +1,5 @@
 import re
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from statistics import median
@@ -48,6 +49,23 @@ class Deps:
     detect_face: Callable = field(default=has_face)
 
 
+def _group(n: float) -> str:
+    """Indian digit grouping: 1,50,000 and 1,23,45,678."""
+    digits = str(int(round(n)))
+    head, tail = digits[:-3], digits[-3:]
+    while len(head) > 2:
+        head, tail = head[:-2], head[-2:] + "," + tail
+    return f"{head},{tail}" if head else tail
+
+
+def inr(n: float) -> str:
+    return "₹" + _group(n)
+
+
+def when(days: int) -> str:
+    return "today" if days == 0 else "yesterday" if days == 1 else f"{days} days ago"
+
+
 def _flag_text(f: dict, s: dict) -> str:
     v, m = f["value"], f["median"]
     return {
@@ -90,12 +108,14 @@ def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] =
     faces = face_share(covers, deps.detect_face)
     if faces is not None and faces < FACE_SHARE:
         return {"status": "out_of_scope", "reason": f"Only {round(faces * len(covers))} of {len(covers)} reel covers show a face. TrueRate prices face creators; About explains the plan for other pages."}
-    labels = label_creator(deps.llm, snap, {code: img for code, img in covers.items() if any(r["code"] == code and ambiguous(r) for r in reels)})
-    metrics = reel_metrics(snap, labels)
     deal = db.deals.find_one({"handle": handle})
     category = category_from_niche(deal["niche"]) if deal else None
     category_source = "wldd" if category else "gemini"
-    category = category or label_niche(deps.llm, d["profile"]["bio"], [r["caption"] for r in reels])
+    with ThreadPoolExecutor(max_workers=2) as pool:  # the niche call runs alongside the long labelling call
+        niche = None if category else pool.submit(label_niche, deps.llm, d["profile"]["bio"], [r["caption"] for r in reels])
+        labels = label_creator(deps.llm, snap, {code: img for code, img in covers.items() if any(r["code"] == code and ambiguous(r) for r in reels)})
+        category = category or niche.result()
+    metrics = reel_metrics(snap, labels)
 
     step(2)
     wldd = [m for m in db.metrics.find({"_id": {"$ne": handle}})]
@@ -203,15 +223,15 @@ def _decide(v, flags, p, inputs, metrics, typical, fit, fit_share, competitor) -
     if fit == "weak":
         avoid.append(f"Weak fit for {inputs['category']}: {fit_share:.0%} of recent reels are about it")
     if competitor:
-        avoid.append(f"Promoted {competitor['brand'] or 'a brand'} in {inputs['category']} {competitor['days']} days ago")
+        avoid.append(f"Promoted {competitor['brand'] or 'a brand'} in {inputs['category']} {when(competitor['days'])}")
     quote, budget = inputs.get("quote"), inputs.get("budget")
     if quote:
         if quote > p["high"]:
-            negotiate.append(f"Quoted ₹{quote:,} is ₹{quote - p['high']:,} above the fair range (₹{p['low']:,} to ₹{p['high']:,})")
+            negotiate.append(f"Quoted {inr(quote)} is {inr(quote - p['high'])} above the fair range ({inr(p['low'])} to {inr(p['high'])})")
         else:
-            good.append(f"Quoted ₹{quote:,} is {'below' if quote < p['low'] else 'within'} the fair range")
+            good.append(f"Quoted {inr(quote)} is {'below' if quote < p['low'] else 'within'} the fair range")
     if budget and p["fair"] > budget:
-        negotiate.append(f"Fair price ₹{p['fair']:,} is ₹{p['fair'] - budget:,} over the ₹{budget:,} budget")
+        negotiate.append(f"Fair price {inr(p['fair'])} is {inr(p['fair'] - budget)} over the {inr(budget)} budget")
     if p["collab_factor"] < 0.85:
         negotiate.append(f"Paid reels keep {metrics['paid_ratio']:.0%} of usual views, against {typical:.0%} for a typical creator")
     call = "Avoid" if avoid else "Negotiate" if negotiate else "Go"
@@ -220,10 +240,10 @@ def _decide(v, flags, p, inputs, metrics, typical, fit, fit_share, competitor) -
 
 def _negotiation(p: dict, flags: list[dict], metrics: dict, category: str) -> dict:
     d = p["delivery"]
-    lines = [f"WLDD's past {category} deals of this size work out to about ₹{d['category_cost_per_1k']:,} per 1,000 views." if d["category_cost_per_1k"] else None,
-             f"Your typical reel gets {metrics['views']:,.0f} views and a weaker one {metrics['views_p25']:,.0f}; we price on what a sponsored reel delivers, about {d['views'][1]:,}.",
+    lines = [f"WLDD's past {category} deals of this size work out to about {inr(d['category_cost_per_1k'])} per 1,000 views." if d["category_cost_per_1k"] else None,
+             f"Your typical reel gets {_group(metrics['views'])} views and a weaker one {_group(metrics['views_p25'])}; we price on what a sponsored reel delivers, about {_group(d['views'][1])}.",
              *[f["text"] + "." for f in flags[:2]],
-             f"We can do ₹{p['low']:,} now and go up to ₹{p['fair']:,} for a usage-rights or story add-on."]
+             f"We can do {inr(p['low'])} now and go up to {inr(p['fair'])} for a usage-rights or story add-on."]
     return {"start": p["low"], "target": p["fair"], "walk_away": p["high"], "lines": [x for x in lines if x]}
 
 
@@ -233,13 +253,13 @@ def check_quote(r: dict, quote: int) -> dict:
     position = "below" if quote < p["low"] else "above" if quote > p["high"] else "within"
     per_1k = round(quote / (r["placement"]["typical_views"] / 1000))
     points = [
-        f"At ₹{quote:,}, a reel costs ₹{per_1k:,} per 1,000 typical views"
-        + (f"; {r['category']} creators WLDD booked average ₹{d['category_cost_per_1k']:,}." if d["category_cost_per_1k"] else "."),
-        f"A sponsored reel here should get about {d['views'][1]:,} views, and we pay for what it delivers.",
+        f"At {inr(quote)}, a reel costs {inr(per_1k)} per 1,000 typical views"
+        + (f"; {r['category']} creators WLDD booked average {inr(d['category_cost_per_1k'])}." if d["category_cost_per_1k"] else "."),
+        f"A sponsored reel here should get about {_group(d['views'][1])} views, and we pay for what it delivers.",
     ]
     if r["audience"]["flags"]:
         points.append(r["audience"]["flags"][0]["text"] + ".")
     else:
         paid = [c["price"] for c in p["comparables"]]
-        points.append(f"The 6 closest past WLDD deals were paid ₹{min(paid):,.0f} to ₹{max(paid):,.0f}.")
+        points.append(f"The 6 closest past WLDD deals were paid {inr(min(paid))} to {inr(max(paid))}.")
     return {"quote": quote, "position": position, "difference": quote - p["fair"], "counter_offer": min(quote, p["fair"]), "talking_points": points}

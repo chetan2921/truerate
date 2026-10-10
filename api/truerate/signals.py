@@ -360,6 +360,9 @@ _LABEL_SCHEMA = {
 }
 
 
+TAGGED_IN_PROMPT = 8
+
+
 def label_creator(llm, snapshot: dict, images: dict[str, bytes]) -> dict:
     """One Gemini call: hidden ads among the ambiguous reels (covers attached), every reel's topic, who the co-authors and
     top commenters are, and the comment languages. No price goes in."""
@@ -367,7 +370,9 @@ def label_creator(llm, snapshot: dict, images: dict[str, bytes]) -> dict:
     reels = recent_reels(snapshot)
     unclear = [r["code"] for r in reels if ambiguous(r)]
     with_cover = [code for code in unclear if code in images]
-    tagged = d.get("tagged", [])
+    # The newest 8 only: each tagged post adds to Gemini's answer (21 took a live call from 32 s to 85 s), and the
+    # competitor check looks back 60 days.
+    tagged = sorted(d.get("tagged", []), key=lambda t: t["taken_at"], reverse=True)[:TAGGED_IN_PROMPT]
     accounts = list(dict.fromkeys(sorted({c for r in reels for c in r["coauthors"]}) + [t["owner"] for t in tagged] + [u["username"] for u in top_commenters(d["comments"])]))
     comments = [c["text"][:200] for cs in d["comments"].values() for c in cs][:80]
     reel_lines = "\n".join(f"{r['code']} | {r['caption'][:300]!r} | co-authors: {', '.join(r['coauthors']) or '-'} | tagged: {', '.join(r.get('tags', [])) or '-'}" for r in reels)

@@ -257,3 +257,14 @@ def test_build_metrics_keeps_gemini_labels_when_a_later_step_fails(db, monkeypat
     monkeypatch.setattr(cli, "reel_metrics", real_metrics)
     CliRunner().invoke(cli.app, ["build-metrics"])
     assert len(llm.label_prompts) == calls and db.metrics.count_documents({}) == 2  # the rerun reuses the saved labels
+
+
+def test_label_creator_sends_only_the_8_newest_tagged_posts():
+    # Every tagged post needs a topic in Gemini's answer: 21 of them took a live call from 32 s to 85 s.
+    snap = labelled_snapshot()
+    snap["data"]["tagged"] = [{"code": f"TAG{i:02d}", "taken_at": f"2026-09-{28 - i:02d}T10:00:00Z", "owner": f"brand{i}", "caption": "new drop", "paid": False}
+                              for i in range(12)]
+    llm = FakeLLM({"reels": [], "accounts": [], "languages": []})
+    label_creator(llm, snap, images={})
+    prompt = llm.prompts[0]
+    assert "TAG00 |" in prompt and "TAG07 |" in prompt and "TAG08 |" not in prompt

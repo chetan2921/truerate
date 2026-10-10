@@ -1,4 +1,5 @@
 import gzip
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import random
@@ -186,8 +187,10 @@ class Hiker:
         return self._get("/v2/user/suggested/profiles", lambda raw: parse_accounts(raw["users"]), user_id=pk)
 
 
-def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int = 3) -> dict:
-    """One snapshot of a creator: about 21 requests. A private account stops after the profile."""
+def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int = 3, workers: int = 1) -> dict:
+    """One snapshot of a creator: about 21 requests. A private account stops after the profile. After the profile and
+    the reel pages, the per-reel lists are fetched `workers` at a time (8 for a live analysis; 1 inside the benchmark,
+    which already runs creators in parallel)."""
     profile = hiker.profile(handle)
     data = {"profile": profile}
     snap = {"handle": handle, "fetched_at": datetime.now(timezone.utc), "followers": profile["followers"], "data": data}
@@ -196,15 +199,22 @@ def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int
     pk = profile["pk"]
     reels = hiker.reels(pk)
     recent = [r for r in reels if not r["pinned"]]
-    data |= {
-        "about": _or_empty(hiker.about, pk, {"country": "", "joined": "", "former_usernames": 0}),
-        "reels": reels,
-        "comments": {r["id"]: _or_empty(hiker.comments, r["id"]) for r in recent[:comment_reels]},
-        "likers": {r["id"]: _or_empty(hiker.likers, r["id"]) for r in recent[:liker_reels]},
-        "followers": _or_empty(hiker.followers, pk),
-        "suggested": _or_empty(hiker.suggested, pk),
-        "tagged": [t for t in _or_empty(hiker.tagged, pk) if t["owner"] != profile["username"]],
-    }
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        about = pool.submit(_or_empty, hiker.about, pk, {"country": "", "joined": "", "former_usernames": 0})
+        comments = {r["id"]: pool.submit(_or_empty, hiker.comments, r["id"]) for r in recent[:comment_reels]}
+        likers = {r["id"]: pool.submit(_or_empty, hiker.likers, r["id"]) for r in recent[:liker_reels]}
+        followers = pool.submit(_or_empty, hiker.followers, pk)
+        suggested = pool.submit(_or_empty, hiker.suggested, pk)
+        tagged = pool.submit(_or_empty, hiker.tagged, pk)
+        data |= {
+            "about": about.result(),
+            "reels": reels,
+            "comments": {k: f.result() for k, f in comments.items()},
+            "likers": {k: f.result() for k, f in likers.items()},
+            "followers": followers.result(),
+            "suggested": suggested.result(),
+            "tagged": [t for t in tagged.result() if t["owner"] != profile["username"]],
+        }
     return snap
 
 

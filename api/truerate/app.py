@@ -1,5 +1,7 @@
 import json
 import re
+import threading
+from contextlib import asynccontextmanager
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -17,9 +19,15 @@ from truerate.instagram import Hiker, collect
 from truerate.llm import Gemini
 from truerate.pipeline import STEPS, Deps, analyze, check_quote
 from truerate.pricing import rate_card
-from truerate.signals import CATEGORIES, minilm_embed
+from truerate.signals import CATEGORIES, _face_detector, minilm_embed
 
-app = FastAPI(title="TrueRate API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    threading.Thread(target=_warm, daemon=True).start()
+    yield
+
+
+app = FastAPI(title="TrueRate API", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000"], allow_methods=["*"], allow_headers=["*"])
 
 EXECUTOR = ThreadPoolExecutor(max_workers=2)
@@ -342,11 +350,22 @@ def _models() -> tuple:
     return joblib.load(MODELS_DIR / "fake_accounts.joblib"), joblib.load(MODELS_DIR / "price.joblib")
 
 
+def _warm() -> None:
+    """Load the models at startup, so the first analysis doesn't pay for it. If one is missing, the first request
+    reports it instead."""
+    try:
+        _models()
+        minilm_embed(["warm up"])
+        _face_detector()
+    except Exception:
+        pass
+
+
 def make_deps(db) -> Deps:
     settings = get_settings()
     hiker = Hiker(settings.hikerapi_key, HIKER_DIR)
     fake_model, price_model = _models()
-    return Deps(db=db, collect=lambda handle: collect(hiker, handle), llm=Gemini(settings.llm_api_key, settings.llm_model),
+    return Deps(db=db, collect=lambda handle: collect(hiker, handle, workers=8), llm=Gemini(settings.llm_api_key, settings.llm_model),
                 fake_model=fake_model, embed=minilm_embed, price_model=price_model)
 
 

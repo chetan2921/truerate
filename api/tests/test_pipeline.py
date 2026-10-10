@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta, timezone
 
 import numpy as np
@@ -5,7 +6,7 @@ import pytest
 from test_audience import fake_embed, genuine_snapshot
 from test_pricing import synthetic_rows
 
-from truerate.pipeline import Deps, analyze, check_quote
+from truerate.pipeline import Deps, analyze, check_quote, inr, when
 from truerate.pricing import fit
 from truerate.signals import audience_signals, make_fake, reel_metrics, train_fake_model
 
@@ -127,3 +128,15 @@ def test_a_brand_that_tagged_the_creator_recently_is_a_competitor(world):
     r = analyze("newcreator", {"category": "Food"}, deps(world, snap))["result"]
     assert r["competitor"]["brand"] == "rivalbrand" and r["competitor"]["days"] == 12 and r["decision"]["call"] == "Avoid"
     assert r["placement"]["brand_tags"][0]["brand"] == "rivalbrand"
+
+
+def test_money_uses_indian_grouping_and_days_read_naturally():
+    assert (inr(150000), inr(28000), inr(12345678), inr(999)) == ("₹1,50,000", "₹28,000", "₹1,23,45,678", "₹999")
+    assert (when(0), when(1), when(12)) == ("today", "yesterday", "12 days ago")
+
+
+def test_reasons_and_lines_use_indian_grouping(world):
+    r = analyze("newcreator", {"quote": 1_500_000}, deps(world, target_snapshot()))["result"]
+    text = " ".join(r["decision"]["reasons"] + r["negotiation"]["lines"])
+    assert "₹15,00,000" in text
+    assert not re.search(r"₹\d{3},\d{3}\b|₹\d{1,3},\d{3},\d{3}", text)  # no Western grouping like ₹150,000 or ₹1,500,000
