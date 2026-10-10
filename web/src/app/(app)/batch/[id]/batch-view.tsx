@@ -1,15 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { use, useEffect, useState } from "react";
 
-import { CallChip } from "@/components/chips";
+import { PriceChart, ReachChart, Recommendation, Scorecard, ValueChart } from "@/components/batch/compare";
 import { api, type Batch } from "@/lib/api";
-import { compact, inr } from "@/lib/format";
+import { inr } from "@/lib/format";
 
 function toCsv(b: Batch): string {
-  const head = ["rank", "handle", "decision", "verdict", "recommended_inr", "low_inr", "high_inr", "inr_per_1000_views", "expected_views", "status"];
-  const rows = b.rows.map((r, i) => [i + 1, r.handle, r.call ?? "", r.verdict ?? "", r.fair ?? "", r.low ?? "", r.high ?? "", r.cost_per_1k ?? "", r.expected_views ?? "", r.status]);
+  const head = ["rank", "handle", "decision", "pay_about_inr", "likely_low_inr", "likely_high_inr", "low_inr", "high_inr", "inr_per_1000_views", "expected_views", "verdicts", "status"];
+  const rows = b.rows.map((r, i) => [i + 1, r.handle, r.call ?? "", r.fair ?? "", r.likely_low ?? "", r.likely_high ?? "", r.low ?? "", r.high ?? "", r.cost_per_1k ?? "",
+    r.expected_views ?? "", r.outputs.map((o) => o.title).join("; "), r.status]);
   return [head, ...rows].map((r) => r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(",")).join("\n");
 }
 
@@ -56,7 +56,7 @@ export default function BatchView({ params }: { params: Promise<{ id: string }> 
         <div>
           <h1 className="text-3xl font-bold">Shortlist of {batch.total}</h1>
           <p className="basis mt-1">
-            {batch.done < batch.total ? `${batch.done} of ${batch.total} done; the table fills in as each finishes.` : "All done."} Cheapest views first
+            {batch.done < batch.total ? `${batch.done} of ${batch.total} done; this fills in as each finishes.` : "All done."} Who to book, then the details
             {batch.inputs.category ? ` · for ${batch.inputs.category}` : ""}
             {budget ? ` · budget ${inr(budget)}` : ""}.
           </p>
@@ -65,50 +65,25 @@ export default function BatchView({ params }: { params: Promise<{ id: string }> 
           Export CSV
         </button>
       </div>
-      <div className="mt-6 overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-bg text-left text-muted">
-            <tr>
-              <th className="py-2 pr-3 font-normal">#</th>
-              <th className="py-2 pr-3 font-normal">Creator</th>
-              <th className="py-2 pr-3 font-normal">Decision</th>
-              <th className="py-2 pr-3 font-normal">Audience</th>
-              <th className="py-2 pr-3 text-right font-normal">Fair range</th>
-              <th className="py-2 pr-3 text-right font-normal">Per 1,000 views</th>
-              <th className="py-2 text-right font-normal">Expected views</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {batch.rows.map((r, i) => (
-              <tr key={r.analysis_id}>
-                <td className="figure py-2.5 pr-3 text-muted">{r.cost_per_1k != null ? i + 1 : ""}</td>
-                <td className="py-2.5 pr-3">
-                  <Link href={`/analyses/${r.analysis_id}`}>@{r.handle}</Link>
-                </td>
-                {r.status === "done" ? (
-                  <>
-                    <td className="py-2.5 pr-3">{r.call && <CallChip call={r.call} />}</td>
-                    <td className="py-2.5 pr-3">{r.verdict}</td>
-                    <td className="figure py-2.5 pr-3 text-right">
-                      {r.low != null && r.high != null && (
-                        <span className="whitespace-nowrap">
-                          {inr(r.low)} to {inr(r.high)}
-                        </span>
-                      )}
-                      {budget && r.fair != null && r.fair > budget && <span className="block text-xs text-negotiate">over budget</span>}
-                    </td>
-                    <td className="figure py-2.5 pr-3 text-right">{r.cost_per_1k != null && inr(r.cost_per_1k)}</td>
-                    <td className="figure py-2.5 text-right">{r.expected_views != null && compact(r.expected_views)}</td>
-                  </>
-                ) : (
-                  <td colSpan={5} className="basis py-2.5">
-                    {r.status === "running" ? "Running…" : r.reason ?? r.status}
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="mt-6">
+        <Recommendation rows={batch.rows} />
+      </div>
+      {/* Gaps follow weight: the dense scorecard gets room, the three bar charts sit closer together. */}
+      <section aria-labelledby="side-by-side" className="pt-12">
+        <h2 id="side-by-side" className="section-title">
+          Side by side
+        </h2>
+        <p className="basis mt-1">Hover an answer for the reason. Cheapest views first; Avoid goes last.</p>
+        <div className="mt-4">
+          <Scorecard rows={batch.rows} />
+        </div>
+      </section>
+      <div className="grid gap-x-16 gap-y-12 pt-16 xl:grid-cols-2">
+        <PriceChart rows={batch.rows} budget={budget} />
+        <ValueChart rows={batch.rows} />
+      </div>
+      <div className="pt-12 xl:w-1/2 xl:pr-8">
+        <ReachChart rows={batch.rows} />
       </div>
     </main>
   );
