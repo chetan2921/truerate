@@ -126,7 +126,7 @@ class ReelPoint(BaseModel):
     views: int
     likes: int
     comments: int
-    kind: Literal["own", "paid", "collab"]
+    kind: Literal["own", "paid", "collab", "repost"]
     thumbnail: str
 
 
@@ -152,6 +152,13 @@ class Ad(BaseModel):
     topic: str | None
 
 
+class BrandTag(BaseModel):
+    code: str
+    taken_at: str
+    brand: str
+    topic: str | None
+
+
 class Placement(BaseModel):
     reels: list[ReelPoint]
     followers_history: list[FollowerPoint]
@@ -162,6 +169,8 @@ class Placement(BaseModel):
     paid: PaidRatio
     collab: Ratio
     ads: list[Ad]
+    brand_tags: list[BrandTag]
+    n_reposts: int
 
 
 class Niche(BaseModel):

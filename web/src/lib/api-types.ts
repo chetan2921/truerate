@@ -311,6 +311,17 @@ export interface components {
             /** Reason */
             reason: string | null;
         };
+        /** BrandTag */
+        BrandTag: {
+            /** Code */
+            code: string;
+            /** Taken At */
+            taken_at: string;
+            /** Brand */
+            brand: string;
+            /** Topic */
+            topic: string | null;
+        };
         /** CategoryRate */
         CategoryRate: {
             /** Category */
@@ -536,6 +547,10 @@ export interface components {
             collab: components["schemas"]["Ratio"];
             /** Ads */
             ads: components["schemas"]["Ad"][];
+            /** Brand Tags */
+            brand_tags: components["schemas"]["BrandTag"][];
+            /** N Reposts */
+            n_reposts: number;
         };
         /** Price */
         Price: {
@@ -621,7 +636,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "own" | "paid" | "collab";
+            kind: "own" | "paid" | "collab" | "repost";
             /** Thumbnail */
             thumbnail: string;
         };

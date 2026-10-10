@@ -78,6 +78,22 @@ def parse_reels(items: list[dict]) -> list[dict]:
             "thumbnail": it.get("thumbnail_url") or "",
             "duration": it.get("video_duration") or 0,
             "counts_hidden": bool(it.get("like_and_view_counts_disabled")),
+            # Instagram's own "reposted from" label: the original author, when this reel isn't the creator's own work
+            "repost_of": ((((it.get("clips_metadata") or {}).get("originality_info") or {}).get("original_media") or {}).get("user") or {}).get("username"),
+        }
+        for it in items
+    ]
+
+
+def parse_tagged(items: list[dict]) -> list[dict]:
+    """Posts by other accounts that tag the creator. Brands often post a collab on their own page."""
+    return [
+        {
+            "code": it["code"],
+            "taken_at": datetime.fromtimestamp(it["taken_at"], timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "owner": it["user"]["username"],
+            "caption": ((it.get("caption") or {}).get("text") or "")[:300],
+            "paid": bool(it.get("is_paid_partnership")),
         }
         for it in items
     ]
@@ -163,12 +179,15 @@ class Hiker:
     def followers(self, pk: str) -> list[dict]:
         return self._get("/v1/user/followers/chunk", lambda raw: parse_accounts(raw[0]), user_id=pk)
 
+    def tagged(self, pk: str) -> list[dict]:
+        return self._get("/v2/user/tag/medias", lambda raw: parse_tagged(raw["response"]["items"]), user_id=pk)
+
     def suggested(self, pk: str) -> list[dict]:
         return self._get("/v2/user/suggested/profiles", lambda raw: parse_accounts(raw["users"]), user_id=pk)
 
 
 def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int = 3) -> dict:
-    """One snapshot of a creator: about 20 requests. A private account stops after the profile."""
+    """One snapshot of a creator: about 21 requests. A private account stops after the profile."""
     profile = hiker.profile(handle)
     data = {"profile": profile}
     snap = {"handle": handle, "fetched_at": datetime.now(timezone.utc), "followers": profile["followers"], "data": data}
@@ -184,6 +203,7 @@ def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int
         "likers": {r["id"]: _or_empty(hiker.likers, r["id"]) for r in recent[:liker_reels]},
         "followers": _or_empty(hiker.followers, pk),
         "suggested": _or_empty(hiker.suggested, pk),
+        "tagged": [t for t in _or_empty(hiker.tagged, pk) if t["owner"] != profile["username"]],
     }
     return snap
 

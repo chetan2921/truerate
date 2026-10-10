@@ -80,13 +80,14 @@ def collect_cmd(handle: str) -> None:
 
 
 @app.command("collect-benchmark")
-def collect_benchmark_cmd(workers: int = 1) -> None:
-    """Snapshot every deal creator, skipping any fetched in the last 24 h, `workers` at a time.
+def collect_benchmark_cmd(workers: int = 1, fresh_hours: int = 24) -> None:
+    """Snapshot every deal creator, skipping any fetched in the last `fresh_hours`, `workers` at a time. With
+    `--fresh-hours 0` every creator is snapshotted again; saved HikerAPI responses make that nearly free.
     A failed creator is reported and skipped; running out of HikerAPI credit (402) stops the run."""
     db = get_db()
     ensure_indexes(db)
     hiker = make_hiker()
-    since = datetime.now(timezone.utc) - timedelta(hours=24)
+    since = datetime.now(timezone.utc) - timedelta(hours=fresh_hours)
     handles = [d["handle"] for d in db.deals.find({}, {"handle": 1}).sort("handle")]
     todo = [h for h in handles if not db.snapshots.find_one({"handle": h, "fetched_at": {"$gt": since}})]
     done = failed = 0
@@ -110,7 +111,7 @@ def collect_benchmark_cmd(workers: int = 1) -> None:
             db.snapshots.insert_one(snap)
             done += 1
             typer.echo(f"[{done + failed}/{len(todo)}] {handle}: {snap['followers']:,} followers, {len(snap['data'].get('reels', []))} reels")
-    typer.echo(f"Collected {done}, skipped {len(handles) - len(todo)} fetched in the last 24 h, failed {failed}")
+    typer.echo(f"Collected {done}, skipped {len(handles) - len(todo)} fetched in the last {fresh_hours} h, failed {failed}")
 
 
 def load_fake_model():

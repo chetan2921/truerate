@@ -116,7 +116,7 @@ def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] =
     def kind(r):
         if is_paid(r) or r["code"] in labels.get("ads", []) or any(kinds.get(c) == "brand" for c in r["coauthors"]):
             return "paid"
-        return "collab" if r["coauthors"] else "own"
+        return "collab" if r["coauthors"] else "repost" if r.get("repost_of") else "own"
 
     ads = [{"code": r["code"], "taken_at": r["taken_at"], "disclosed": is_paid(r), "brand": _brand(r), "topic": labels["topics"].get(r["code"])}
            for r in reels if kind(r) == "paid"]
@@ -133,8 +133,12 @@ def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] =
         worth += f"; {fit_share:.0%} of recent reels are about {product}, a {fit} fit."
     else:
         worth += "."
-    competitor = next(({"brand": a["brand"], "days": _days_ago(a["taken_at"]), "code": a["code"]} for a in ads
-                       if product and a["topic"] == product and _days_ago(a["taken_at"]) <= COMPETITOR_DAYS), None)
+    # Brands that tagged the creator from their own page: collabs that never show on the creator's grid.
+    brand_tags = sorted(({"code": t["code"], "taken_at": t["taken_at"], "brand": t["owner"], "topic": labels.get("topics", {}).get(t["code"])}
+                         for t in d.get("tagged", []) if kinds.get(t["owner"]) == "brand"), key=lambda t: t["taken_at"], reverse=True)
+    recent_same = sorted((x for x in ads + brand_tags if product and x["topic"] == product and _days_ago(x["taken_at"]) <= COMPETITOR_DAYS),
+                         key=lambda x: x["taken_at"], reverse=True)
+    competitor = {"brand": recent_same[0]["brand"], "days": _days_ago(recent_same[0]["taken_at"]), "code": recent_same[0]["code"]} if recent_same else None
 
     decision = _decide(v, flags, p, inputs, metrics, model.paid_typical, fit, fit_share, competitor)
     cheaper = sorted((r for r in model.rows if r["category"] == category and per_1k(r) < p["delivery"]["cost_per_1k"]
@@ -174,6 +178,8 @@ def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] =
             "paid": {"n": metrics["paid_n"], "ratio": metrics["paid_ratio"], "typical_ratio": model.paid_typical},
             "collab": {"n": metrics["collab_n"], "ratio": metrics["collab_ratio"]},
             "ads": ads,
+            "brand_tags": brand_tags,
+            "n_reposts": metrics["n_reposts"],
         },
         "niche": {"category": category, "topics": {t: topics.count(t) for t in set(topics)}, "product": product, "fit": fit, "fit_share": fit_share},
         "worth_reaching": worth,

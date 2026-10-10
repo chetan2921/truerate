@@ -89,7 +89,8 @@ def reel_metrics(snapshot: dict, labels: dict | None = None) -> dict:
     reels = recent_reels(snapshot)
     paid = [r for r in reels if paid_reel(r)]
     collab = [r for r in reels if r["coauthors"] and not paid_reel(r)]
-    own = [r for r in reels if not r["coauthors"] and not paid_reel(r)]
+    reposts = [r for r in reels if r.get("repost_of") and not r["coauthors"] and not paid_reel(r)]
+    own = [r for r in reels if not r["coauthors"] and not paid_reel(r) and not r.get("repost_of")]
     views = median(r["views"] for r in own)
 
     def ratio(group):
@@ -113,6 +114,7 @@ def reel_metrics(snapshot: dict, labels: dict | None = None) -> dict:
         "paid_ratio": ratio(paid),
         "collab_n": len(collab),
         "collab_ratio": ratio(collab),
+        "n_reposts": len(reposts),
     }
 
 
@@ -363,16 +365,19 @@ def label_creator(llm, snapshot: dict, images: dict[str, bytes]) -> dict:
     reels = recent_reels(snapshot)
     unclear = [r["code"] for r in reels if ambiguous(r)]
     with_cover = [code for code in unclear if code in images]
-    accounts = sorted({c for r in reels for c in r["coauthors"]}) + [u["username"] for u in top_commenters(d["comments"])]
+    tagged = d.get("tagged", [])
+    accounts = list(dict.fromkeys(sorted({c for r in reels for c in r["coauthors"]}) + [t["owner"] for t in tagged] + [u["username"] for u in top_commenters(d["comments"])]))
     comments = [c["text"][:200] for cs in d["comments"].values() for c in cs][:80]
     reel_lines = "\n".join(f"{r['code']} | {r['caption'][:300]!r} | co-authors: {', '.join(r['coauthors']) or '-'} | tagged: {', '.join(r.get('tags', [])) or '-'}" for r in reels)
+    tagged_lines = "\n".join(f"{t['code']} | by @{t['owner']} | {t['caption'][:200]!r}" for t in tagged)
     prompt = (
         "You label an Instagram creator's content for an influencer-marketing team.\n"
-        "1. For each reel: is it an ad (a paid promotion of a brand, product or app, even without #ad)? And its topic.\n"
+        "1. For each reel and tagged post: is it an ad (a paid promotion of a brand, product or app, even without #ad)? And its topic.\n"
         "2. For each account: a person, a creator (an influencer or public page) or a brand.\n"
         "3. The languages the comments are written in, as shares adding to 1. Romanised Hindi counts as Hinglish.\n\n"
         f"Bio: {d['profile'].get('bio', '')}\n\nReels (code | caption | co-authors | tagged):\n{reel_lines}\n\n"
-        f"Accounts: {', '.join(accounts) or '-'}\n\nComments:\n" + "\n".join(f"- {c}" for c in comments)
+        + (f"Posts by other accounts that tag this creator (code | owner | caption):\n{tagged_lines}\n\n" if tagged else "")
+        + f"Accounts: {', '.join(accounts) or '-'}\n\nComments:\n" + "\n".join(f"- {c}" for c in comments)
         + (f"\n\nCover images follow, in this order: {', '.join(with_cover)}" if with_cover else "")
     )
     reply = llm.json(prompt, _LABEL_SCHEMA, images=[images[code] for code in with_cover])

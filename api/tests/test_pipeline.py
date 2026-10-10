@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import pytest
@@ -22,8 +22,10 @@ class TopicLLM:
         self.prompts.append(prompt)
         if "category" in schema["properties"]:
             return {"category": self.topic}
-        codes = [line.split(" | ")[0] for line in prompt.splitlines() if " | co-authors:" in line]
-        return {"reels": [{"code": c, "ad": False, "topic": self.topic} for c in codes], "accounts": [], "languages": [{"language": "English", "share": 1.0}]}
+        codes = [line.split(" | ")[0] for line in prompt.splitlines() if " | co-authors:" in line or " | by @" in line]
+        accounts = next((line.split(": ", 1)[1].split(", ") for line in prompt.splitlines() if line.startswith("Accounts: ")), [])
+        return {"reels": [{"code": c, "ad": False, "topic": self.topic} for c in codes],
+                "accounts": [{"username": a, "kind": "brand"} for a in accounts if "brand" in a], "languages": [{"language": "English", "share": 1.0}]}
 
 
 def target_snapshot(handle="newcreator", seed=99):
@@ -116,3 +118,12 @@ def test_quote_check_places_the_quote_and_counters(world):
     assert within["position"] == "within" and within["counter_offer"] == p["fair"] - 500  # at or under fair: take it
     below = check_quote(r, max(p["low"] - 1_000, 500))
     assert below["position"] == "below" and below["counter_offer"] == below["quote"]
+
+
+def test_a_brand_that_tagged_the_creator_recently_is_a_competitor(world):
+    snap = target_snapshot()
+    recent = (datetime.now(timezone.utc) - timedelta(days=12)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    snap["data"]["tagged"] = [{"code": "TAG1", "taken_at": recent, "owner": "rivalbrand", "caption": "new flavour with our favourite cook", "paid": False}]
+    r = analyze("newcreator", {"category": "Food"}, deps(world, snap))["result"]
+    assert r["competitor"]["brand"] == "rivalbrand" and r["competitor"]["days"] == 12 and r["decision"]["call"] == "Avoid"
+    assert r["placement"]["brand_tags"][0]["brand"] == "rivalbrand"

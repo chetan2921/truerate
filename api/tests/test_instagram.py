@@ -19,6 +19,7 @@ from truerate.instagram import (
     parse_comments,
     parse_profile,
     parse_reels,
+    parse_tagged,
 )
 
 # Recorded from public account komalpandeyofficial (not a WLDD deal), trimmed, every other account renamed.
@@ -31,6 +32,7 @@ ROUTES = {
     "/v1/media/likers": "likers",
     "/v1/user/followers/chunk": "followers",
     "/v2/user/suggested/profiles": "suggested",
+    "/v2/user/tag/medias": "tagged",
 }
 
 
@@ -194,3 +196,29 @@ def test_collect_survives_a_missing_about(tmp_path):
 def test_collect_treats_disabled_comments_as_empty(tmp_path):
     data = collect(fake_hiker(tmp_path, disabled={"/v1/media/comments/chunk"}), "komalpandeyofficial")["data"]
     assert all(cs == [] for cs in data["comments"].values()) and len(data["likers"]) == 3
+
+
+def test_parse_reels_marks_reposts_with_the_original_author():
+    item = fixture("clips")[0][0] | {"clips_metadata": {"originality_info": {"original_media": {"pk": 1, "shortcode": "X", "user": {"username": "original.author"}}}}}
+    assert parse_reels([item])[0]["repost_of"] == "original.author"
+    assert parse_reels(fixture("clips")[0])[0]["repost_of"] is None
+
+
+def test_parse_tagged_posts_by_other_accounts():
+    tagged = parse_tagged(fixture("tagged")["response"]["items"])
+    assert len(tagged) == 7 and tagged[0]["owner"] == "maaatii.official" and tagged[0]["code"] == "DeTYVR1yGef"
+    assert tagged[0]["taken_at"] == "2026-10-10T06:01:26Z" and tagged[0]["caption"].startswith("💙 Elegance")
+
+
+def test_collect_keeps_tagged_posts_by_others_only(tmp_path):
+    data = collect(fake_hiker(tmp_path), "komalpandeyofficial")["data"]
+    assert len(data["tagged"]) == 6 and "komalpandeyofficial" not in {t["owner"] for t in data["tagged"]}
+
+
+def test_collect_benchmark_fresh_hours_zero_collects_again(db, tmp_path, monkeypatch):
+    db.deals.insert_one({"handle": "fresh"})
+    db.snapshots.insert_one({"handle": "fresh", "fetched_at": datetime.now(timezone.utc) - timedelta(hours=1)})
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    monkeypatch.setattr(cli, "make_hiker", lambda: fake_hiker(tmp_path))
+    result = CliRunner().invoke(cli.app, ["collect-benchmark", "--fresh-hours", "0"])
+    assert "Collected 1, skipped 0" in result.output and db.snapshots.count_documents({"handle": "fresh"}) == 2

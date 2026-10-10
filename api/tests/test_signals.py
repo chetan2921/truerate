@@ -66,9 +66,9 @@ def test_csv_genres_map_onto_7_categories():
     assert category_from_niche([]) is None
 
 
-def make_reel(day, views, paid=False, sponsors=(), coauthors=(), caption="", pinned=False, code=None, tags=()):
+def make_reel(day, views, paid=False, sponsors=(), coauthors=(), caption="", pinned=False, code=None, tags=(), repost_of=None):
     return {"code": code or f"c{day}", "taken_at": f"2026-{day}T10:00:00Z", "views": views, "likes": views // 10, "comments": views // 100, "paid": paid,
-            "sponsors": list(sponsors), "coauthors": list(coauthors), "tags": list(tags), "caption": caption, "pinned": pinned}
+            "sponsors": list(sponsors), "coauthors": list(coauthors), "tags": list(tags), "caption": caption, "pinned": pinned, "repost_of": repost_of}
 
 
 def test_reel_metrics_on_the_last_30_unpinned_reels():
@@ -165,10 +165,12 @@ def labelled_snapshot():
         make_reel("08-10", 4_000, coauthors=["brandx"], code="BRANDCOLLAB", caption="new drop"),
         make_reel("08-09", 5_000, caption="use my code ASHA10 @brandy", code="HIDDENAD"),
         make_reel("08-08", 30_000, coauthors=["friendcreator"], code="FRIEND", caption="with @friendcreator"),
+        make_reel("08-07", 900_000, code="REPOST", caption="this made me laugh", repost_of="someone.else"),
     ]
     fan = {"username": "fan1", "full_name": "Asha", "has_pic": True, "is_private": False, "is_verified": False}
     comments = {"r1": [{"text": "kitna cute 😍", "user": fan}, {"text": "Recipe please", "user": fan}]}
-    return {"followers": 50_000, "data": {"profile": {"bio": "vlogs"}, "reels": reels, "comments": comments}}
+    tagged = [{"code": "TAGGED1", "taken_at": "2026-09-20T10:00:00Z", "owner": "snackbrand", "caption": "our favourite creator tries the new chips", "paid": False}]
+    return {"followers": 50_000, "data": {"profile": {"bio": "vlogs"}, "reels": reels, "comments": comments, "tagged": tagged}}
 
 
 def test_ambiguous_reels_are_unlabelled_with_a_mention_tag_collab_or_promo_words():
@@ -188,6 +190,7 @@ def test_label_creator_sends_reels_accounts_and_comments_but_no_price():
     labels = label_creator(llm, labelled_snapshot(), images={"HIDDENAD": b"jpeg"})
     prompt = llm.prompts[0]
     assert "use my code ASHA10" in prompt and "brandx" in prompt and "fan1" in prompt and "kitna cute" in prompt
+    assert "TAGGED1 | by @snackbrand" in prompt and "snackbrand" in prompt.split("Accounts:")[1]
     assert llm.images[0] == [b"jpeg"]
     # Gemini's ad call counts only on ambiguous reels: "c09-30" is a plain vlog, so it stays own content
     assert labels["ads"] == ["HIDDENAD"] and labels["topics"]["c09-30"] == "Lifestyle and travel"
@@ -197,7 +200,7 @@ def test_label_creator_sends_reels_accounts_and_comments_but_no_price():
 def test_reel_metrics_count_hidden_ads_and_brand_co_authors_as_paid():
     labels = {"ads": ["HIDDENAD"], "kinds": {"brandx": "brand", "friendcreator": "creator"}}
     m = reel_metrics(labelled_snapshot(), labels)
-    assert (m["paid_n"], m["collab_n"], m["n_own"]) == (2, 1, 12)
+    assert (m["paid_n"], m["collab_n"], m["n_own"], m["n_reposts"]) == (2, 1, 12, 1)  # the viral repost isn't own content
     unlabelled = reel_metrics(labelled_snapshot())
     assert (unlabelled["paid_n"], unlabelled["collab_n"], unlabelled["n_own"]) == (0, 2, 13)
 
