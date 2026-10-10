@@ -1,0 +1,40 @@
+{
+ "data": [
+  {
+   "id": "d385f7ae-cac7-4199-b508-56e9c27c9b53",
+   "status": "CONNECTED",
+   "username": "chris.evans@gmail.com",
+   "platform_username": "chris.evans@gmail.com",
+   "work_platform": {
+    "id": "9bb8913b-ddd9-430b-a66a-d74d846e6c66",
+    "name": "Instagram",
+    "logo_url": "https://cdn.getphyllo.com/platforms_logo/logos/logo_instagram.png"
+   },
+   "user": {
+    "id": "472a9c73-3643-4b37-9851-0d1917138446",
+    "name": "Chris Evans"
+   }
+  },
+  {
+   "id": "a87439ac-ede8-4628-afa0-5408408efa75",
+   "status": "CONNECTED",
+   "username": "robert.downey@gmail.com",
+   "platform_username": "robert.downey@gmail.com",
+   "work_platform": {
+    "id": "9bb8913b-ddd9-430b-a66a-d74d846e6c66",
+    "name": "Instagram",
+    "logo_url": "https://cdn.getphyllo.com/platforms_logo/logos/logo_instagram.png"
+   },
+   "user": {
+    "id": "6c799169-e034-465d-b64f-bbbdbf6ecd97",
+    "name": "Robert Downey"
+   }
+  }
+ ],
+ "metadata": {
+  "offset": 0,
+  "limit": 20,
+  "from_date": null,
+  "to_date": null
+ }
+}

@@ -126,3 +126,18 @@ def test_batch_puts_avoid_after_everything_else(client, world, monkeypatch):
     monkeypatch.setattr(app_module, "make_deps", lambda db: deps(db, next(fakes)))
     b = client.get(f"/api/batches/{client.post('/api/batches', json={'handles': ['fakeone', 'realone']}).json()['id']}").json()
     assert [row["call"] for row in b["rows"]][-1] == "Avoid" and b["rows"][0]["handle"] == "realone"
+
+
+def test_verify_endpoints_and_the_report_show_creator_verified_data(client, world, monkeypatch):
+    from test_phyllo import fake_phyllo
+
+    monkeypatch.setattr(app_module, "make_phyllo", lambda: fake_phyllo())
+    start = client.post("/api/verify", json={"handle": "asha.cooks"}).json()
+    assert start == {"user_id": "user-1", "sdk_token": "token-1", "environment": "sandbox"}
+    v = client.get("/api/verify/asha.cooks").json()
+    assert v["followers"] == 78_976 and world.verified.find_one({"_id": "asha.cooks"})["followers"] == 78_976
+    monkeypatch.setattr(app_module, "make_phyllo", lambda: fake_phyllo(connected=False))
+    assert client.get("/api/verify/asha.cooks").status_code == 404
+    analysis_id = client.post("/api/analyses", json={"handle": "asha.cooks"}).json()["id"]
+    report = client.get(f"/api/analyses/{analysis_id}").json()["result"]
+    assert report["verified"]["followers"] == 78_976 and report["verified"]["countries"][0]["code"] == "US"

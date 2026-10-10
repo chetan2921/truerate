@@ -1,0 +1,64 @@
+{
+ "id": "238cae3b-65f4-43c5-9a7a-927a03248b9f",
+ "created_at": "2026-10-10T08:49:32.293094",
+ "updated_at": "2026-10-10T08:49:32.293094",
+ "user": {
+  "id": "472a9c73-3643-4b37-9851-0d1917138446",
+  "name": "Chris Evans"
+ },
+ "account": {
+  "id": "d385f7ae-cac7-4199-b508-56e9c27c9b53",
+  "platform_username": "chris.evans@gmail.com",
+  "username": "chris.evans@gmail.com"
+ },
+ "work_platform": {
+  "id": "9bb8913b-ddd9-430b-a66a-d74d846e6c66",
+  "name": "Instagram",
+  "logo_url": "https://cdn.getphyllo.com/platforms_logo/logos/logo_instagram.png"
+ },
+ "countries": [
+  {
+   "code": "US",
+   "value": 50.0
+  },
+  {
+   "code": "UK",
+   "value": 35.0
+  },
+  {
+   "code": "NL",
+   "value": 15.0
+  }
+ ],
+ "cities": [
+  {
+   "name": "Austin",
+   "value": 50.0
+  },
+  {
+   "name": "San Jose",
+   "value": 25.0
+  },
+  {
+   "name": "Redmond",
+   "value": 25.0
+  }
+ ],
+ "gender_age_distribution": [
+  {
+   "gender": "MALE",
+   "age_range": "18-24",
+   "value": 40.0
+  },
+  {
+   "gender": "MALE",
+   "age_range": "25-32",
+   "value": 40.0
+  },
+  {
+   "gender": "MALE",
+   "age_range": "33-39",
+   "value": 20.0
+  }
+ ]
+}

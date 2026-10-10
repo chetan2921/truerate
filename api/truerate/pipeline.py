@@ -209,6 +209,8 @@ def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] =
         "cheaper": [{"handle": r["handle"], "per_1k_views": round(per_1k(r)), "views": r["views"], "price": r["price"]} for r in cheaper],
         "suggested": [u["username"] for u in d.get("suggested", [])[:6]],
         "negotiation": _negotiation(p, flags, metrics, category),
+        # Shared by the creator through Phyllo, if they have connected their account
+        "verified": db.verified.find_one({"_id": handle}, {"_id": 0, "fetched_at": 0}),
     }
     return {"status": "done", "result": result}
 

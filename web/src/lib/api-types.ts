@@ -124,6 +124,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Verify
+         * @description For the creator's connect page: their Phyllo user and a token to open Phyllo Connect.
+         */
+        post: operations["start_verify_api_verify_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/verify/{handle}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Verified
+         * @description Fetch what the creator shared through Phyllo and keep it for their reports.
+         */
+        get: operations["get_verified_api_verify__handle__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/meta": {
         parameters: {
             query?: never;
@@ -347,6 +387,13 @@ export interface components {
             /** Price */
             price: number;
         };
+        /** City */
+        City: {
+            /** Name */
+            name: string;
+            /** Share */
+            share: number;
+        };
         /** Comparable */
         Comparable: {
             /** Handle */
@@ -370,6 +417,13 @@ export interface components {
             days: number;
             /** Code */
             code: string;
+        };
+        /** Country */
+        Country: {
+            /** Code */
+            code: string;
+            /** Share */
+            share: number;
         };
         /** Created */
         Created: {
@@ -432,6 +486,15 @@ export interface components {
             at: string;
             /** Followers */
             followers: number;
+        };
+        /** GenderAge */
+        GenderAge: {
+            /** Gender */
+            gender: string;
+            /** Age Range */
+            age_range: string;
+            /** Share */
+            share: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -697,6 +760,7 @@ export interface components {
             /** Suggested */
             suggested: string[];
             negotiation: components["schemas"]["Negotiation"];
+            verified?: components["schemas"]["Verified"] | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -710,6 +774,48 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /**
+         * Verified
+         * @description What the creator shared through Phyllo: verified, not estimated.
+         */
+        Verified: {
+            /** Username */
+            username: string;
+            /** Followers */
+            followers: number | null;
+            /** Countries */
+            countries: components["schemas"]["Country"][];
+            /** India Share */
+            india_share: number;
+            /** Cities */
+            cities: components["schemas"]["City"][];
+            /** Gender Age */
+            gender_age: components["schemas"]["GenderAge"][];
+            /** Posts */
+            posts: number;
+            /** Median Reach */
+            median_reach: number | null;
+            /** Median Views */
+            median_views: number | null;
+            /** Reach Per Follower */
+            reach_per_follower: number | null;
+            /** Sponsored */
+            sponsored: number;
+        };
+        /** VerifyRequest */
+        VerifyRequest: {
+            /** Handle */
+            handle: string;
+        };
+        /** VerifyStart */
+        VerifyStart: {
+            /** User Id */
+            user_id: string;
+            /** Sdk Token */
+            sdk_token: string;
+            /** Environment */
+            environment: string;
         };
         /** WaterfallStep */
         WaterfallStep: {
@@ -939,6 +1045,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QuoteCheck"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_verify_api_verify_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerifyStart"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_verified_api_verify__handle__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                handle: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Verified"];
                 };
             };
             /** @description Validation Error */
