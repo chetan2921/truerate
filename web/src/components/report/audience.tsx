@@ -1,8 +1,6 @@
 import type { Report } from "@/lib/api";
 import { pct } from "@/lib/format";
 
-import VerifiedPanel from "./verified";
-
 export default function Audience({ r }: { r: Report }) {
   const mix = r.audience.mix;
   const parts = [
@@ -39,7 +37,6 @@ export default function Audience({ r }: { r: Report }) {
         </p>
         {topics.length > 0 && <p className="basis mt-1">Reel topics: {topics.map(([t, n]) => `${t} ${n}`).join(" · ")}</p>}
         <p className="mt-5 text-lg">{r.worth_reaching}</p>
-        <VerifiedPanel r={r} />
         {r.competitor && (
           <p className="mt-4 text-negotiate">
             Possible competitor: promoted {r.competitor.brand ? `@${r.competitor.brand}` : "a brand"} in {r.niche.product}{" "}

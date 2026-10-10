@@ -10,6 +10,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // /connect is for creators verifying through Phyllo: they have no WLDD login.
-  matcher: ["/((?!login|connect|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!login|_next/static|_next/image|favicon.ico).*)"],
 };

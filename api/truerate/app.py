@@ -17,7 +17,6 @@ from truerate.config import HIKER_DIR, MODELS_DIR, get_settings
 from truerate.db import ensure_indexes, get_db
 from truerate.instagram import Hiker, collect
 from truerate.llm import Gemini
-from truerate.phyllo import Phyllo
 from truerate.pipeline import STEPS, Deps, analyze, check_quote
 from truerate.pricing import rate_card
 from truerate.signals import CATEGORIES, _face_detector, minilm_embed
@@ -222,38 +221,6 @@ class Negotiation(BaseModel):
     lines: list[str]
 
 
-class Country(BaseModel):
-    code: str
-    share: float
-
-
-class City(BaseModel):
-    name: str
-    share: float
-
-
-class GenderAge(BaseModel):
-    gender: str
-    age_range: str
-    share: float
-
-
-class Verified(BaseModel):
-    """What the creator shared through Phyllo: verified, not estimated."""
-
-    username: str
-    followers: int | None
-    countries: list[Country]
-    india_share: float
-    cities: list[City]
-    gender_age: list[GenderAge]
-    posts: int
-    median_reach: int | None
-    median_views: int | None
-    reach_per_follower: float | None
-    sponsored: int
-
-
 class Report(BaseModel):
     handle: str
     profile: Profile
@@ -272,7 +239,6 @@ class Report(BaseModel):
     cheaper: list[Cheaper]
     suggested: list[str]
     negotiation: Negotiation
-    verified: Verified | None = None
 
 
 class Inputs(BaseModel):
@@ -370,16 +336,6 @@ class RateCard(BaseModel):
     categories: list[CategoryRate]
 
 
-class VerifyRequest(BaseModel):
-    handle: str
-
-
-class VerifyStart(BaseModel):
-    user_id: str
-    sdk_token: str
-    environment: str
-
-
 class Meta(BaseModel):
     categories: list[str]
     range_coverage: float | None
@@ -414,13 +370,6 @@ def _warm() -> None:
         _face_detector()
     except Exception:
         pass
-
-
-def make_phyllo() -> Phyllo:
-    s = get_settings()
-    if not (s.phyllo_client_id and s.phyllo_client_secret):
-        raise HTTPException(503, "Phyllo isn't set up: add PHYLLO_CLIENT_ID, PHYLLO_CLIENT_SECRET and PHYLLO_ENV to .env.")
-    return Phyllo(s.phyllo_client_id, s.phyllo_client_secret, s.phyllo_env)
 
 
 def make_deps(db) -> Deps:
@@ -537,9 +486,6 @@ def get_analysis(analysis_id: str) -> Analysis:
     a = get_db().analyses.find_one({"_id": analysis_id})
     if not a:
         raise HTTPException(404, "No analysis with that id.")
-    if a.get("result"):
-        # Read now, not at analysis time: the creator often verifies after WLDD sends them the link from the report.
-        a["result"]["verified"] = get_db().verified.find_one({"_id": a["result"]["handle"]}, {"_id": 0, "fetched_at": 0})
     return Analysis(id=a.pop("_id"), steps=STEPS, **a)
 
 
@@ -551,27 +497,6 @@ def quote_check(analysis_id: str, req: QuoteRequest) -> QuoteCheck:
     if not a.get("result"):
         raise HTTPException(409, "This analysis has no price to check against.")
     return QuoteCheck(**check_quote(a["result"], req.quote))
-
-
-@app.post("/api/verify")
-def start_verify(req: VerifyRequest) -> VerifyStart:
-    """For the creator's connect page: their Phyllo user and a token to open Phyllo Connect."""
-    handle = parse_handle(req.handle)
-    if not handle:
-        raise HTTPException(422, "Enter an Instagram handle.")
-    phyllo = make_phyllo()
-    return VerifyStart(user_id=(uid := phyllo.user_id(handle)), sdk_token=phyllo.sdk_token(uid), environment=phyllo.env)
-
-
-@app.get("/api/verify/{handle}")
-def get_verified(handle: str) -> Verified:
-    """Fetch what the creator shared through Phyllo and keep it for their reports."""
-    phyllo = make_phyllo()
-    v = phyllo.verified(phyllo.user_id(handle))
-    if not v:
-        raise HTTPException(404, f"@{handle} hasn't connected an Instagram account through Phyllo yet.")
-    get_db().verified.replace_one({"_id": handle}, v | {"fetched_at": datetime.now(timezone.utc)}, upsert=True)
-    return Verified(**v)
 
 
 @app.get("/api/meta")

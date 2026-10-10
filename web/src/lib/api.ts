@@ -11,8 +11,6 @@ export type Batch = Schemas["Batch"];
 export type BatchRequest = Schemas["BatchRequest"];
 export type RateCard = Schemas["RateCard"];
 export type ModelReport = Schemas["ModelReport"];
-export type Verified = Schemas["Verified"];
-export type VerifyStart = Schemas["VerifyStart"];
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -35,6 +33,4 @@ export const api = {
   getBatch: (id: string) => call<Batch>(`/api/batches/${id}`),
   rateCard: () => call<RateCard>("/api/rate-card"),
   modelReport: () => call<ModelReport>("/api/model-report"),
-  startVerify: (handle: string) => call<VerifyStart>("/api/verify", { method: "POST", body: JSON.stringify({ handle }) }),
-  getVerified: (handle: string) => call<Verified>(`/api/verify/${handle}`),
 };

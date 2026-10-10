@@ -21,9 +21,6 @@ class Settings(BaseSettings):
     hikerapi_key: str = ""
     llm_api_key: str = ""
     llm_model: str = "gemini-3.8-flash"
-    phyllo_client_id: str = ""
-    phyllo_client_secret: str = ""
-    phyllo_env: str = "sandbox"
     data_dir: Path = REPO_ROOT / "data"
 
 
