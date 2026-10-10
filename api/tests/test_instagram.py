@@ -182,3 +182,8 @@ def test_collect_treats_hidden_lists_as_empty(tmp_path):
     data = collect(hiker, "komalpandeyofficial")["data"]
     assert len(data["reels"]) == 12 and data["followers"] == [] and data["suggested"] == []
     assert all(cs == [] for cs in data["comments"].values()) and all(ls == [] for ls in data["likers"].values())
+
+
+def test_collect_survives_a_missing_about(tmp_path):
+    data = collect(fake_hiker(tmp_path, missing={"/gql/user/about"}), "komalpandeyofficial")["data"]
+    assert data["about"] == {"country": "", "joined": "", "former_usernames": 0} and len(data["reels"]) == 12

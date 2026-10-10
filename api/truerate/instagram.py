@@ -178,7 +178,7 @@ def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int
     reels = hiker.reels(pk)
     recent = [r for r in reels if not r["pinned"]]
     data |= {
-        "about": hiker.about(pk),
+        "about": _or_empty(hiker.about, pk, {"country": "", "joined": "", "former_usernames": 0}),
         "reels": reels,
         "comments": {r["id"]: _or_empty(hiker.comments, r["id"]) for r in recent[:comment_reels]},
         "likers": {r["id"]: _or_empty(hiker.likers, r["id"]) for r in recent[:liker_reels]},
@@ -188,13 +188,14 @@ def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int
     return snap
 
 
-def _or_empty(fetch, key: str) -> list:
-    """HikerAPI answers 404 "Entries not found" for comments turned off, hidden followers and the like: an empty list."""
+def _or_empty(fetch, key: str, empty=None):
+    """HikerAPI answers 404 for comments turned off, hidden followers, an account it can't describe and the like.
+    Those count as empty (`[]` unless given), not as a failed creator."""
     try:
         return fetch(key)
     except HikerError as e:
         if e.status == 404:
-            return []
+            return [] if empty is None else empty
         raise
 
 
