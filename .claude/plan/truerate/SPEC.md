@@ -200,7 +200,7 @@ Response models are Pydantic. The web types are generated from `/openapi.json` (
 - **Range:** the 10th/90th percentile of leave-one-out residuals.
 - **Expected delivery:** own-reel views (25th/50th/75th percentile) × the adjusted ratio. Likes and comments are those views × the creator's likes and comments per view.
 - **Decision:**
-  - Avoid = mostly fake, weak product fit, or a competitor promoted in the last 60 days.
+  - Avoid = mostly fake, weak product fit, or a competitor promoted in the last 60 days: an ad on the creator's grid in the product's category, or a brand in that category that tagged the creator from its own page.
   - Negotiate = some fake activity, quote above range, or paid reels drop more than usual.
   - Otherwise Go.
 
@@ -217,6 +217,8 @@ Response models are Pydantic. The web types are generated from `/openapi.json` (
 - Rules first: paid-partnership label, sponsor tags, ASCI hashtags, a brand tag plus a code or link.
 - Then one Gemini call per creator labels ambiguous reels (with cover images), every reel's topic, whether co-authors and top commenters are people, creators or brands, and the comment languages. Ambiguous means not an ad by the rules but with a co-author, tag, mention or promo words; Gemini's "ad" counts only on those.
 - A post co-authored with another creator counts as a collab post. A post co-authored with a brand counts as paid.
+- A reel with Instagram's own "reposted from" label is someone else's work: it stays out of the own-reel numbers.
+- Posts by other accounts that tag the creator (one page, `/v2/user/tag/medias`) go to the same Gemini call; the ones whose owner is a brand show brand history and feed the competitor check.
 
 **Validation:**
 - Held out: 30 creators (10 per band, seed 42), never trained on. They give the headline error, error per band, and range coverage. After validation, the served model is refitted on all 150.

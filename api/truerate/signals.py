@@ -91,7 +91,9 @@ def reel_metrics(snapshot: dict, labels: dict | None = None) -> dict:
     collab = [r for r in reels if r["coauthors"] and not paid_reel(r)]
     reposts = [r for r in reels if r.get("repost_of") and not r["coauthors"] and not paid_reel(r)]
     own = [r for r in reels if not r["coauthors"] and not paid_reel(r) and not r.get("repost_of")]
-    views = median(r["views"] for r in own)
+    # A page whose recent reels are all ads or collabs has no own reels: its usual views come from everything it posts.
+    base = own or [r for r in reels if not r.get("repost_of")] or reels
+    views = median(r["views"] for r in base)
 
     def ratio(group):
         return round(median(r["views"] for r in group) / views, 4) if group else None
@@ -102,12 +104,12 @@ def reel_metrics(snapshot: dict, labels: dict | None = None) -> dict:
         "n_reels": len(reels),
         "n_own": len(own),
         "views": views,
-        "views_p25": float(np.percentile([r["views"] for r in own], 25)),
-        "views_p75": float(np.percentile([r["views"] for r in own], 75)),
+        "views_p25": float(np.percentile([r["views"] for r in base], 25)),
+        "views_p75": float(np.percentile([r["views"] for r in base], 75)),
         "views_per_follower": round(views / snapshot["followers"], 4),
-        "engagement": round(median((r["likes"] + r["comments"]) / r["views"] for r in own), 4),
-        "likes_per_view": round(median(r["likes"] / r["views"] for r in own), 4),
-        "comments_per_1k": round(median(r["comments"] * 1000 / r["views"] for r in own), 4),
+        "engagement": round(median((r["likes"] + r["comments"]) / r["views"] for r in base), 4),
+        "likes_per_view": round(median(r["likes"] / r["views"] for r in base), 4),
+        "comments_per_1k": round(median(r["comments"] * 1000 / r["views"] for r in base), 4),
         "hits_last_10": sum(r["views"] >= views / 2 for r in last10),
         "trend": round(median(r["views"] for r in last10) / median(r["views"] for r in prev10), 4) if prev10 else None,
         "paid_n": len(paid),

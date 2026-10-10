@@ -21,6 +21,7 @@
 - Instagram in unit tests: recorded HikerAPI JSON in `api/tests/fixtures/`, from komalpandeyofficial (public, not a WLDD deal). The recordings were trimmed to the parsed fields and every other account renamed before committing; grep them against the deals CSV handles before any commit that touches them.
 - Live HikerAPI runs: read `/sys/balance` (free) before and after, so the cost is measured. One creator is 20 requests.
 - HikerAPI storage in tests: `fake_hiker(tmp_path)` writes its files into pytest's temporary folder, never `data/hikerapi/`.
+- `fake_hiker(..., missing={paths}, disabled={paths})` answers 404 or 403 on those endpoints, as HikerAPI does for hidden followers and comments turned off.
 - LLM in unit tests: `FakeLLM` in `api/tests/test_signals.py` returns a fixed reply and records each prompt, so a test can check that no price went in. Never call Gemini from a test.
 - Statistical properties (range coverage) are pooled over several synthetic seeds: 15 held-out deals swing too much by chance to test one seed.
 - Pricing tests: `synthetic_rows(n, seed)` in `api/tests/test_pricing.py` makes deals whose true price is known.

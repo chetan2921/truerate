@@ -13,9 +13,9 @@ The Python service: collects Instagram data, runs the audience checks, prices on
 - CLI, from `api/`: `uv run truerate --help`. In pipeline order:
   - `import-deals`: `data/creators.csv` into `deals`, 30 held out
   - `build-fake-model`: trains on `data/external/instagram_fake/`, saves `data/models/fake_accounts.joblib`
-  - `collect <handle>`: one snapshot, about 20 HikerAPI requests
-  - `collect-benchmark`: every deal creator not fetched in the last 24 h; stops on HTTP 402 (credit gone)
-  - `build-metrics`: per deal creator, Gemini labels, reel metrics, category, audience signals and commenter mix, then Louvain rings over all of them
+  - `collect <handle>`: one snapshot, about 21 HikerAPI requests
+  - `collect-benchmark --workers 12`: every deal creator not fetched in the last `--fresh-hours` (24); a failed creator is skipped, HTTP 402 (credit gone) stops the run. `--fresh-hours 0` re-snapshots everyone from the saved responses
+  - `build-metrics --workers 4`: per deal creator, Gemini labels (in parallel), reel metrics, category, audience signals and commenter mix, then Louvain rings over all of them
   - `validate`: writes `data/models/model_report.json` (no handles or prices) and the served `data/models/price.joblib`
   - `redteam`: writes `data/models/redteam.json`
 - Dev data for building screens before the 150 exist: `uv run python scripts/seed_dev.py` fills the `truerate_dev` database and `data/models_dev/` with synthetic analyses, a batch, a price model and both reports. Then run the API with `MONGODB_DB=truerate_dev MODELS_DIR=data/models_dev`.
@@ -25,7 +25,7 @@ The Python service: collects Instagram data, runs the audience checks, prices on
 - `truerate/pipeline.py`: `analyze(handle, inputs, deps, step)`: one creator to report, with `Deps` for every outside service so tests swap them; `check_quote(report, quote)`
 - `truerate/cli.py`: the `truerate` Typer command
 - `truerate/db.py`: `get_db()`, `ensure_indexes()` (30 d TTL on `accounts`, unique `deals.handle`), `import_deals()`, `training_rows()`
-- `truerate/instagram.py`: `Hiker` (HikerAPI client; every raw response saved once under `HIKER_DIR` and kept), the `parse_*` functions, `mark_pinned()`, `collect()`, `fetch_covers()`
+- `truerate/instagram.py`: `Hiker` (HikerAPI client; every raw response saved once under `HIKER_DIR` and kept), the `parse_*` functions (including `parse_tagged` and each reel's `repost_of`), `mark_pinned()`, `collect()` (403 and 404 on list endpoints count as empty), `fetch_covers()`
 - `truerate/signals.py`, in file order:
   - fake-account model (`account_features`, `train_fake_model`, `fake_share`)
   - `CATEGORIES`, `is_paid`, `recent_reels`, `reel_metrics`, `label_niche`
@@ -48,6 +48,7 @@ The Python service: collects Instagram data, runs the audience checks, prices on
 - Deal prices never go into an LLM prompt; the build-metrics test checks this.
 - HikerAPI credit is limited. `GET /sys/balance` is free: check it before and after a live run. Free tier: 1 request per second.
 - HikerAPI responses live on disk in `data/hikerapi/<endpoint>/<params>-<hash>.json.gz`: raw, gzipped (about 600 KB per creator), kept with no expiry, so each call is paid for once and a parser change needs no new request. Fresh data for a creator means deleting their files; a refresh option is for after the hackathon. Never in Mongo.
+- Don't sort the whole `snapshots` collection: Atlas refuses an in-memory sort that large. Read per handle through the `(handle, fetched_at)` index.
 - Views are `play_count`; `view_count` is always 0. Pinned reels have no flag; `mark_pinned` finds them by date order. Instagram shows only the 25 to 50 newest followers.
 - First use downloads models: MiniLM (about 470 MB, Hugging Face cache) and BlazeFace (`data/models/blaze_face_short_range.tflite`).
 - `build-metrics` reuses a creator's stored Gemini labels while the snapshot is the same (`labels_for`). A new snapshot means a new labelling call.

@@ -224,3 +224,36 @@ def test_build_metrics_skips_a_creator_whose_gemini_call_fails(db, monkeypatch):
     assert result.exit_code == 0, result.output
     assert "broken: Gemini 503" in result.output and "Built metrics for 1 creators" in result.output and "failed 1" in result.output
     assert db.metrics.count_documents({}) == 1
+
+
+def test_reel_metrics_falls_back_to_all_reels_when_none_are_own():
+    reels = [make_reel(f"09-{30 - i:02d}", 10_000 + i * 1000, paid=True) for i in range(14)]
+    m = reel_metrics({"followers": 50_000, "data": {"reels": reels}})
+    assert m["n_own"] == 0 and m["views"] == 16_500 and m["paid_n"] == 14 and m["paid_ratio"] == 1.0
+
+
+def test_build_metrics_keeps_gemini_labels_when_a_later_step_fails(db, monkeypatch):
+    db.deals.insert_many([{"handle": h, "tier": "medium", "niche": [], "price": 10_000, "holdout": False} for h in ("good", "odd")])
+    db.snapshots.insert_many([snapshot("good"), snapshot("odd")])
+    llm = SchemaLLM()
+    real_metrics = cli.reel_metrics
+
+    def flaky_metrics(snap, labels=None):
+        if snap["handle"] == "odd":
+            raise ValueError("odd page")
+        return real_metrics(snap, labels)
+
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    monkeypatch.setattr(cli, "make_llm", lambda: llm)
+    monkeypatch.setattr(cli, "fetch_covers", lambda reels: {})
+    monkeypatch.setattr(cli, "load_fake_model", lambda: train_fake_model([[1, 0, 2, 0, 0, 0]] * 5 + [[0, 0.6, 0, 0, 0, 0]] * 5, [0] * 5 + [1] * 5))
+    monkeypatch.setattr(cli, "minilm_embed", lambda texts: np.eye(len(texts), 8))
+    monkeypatch.setattr(cli, "reel_metrics", flaky_metrics)
+    result = CliRunner().invoke(cli.app, ["build-metrics", "--workers", "2"])
+    assert result.exit_code == 0, result.output
+    assert "odd: odd page" in result.output and "Built metrics for 1 creators" in result.output and "failed 1" in result.output
+    assert db.labels.find_one({"_id": "odd"})["category"] == "Food"  # Gemini's work is saved before the step that failed
+    calls = len(llm.label_prompts)
+    monkeypatch.setattr(cli, "reel_metrics", real_metrics)
+    CliRunner().invoke(cli.app, ["build-metrics"])
+    assert len(llm.label_prompts) == calls and db.metrics.count_documents({}) == 2  # the rerun reuses the saved labels

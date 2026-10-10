@@ -135,7 +135,8 @@ def build_metrics_cmd(workers: int = 1) -> None:
         if not snap or "reels" not in snap["data"] or len(recent_reels(snap)) < 12:
             skipped += 1
             continue
-        items.append((deal, snap, db.metrics.find_one({"_id": deal["handle"]}) or {}))
+        # Saved Gemini labels live in `labels`; older runs kept them in `metrics`.
+        items.append((deal, snap, db.labels.find_one({"_id": deal["handle"]}) or db.metrics.find_one({"_id": deal["handle"]}) or {}))
     llm = make_llm() if items else None
 
     def label(item):
@@ -154,9 +155,13 @@ def build_metrics_cmd(workers: int = 1) -> None:
 
     def safe_label(item):
         try:
-            return label(item)
+            labels, category, source = out = label(item)
         except Exception as e:  # one creator's Gemini error must not stop the other 149
             return e
+        # Saved as soon as it exists, so a crash later in the run never loses Gemini's work.
+        deal, snap, _ = item
+        db.labels.replace_one({"_id": deal["handle"]}, {"labels": labels, "labels_for": snap["_id"], "category": category, "category_source": source}, upsert=True)
+        return out
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         labelled = list(pool.map(safe_label, items))
@@ -168,10 +173,16 @@ def build_metrics_cmd(workers: int = 1) -> None:
             failed += 1
             continue
         labels, category, source = out
-        metrics = reel_metrics(snap, labels)
-        audience = audience_signals(snap, metrics, fake_model, minilm_embed)
+        try:
+            metrics = reel_metrics(snap, labels)
+            audience = audience_signals(snap, metrics, fake_model, minilm_embed)
+            mix = commenter_mix(snap, fake_model, labels)
+        except Exception as e:  # one odd page must not stop the rest
+            typer.echo(f"{handle}: {e}")
+            failed += 1
+            continue
         commenters = sorted({c["user"]["username"] for cs in snap["data"]["comments"].values() for c in cs})
-        doc = {**metrics, **audience, "mix": commenter_mix(snap, fake_model, labels), "labels": labels, "labels_for": snap["_id"], "commenters": commenters,
+        doc = {**metrics, **audience, "mix": mix, "labels": labels, "labels_for": snap["_id"], "commenters": commenters,
                "category": category, "category_source": source, "computed_at": datetime.now(timezone.utc)}
         db.metrics.replace_one({"_id": handle}, doc, upsert=True)
         built += 1
