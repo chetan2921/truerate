@@ -117,16 +117,27 @@ def _log_axes(chart):
         scaling.insert(0, log)
 
 
-def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> None:
+MODELS_TRIED = [  # experiment candidates as the slide names them
+    ("today_served", "Today's model: Ridge on WLDD's deals"),
+    ("ridge_v2/global", "Ridge with the new features"),
+    ("elasticnet_v2/global", "ElasticNet with the new features"),
+    ("boosting_v2/global", "Gradient boosting, monotone"),
+    ("tabpfn_v2/global", "TabPFN v2, pretrained for small tables"),
+    ("today_uncapped/global", "Paid-reel views allowed to raise the price"),
+]
+
+
+def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path, experiments: dict | None = None, widths: dict | None = None) -> None:
     d = Deck()
     h = report["holdout"]
     model_err = h["model"]["median_error"]
+    widths = widths or (experiments or {}).get("coverage_by_width")
 
     s = d.slide("")
     d.text(s, 0.6, 2.2, 12, 1.4, [("TruRate", 66, TEXT, True)])
     d.text(s, 0.6, 3.6, 11, 1.2, [("What one reel is worth, and whether WLDD should book the creator", 26, ACCENT, False)])
-    d.text(s, 0.6, 5.2, 11, 1, [(f"Held-out median error {pct(model_err)} against {pct(h['modash']['median_error'])} for a Modash-style formula. "
-                                 f"Smart fakes caught: {pct(rt['caught']['smart_fake'])}.", 18, TEXT, False),
+    d.text(s, 0.6, 5.2, 11, 1, [(f"{pct(h['model']['within_2x'])} of held-out prices within 2× of what WLDD paid, against {pct(h['modash']['within_2x'])} "
+                                 f"for a Modash-style formula. Smart fakes caught: {pct(rt['caught']['smart_fake'])}.", 18, TEXT, False),
                                 ("WLDD hackathon · Problem 02", 14, MUTED, False)])
 
     s = d.slide("Brands overpay for audiences that aren't there")
@@ -174,7 +185,8 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> No
         ("Range", 18, ACCENT, True),
         (f"{report.get('range_method', 'Leave-one-out errors')}: each creator's interval comes from out-of-fold errors over 10 refits. "
          f"It held {report['holdout']['coverage']:.0%} of held-out real prices.", 14, TEXT, False),
-        ("Past WLDD's largest creator the range widens upward, and the published market asking price for that size is shown beside it, never mixed in.", 14, TEXT, False),
+        ("The team sees \"Pay about\", a likely band 3× wide that held about half of unseen prices, and the full range.", 14, TEXT, False),
+        ("Past WLDD's largest creator the price leans on the published market rate, discounted the way WLDD really pays, and a web check shows the creator's own listed price.", 14, TEXT, False),
     ])
     d.table(s, 7.6, 1.6, [2.0, 1.6, 1.6], [["Follower band", "TruRate", "Band median"]] +
             [[label, pct(h["model"]["by_band"][b]), pct(h["band_median"]["by_band"][b])] for b, label in BANDS], size=14)
@@ -214,17 +226,36 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> No
     line.format.line.color.rgb = MUTED
     line.format.line.dash_style = MSO_LINE.DASH
     line.format.line.width = Pt(1.25)
-    d.table(s, 7.4, 1.6, [3.2, 1.8], [["Method", "Median error"],
-                                     ["TruRate", pct(model_err)],
-                                     ["Band median price", pct(h["band_median"]["median_error"])],
-                                     ["Modash-style formula", pct(h["modash"]["median_error"])]], size=14, bold_row=1)
-    d.text(s, 7.4, 3.6, 5.4, 2.4, [(f"{h['n']} creators held out, 10 per follower tier. {pct(h['coverage'])} of their real prices fall inside TruRate's range.", 15, TEXT, False),
-                                   ("Prices were agreed at different past dates but only today's stats are visible, so some error is a floor.", 13, MUTED, False)])
+    def scores(m):
+        return [pct(h[m]["median_error"]), pct(h[m]["within_2x"]), f"{h[m]['r2_log']:.2f}", f"{h[m]['spearman']:.2f}"]
 
-    s = d.slide("Error by category", f"Leave-one-out over all {report['n_deals']} deals: each deal priced by a model that never saw it.")
-    rows = [["Category", "Deals", "TruRate", "Band median", "Modash-style"]]
-    rows += [[c, v["n"], pct(v["model"]), pct(v["band_median"]), pct(v["modash"])] for c, v in report["by_category"].items()]
-    d.table(s, 0.6, 1.5, [4.0, 1.4, 1.8, 1.9, 1.9], rows, size=14)
+    d.table(s, 7.2, 1.6, [2.1, 0.95, 0.85, 0.75, 0.85], [["Method", "Median error", "Within 2×", "R² (log)", "Rank order"],
+                                                        ["TruRate", *scores("model")],
+                                                        ["Band median", *scores("band_median")],
+                                                        ["Modash-style", *scores("modash")]], size=12, bold_row=1)
+    d.text(s, 7.2, 3.7, 5.6, 2.6, [(f"{h['n']} creators held out, 10 per follower tier. TruRate beats both baselines on every score, and {pct(h['coverage'])} of their real prices fall inside its range.", 14, TEXT, False),
+                                   ("Rank order: does it put creators in the right order (1 is perfect). Prices were agreed at different past dates but only today's stats are visible, so some error is a floor.", 12, MUTED, False)])
+
+    if experiments:
+        s = d.slide("Six models tried; the simplest held up", "Picked on the training deals only, then scored once on the held-out and fresh deals.")
+        rows = [["Method", "Training deals (CV)", "Held out", "Fresh deals"]]
+        rows += [[name, pct(experiments["cv"][key]["error"]), pct(experiments["holdout"][key]["error"]), pct(experiments["fresh"][key]["error"])]
+                 for key, name in MODELS_TRIED if key in experiments["cv"]]
+        d.table(s, 0.6, 1.5, [5.6, 2.2, 1.8, 1.8], rows, size=14, bold_row=1)
+        n = experiments["n"]
+        d.text(s, 0.6, 5.3, 12, 1.4, [(f"Median error on {n['train']} training deals (repeated cross-validation), {n['holdout']} held-out deals and {n['fresh']} fresh deals. "
+                                       "A model is adopted only if it beats today's on both test sets; none did, so today's stayed.", 14, TEXT, False),
+                                      ("Per-band and per-creator ranges were tried too: no narrower. WLDD paid near-identical creators very different prices, and no model gets under that.", 13, MUTED, False)])
+
+    if widths:
+        s = d.slide("Why the range is wide, and what the team sees instead", "How often the real price lands inside a range of each width around the price to aim for, on unseen deals.")
+        keys = sorted(widths["holdout"], key=float)
+        d.table(s, 0.6, 1.5, [3.0] + [1.3] * len(keys), [["Width (high ÷ low)"] + [f"{float(k):g}×" for k in keys],
+                                                        ["Held out"] + [pct(widths["holdout"][k]) for k in keys],
+                                                        ["Fresh"] + [pct(widths["fresh"][k]) for k in keys]], size=15)
+        d.text(s, 0.6, 3.6, 12, 2.6, [(f"A tight 2× range would hold the real price only {pct(widths['holdout']['2'])} of the time on held-out deals. A narrow range would usually be wrong.", 17, TEXT, False),
+                                      ("So the report leads with \"Pay about\", a likely band 3× wide that holds about half, and the full range, each labelled with how often it holds.", 15, TEXT, False),
+                                      ("It narrows with more deals and with what each deal included and when it was made.", 15, ACCENT, False)], gap=10)
 
     s = d.slide("Built to resist gaming", "Judging 4: each fake is built from a real WLDD creator's data. Caught means a verdict other than Real audience.")
     rows, colors = [["Fake", "How it is built", "Caught", "Price cut"]], {}
@@ -235,42 +266,38 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> No
     d.table(s, 0.6, 1.5, [2.8, 5.6, 1.6, 1.6], rows, size=14, colors=colors)
     d.text(s, 0.6, 5.0, 12, 1, [(f"{pct(rt['unmodified_flagged'])} of {rt['n']} unmodified WLDD creators get flagged. Pods discount nothing: they are real accounts, so they shape the decision instead.", 15, TEXT, False)])
 
-    s = d.slide("The report the team reads mid-negotiation")
+    s = d.slide("Answers first, for the negotiation")
     if screenshot and screenshot.exists():
-        s.shapes.add_picture(str(screenshot), Inches(0.6), Inches(1.4), width=Inches(8.4))
-        d.text(s, 9.4, 1.5, 3.4, 4.8, [("Price, range and decision first.", 16, TEXT, True),
-                                       ("Below it on the page: the waterfall with its 6 comparable WLDD deals, a quote checker, the five evidence sections, and lines to copy into the chat.", 14, MUTED, False)])
+        s.shapes.add_picture(str(screenshot), Inches(0.6), Inches(1.4), width=Inches(7.6))
+        right = 8.6
     else:
-        d.text(s, 0.6, 2.0, 12, 2, [("Live demo: paste an unseen creator on /.", 22, TEXT, False)])
+        right = 0.6
+    d.text(s, right, 1.5, 12.7 - right, 5, [("\"Pay about\", the likely band and the call first, then plain answers: real audience, good value, reliable, ads work, fits the budget, rival ad.", 15, TEXT, True),
+                                           ("Quote check: fair, on the high side or too high, with a counter-offer.", 13, MUTED, False),
+                                           ("Negotiation lines to copy: open, aim and walk-away prices.", 13, MUTED, False),
+                                           ("Evidence in tabs (price, audience, content, similar) and a client one-pager on A4.", 13, MUTED, False)], gap=10)
 
-    s = d.slide("Made for the negotiation, not just the verdict")
-    d.table(s, 0.6, 1.5, [3.2, 8.9], [
-        ["Tool", "What it does"],
-        ["Quote check", "Below, within or above range; the gap; a counter-offer; 3 data-backed points"],
-        ["Negotiation lines", "Open, target and walk-away prices with copyable lines"],
-        ["Batch shortlist", "Up to 50 creators ranked by cost per 1,000 views, Avoid last, export to CSV"],
+    s = d.slide("Shortlists and brand match")
+    d.table(s, 0.6, 1.5, [3.0, 9.1], [
+        ["Tool", "What the team gets"],
+        ["Batch shortlist", "Up to 50 creators: who to book first and why, a scorecard of plain answers, what ₹10,000 buys with each, prices against the budget"],
+        ["Brand match", "A brand's handle, site or name: what it sells and to whom, then WLDD's creators, past analyses and accounts already seen with the brand, ranked, with the set that brings the most views within budget"],
+        ["Big creators", "Past WLDD's largest deal: the market rate discounted the way WLDD pays, and a web check for the creator's own listed price"],
         ["Rate card", "₹ per 1,000 views by category, and a calculator from views wanted to budget"],
-        ["Client one-pager", "Decision, waterfall and red flags on A4"],
-        ["Possible competitor", "A brand in the product's category in the last 60 days, on the grid or tagging the creator: check exclusivity"],
     ], size=15)
 
-    s = d.slide("Pages without a face", "Judging 6: strategy for other page types")
+    s = d.slide("Other pages, and what it can't do yet", "Judging 6: strategy for other page types")
     d.table(s, 0.6, 1.5, [3.0, 9.1], [
         ["Page type", "How the value and price change"],
-        ["Faceless and meme pages", "The page's delivery record replaces creator trust; guaranteed views with a free repost; repost and owner-network detection, cross-posted views counted once"],
-        ["UGC creators", "Production fee by format, distribution by this model (often near zero), usage rights per month; content-only vs content-plus-post quotes split them"],
-        ["Instagram IPs", "Retention: series lift, episode drop-off, returning commenters; season packages priced on the trend"],
-        ["Across all", "Delivered views, account sampling, comparables and authenticity carry over; check new prices by backtests and shadow pricing"],
-    ], size=15)
-
-    s = d.slide("What it can't do yet, said plainly")
-    d.text(s, 0.6, 1.5, 12, 4.5, [
-        ("Follower spikes are a proxy: Instagram shares no follower history, so we read the newest followers. History builds from our first snapshot.", 16, TEXT, False),
-        ("Deal prices were agreed at different dates; only today's stats exist. That noise sets an accuracy floor.", 16, TEXT, False),
-        ("Hidden-ad detection is probabilistic; reels it can't call stay out of the paid-vs-own comparison.", 16, TEXT, False),
-        ("The face check sees any face; it only turns away clearly faceless pages.", 16, TEXT, False),
-        ("Next: post-campaign checks of predicted against delivered views, recalibrated monthly.", 16, ACCENT, False),
-    ], gap=12)
+        ["Faceless and meme pages", "Delivery record replaces creator trust; guaranteed views; repost and owner-network detection"],
+        ["UGC creators", "Production fee by format, distribution by this model, usage rights per month"],
+        ["Instagram IPs", "Retention and returning commenters; season packages priced on the trend"],
+    ], size=14)
+    d.text(s, 0.6, 4.3, 12, 2.4, [
+        ("Deal prices were agreed at different dates and only today's stats exist; that noise is an accuracy floor.", 14, TEXT, False),
+        ("Follower history builds from our first snapshot; hidden-ad detection is probabilistic.", 14, TEXT, False),
+        ("Next: compare predicted with delivered views after each campaign, so every deal makes the model better.", 14, ACCENT, False),
+    ], gap=8)
 
     out.parent.mkdir(parents=True, exist_ok=True)
     d.prs.save(out)
@@ -283,5 +310,9 @@ if __name__ == "__main__":
     ap.add_argument("--out", default=str(REPO / "data" / "pitch" / "TruRate.pptx"))
     a = ap.parse_args()
     models = Path(a.models_dir) if Path(a.models_dir).is_absolute() else REPO / a.models_dir
-    build_deck(json.loads((models / "model_report.json").read_text()), json.loads((models / "redteam.json").read_text()), Path(a.screenshot), Path(a.out))
+    experiments = models / "experiments" / "results.json"
+    local = models / "experiments_local" / "results.json"  # the run with per-creator ranges and the width table
+    build_deck(json.loads((models / "model_report.json").read_text()), json.loads((models / "redteam.json").read_text()), Path(a.screenshot), Path(a.out),
+               experiments=json.loads(experiments.read_text()) if experiments.exists() else None,
+               widths=json.loads(local.read_text()).get("coverage_by_width") if local.exists() else None)
     print(f"Wrote {a.out}")
