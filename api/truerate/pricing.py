@@ -125,13 +125,15 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
     fair = market * factor * genuine_share
     steps = [round500(market), round500(market * factor), round500(fair)]
     in_category = [per_1k(r) for r in model.rows if r["category"] == m["category"]]
-    # Outside WLDD's deals the range widens about 1.4x each way per doubling beyond them; above the largest it also
-    # reaches the market's published low end, since the creator will likely ask near market.
+    # Outside WLDD's deals the range widens about 1.4x per doubling beyond them, toward the side being extrapolated:
+    # up for a bigger creator (who will likely ask more, so it also reaches the market's published low end), down for
+    # a smaller one.
     top_followers, top_views = max(r["followers"] for r in model.rows), max(r["views"] for r in model.rows)
     least_followers = min(r["followers"] for r in model.rows)
-    beyond = max(m["followers"] / top_followers, m["views"] / top_views, least_followers / m["followers"], 1.0)
-    widen = math.sqrt(2) ** math.log2(beyond)
-    low, high = fair * math.exp(model.lo) / widen, fair * math.exp(model.hi) * widen
+    above = max(m["followers"] / top_followers, m["views"] / top_views, 1.0)
+    below = max(least_followers / m["followers"], 1.0)
+    low = fair * math.exp(model.lo) / math.sqrt(2) ** math.log2(below)
+    high = fair * math.exp(model.hi) * math.sqrt(2) ** math.log2(above)
     ref = market_reference(m["followers"])
     note = None
     if m["followers"] > top_followers or m["views"] > top_views:

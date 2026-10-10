@@ -137,6 +137,17 @@ def test_beyond_wldds_largest_creator_the_range_widens_and_reaches_the_market():
     top = max(r["followers"] for r in rows)
     inside = price(model, rows[0])
     big = price(model, rows[0] | {"followers": top * 8, "views": rows[0]["views"] * 8})
-    assert big["high"] / big["fair"] > inside["high"] / inside["fair"] and big["fair"] / big["low"] > inside["fair"] / inside["low"]
+    # A bigger creator is likely to ask more, not less: only the top of the range widens (a mega creator at ₹6,000 is nonsense)
+    assert big["high"] / big["fair"] > inside["high"] / inside["fair"]
+    assert abs(big["fair"] / big["low"] - inside["fair"] / inside["low"]) < 0.25
     assert big["high"] >= big["market_reference"]["low"]
     assert "published rate cards" in big["note"]
+
+
+def test_below_wldds_smallest_creator_only_the_bottom_widens():
+    rows = synthetic_rows()
+    model = fit(rows)
+    least = min(r["followers"] for r in rows)
+    inside = price(model, rows[0])
+    tiny = price(model, rows[0] | {"followers": least // 8})
+    assert tiny["fair"] / tiny["low"] > inside["fair"] / inside["low"] and "Smaller than any creator" in tiny["note"]
