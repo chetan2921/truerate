@@ -327,7 +327,7 @@ api/truerate/cli.py:142:    def label(item):
 api/truerate/cli.py:156:    def safe_label(item):
 api/truerate/cli.py:196:def validate_cmd(out_dir: Path = REPO_ROOT / "data" / "models") -> None:
 api/truerate/cli.py:217:def experiment_cmd(out_dir: Path = REPO_ROOT / "data" / "models" / "experiments", fresh_csv: Path = REPO_ROOT / "data" / "fresh_test_20.csv",
-api/truerate/cli.py:253:def redteam_cmd(out_dir: Path = MODELS_DIR) -> None:
+api/truerate/cli.py:254:def redteam_cmd(out_dir: Path = MODELS_DIR) -> None:
 api/truerate/config.py:16:class Settings(BaseSettings):
 api/truerate/config.py:28:def get_settings() -> Settings:
 api/truerate/db.py:18:def _client(uri: str) -> MongoClient:
@@ -335,50 +335,50 @@ api/truerate/db.py:22:def get_db() -> Database:
 api/truerate/db.py:29:def ensure_indexes(db: Database) -> None:
 api/truerate/db.py:37:def import_deals(db: Database, csv_path: Path) -> dict[str, int]:
 api/truerate/db.py:63:def training_rows(db: Database) -> list[dict]:
-api/truerate/experiment.py:37:def extra_features(snap: dict) -> dict:
-api/truerate/experiment.py:59:def _utc(t: datetime) -> datetime:
-api/truerate/experiment.py:63:def _with_extras(row: dict, snap: dict, mix: dict | None) -> dict:
-api/truerate/experiment.py:69:def deal_rows(db) -> list[dict]:
-api/truerate/experiment.py:74:def fresh_rows(db, prices: dict[str, float]) -> list[dict]:
-api/truerate/experiment.py:93:def _num(x) -> float:
-api/truerate/experiment.py:97:def _log(x) -> float:
-api/truerate/experiment.py:101:def features_v2(m: dict) -> list[float]:
-api/truerate/experiment.py:108:def _paid_typical(rows: list[dict]) -> float:
-api/truerate/experiment.py:113:def _linear(regressor):
-api/truerate/experiment.py:127:def _tabpfn():
-api/truerate/experiment.py:137:def _sklearn_point(name: str, train: list[dict], test: list[dict]) -> np.ndarray:
-api/truerate/experiment.py:147:def _today(train: list[dict]):
-api/truerate/experiment.py:154:def _today_point(train: list[dict], test: list[dict], capped: bool = True) -> np.ndarray:
-api/truerate/experiment.py:172:def _oof(rows: list[dict], point: str, folds: int = 10, seed: int = 0) -> np.ndarray:
-api/truerate/experiment.py:179:def _offsets(resid: np.ndarray) -> dict:
-api/truerate/experiment.py:189:def _band_offsets(rows: list[dict], resid: np.ndarray, by_band: bool) -> dict:
-api/truerate/experiment.py:197:def conformal_offsets(rows: list[dict], point: str, by_band: bool = False, folds: int = 10, seed: int = 0) -> dict:
-api/truerate/experiment.py:202:def _widen(rows: list[dict], m: dict) -> tuple[float, float]:
-api/truerate/experiment.py:209:def _predict_both(point: str, train: list[dict], test: list[dict], folds: int = 10) -> dict[str, list[dict]]:
-api/truerate/experiment.py:229:def predict(point: str, rng: str, train: list[dict], test: list[dict]) -> list[dict]:
-api/truerate/experiment.py:233:def _served(train: list[dict], test: list[dict]) -> list[dict]:
-api/truerate/experiment.py:239:def _all_preds(train: list[dict], test: list[dict], points, folds: int = 10) -> dict[str, list[dict]]:
-api/truerate/experiment.py:249:def _summary(pairs: list[tuple[dict, dict]]) -> dict:
-api/truerate/experiment.py:258:def score(test: list[dict], preds: list[dict]) -> dict:
-api/truerate/experiment.py:265:def _mean(scores: list[dict]) -> dict:
-api/truerate/experiment.py:270:def repeated_cv(train: list[dict], points=POINTS, repeats: int = 5, folds: int = 10) -> dict:
-api/truerate/experiment.py:286:def pick(cv: dict, points=POINTS) -> dict:
-api/truerate/experiment.py:297:def beats(after: dict, before: dict) -> bool:
-api/truerate/experiment.py:303:def _bootstrap(test: list[dict], after: list[dict], before: list[dict], draws: int = 2000, seed: int = 0) -> dict:
-api/truerate/experiment.py:307:    def arrays(ps):
-api/truerate/experiment.py:317:def run(train: list[dict], holdout: list[dict], fresh: list[dict], repeats: int = 5, folds: int = 10, points=POINTS) -> dict:
-api/truerate/experiment.py:344:def learning_curve(point: str, train: list[dict], test: list[dict], sizes, draws: int = 20, seed: int = 0) -> list[dict]:
-api/truerate/experiment.py:357:def importance(point: str, rows: list[dict]) -> dict[str, float]:
-api/truerate/experiment.py:378:def report_table(result: dict) -> str:
-api/truerate/experiment.py:380:    def pct(x):
-api/truerate/experiment.py:383:    def width(x):
-api/truerate/experiment.py:386:    def cells(s):
+api/truerate/experiment.py:38:def extra_features(snap: dict) -> dict:
+api/truerate/experiment.py:60:def _utc(t: datetime) -> datetime:
+api/truerate/experiment.py:64:def _with_extras(row: dict, snap: dict, mix: dict | None) -> dict:
+api/truerate/experiment.py:70:def deal_rows(db) -> list[dict]:
+api/truerate/experiment.py:75:def fresh_rows(db, prices: dict[str, float]) -> list[dict]:
+api/truerate/experiment.py:94:def _num(x) -> float:
+api/truerate/experiment.py:98:def _log(x) -> float:
+api/truerate/experiment.py:102:def features_v2(m: dict) -> list[float]:
+api/truerate/experiment.py:109:def _paid_typical(rows: list[dict]) -> float:
+api/truerate/experiment.py:114:def _linear(regressor):
+api/truerate/experiment.py:128:def _tabpfn():
+api/truerate/experiment.py:138:def _sklearn_point(name: str, train: list[dict], test: list[dict]) -> np.ndarray:
+api/truerate/experiment.py:148:def _today(train: list[dict]):
+api/truerate/experiment.py:155:def _today_point(train: list[dict], test: list[dict], capped: bool = True) -> np.ndarray:
+api/truerate/experiment.py:173:def _oof(rows: list[dict], point: str, folds: int = 10, seed: int = 0) -> np.ndarray:
+api/truerate/experiment.py:180:def _offsets(resid: np.ndarray) -> dict:
+api/truerate/experiment.py:190:def _band_offsets(rows: list[dict], resid: np.ndarray, by_band: bool) -> dict:
+api/truerate/experiment.py:198:def conformal_offsets(rows: list[dict], point: str, by_band: bool = False, folds: int = 10, seed: int = 0) -> dict:
+api/truerate/experiment.py:203:def _widen(rows: list[dict], m: dict) -> tuple[float, float]:
+api/truerate/experiment.py:210:def _predict_both(point: str, train: list[dict], test: list[dict], folds: int = 10) -> dict[str, list[dict]]:
+api/truerate/experiment.py:230:def predict(point: str, rng: str, train: list[dict], test: list[dict]) -> list[dict]:
+api/truerate/experiment.py:234:def _served(train: list[dict], test: list[dict]) -> list[dict]:
+api/truerate/experiment.py:240:def _all_preds(train: list[dict], test: list[dict], points, folds: int = 10) -> dict[str, list[dict]]:
+api/truerate/experiment.py:250:def _summary(pairs: list[tuple[dict, dict]]) -> dict:
+api/truerate/experiment.py:259:def score(test: list[dict], preds: list[dict]) -> dict:
+api/truerate/experiment.py:266:def _mean(scores: list[dict]) -> dict:
+api/truerate/experiment.py:271:def repeated_cv(train: list[dict], points=POINTS, repeats: int = 5, folds: int = 10) -> dict:
+api/truerate/experiment.py:287:def pick(cv: dict, points=POINTS) -> dict:
+api/truerate/experiment.py:298:def beats(after: dict, before: dict) -> bool:
+api/truerate/experiment.py:304:def _bootstrap(test: list[dict], after: list[dict], before: list[dict], draws: int = 2000, seed: int = 0) -> dict:
+api/truerate/experiment.py:308:    def arrays(ps):
+api/truerate/experiment.py:318:def run(train: list[dict], holdout: list[dict], fresh: list[dict], repeats: int = 5, folds: int = 10, points=POINTS) -> dict:
+api/truerate/experiment.py:345:def learning_curve(point: str, train: list[dict], test: list[dict], sizes, draws: int = 20, seed: int = 0) -> list[dict]:
+api/truerate/experiment.py:358:def importance(point: str, rows: list[dict]) -> dict[str, float]:
+api/truerate/experiment.py:379:def report_table(result: dict) -> str:
+api/truerate/experiment.py:381:    def pct(x):
+api/truerate/experiment.py:384:    def width(x):
+api/truerate/experiment.py:387:    def cells(s):
 api/truerate/experiment_plots.py:27:def _inr(x: float, _=None) -> str:
 api/truerate/experiment_plots.py:32:def _log_axis(axis) -> None:
 api/truerate/experiment_plots.py:38:def predicted_vs_actual(result: dict, names: tuple[str, str], path: Path) -> None:
 api/truerate/experiment_plots.py:64:def ranges(result: dict, names: tuple[str, str], path: Path) -> None:
-api/truerate/experiment_plots.py:91:def importance(values: dict[str, float], title: str, path: Path, top: int = 12) -> None:
-api/truerate/experiment_plots.py:107:def learning(curves: dict[str, list[dict]], labels: dict[str, str], n_test: int, path: Path) -> None:
+api/truerate/experiment_plots.py:91:def importance(values: dict[str, float], title: str, path: Path, permutation: bool = False, top: int = 12) -> None:
+api/truerate/experiment_plots.py:110:def learning(curves: dict[str, list[dict]], labels: dict[str, str], n_test: int, path: Path) -> None:
 api/truerate/instagram.py:20:class HikerError(RuntimeError):
 api/truerate/instagram.py:26:def _has_pic(url: str | None) -> bool:
 api/truerate/instagram.py:30:def parse_profile(raw: dict) -> dict:
@@ -542,4 +542,4 @@ web/src/proxy.ts:4:export function proxy(request: NextRequest) {
 web/src/proxy.ts:12:export const config = {
 ```
 
-<!-- mapped: .@4c36c20 | paths: api/, web/src/ -->
+<!-- mapped: .@15f5450 | paths: api/, web/src/ -->
