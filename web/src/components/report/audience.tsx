@@ -10,7 +10,7 @@ export default function Audience({ r }: { r: Report }) {
     { key: "fake", label: "fake-looking", n: mix.fake, color: "var(--avoid)" },
   ];
   const languages = mix.languages.slice(0, 4);
-  const topics = Object.entries(r.niche.topics).sort((a, b) => b[1] - a[1]);
+  const topics = Object.entries(r.niche.topics).sort((a, b) => b[1] - a[1]).slice(0, 3);
 
   return (
     <section aria-labelledby="audience-title" className="grid gap-10 lg:grid-cols-2">
@@ -24,7 +24,6 @@ export default function Audience({ r }: { r: Report }) {
         <div className="mt-3 flex h-3 overflow-hidden rounded" role="img" aria-label="Top commenters by kind">
           {parts.map((x) => (x.n ? <span key={x.key} style={{ width: `${(100 * x.n) / Math.max(mix.top, 1)}%`, background: x.color }} /> : null))}
         </div>
-        <p className="basis mt-2">Fake-looking by the account model; creators are verified or labelled by Gemini; brands are labelled by Gemini.</p>
         {languages.length > 0 && (
           <p className="mt-5">Comments are {languages.map((l) => `${pct(l.share)} ${l.language}`).join(", ")}.</p>
         )}
@@ -35,7 +34,7 @@ export default function Audience({ r }: { r: Report }) {
           <b>Niche:</b> {r.category}
           <span className="basis"> ({r.category_source === "wldd" ? "from WLDD's records" : "from the bio and captions"})</span>
         </p>
-        {topics.length > 0 && <p className="basis mt-1">Reel topics: {topics.map(([t, n]) => `${t} ${n}`).join(" · ")}</p>}
+        {topics.length > 0 && <p className="basis mt-1">Mostly about: {topics.map(([t, n]) => `${t} ${n}`).join(" · ")}</p>}
         <p className="mt-5 text-lg">{r.worth_reaching}</p>
         {r.competitor && (
           <p className="mt-4 text-negotiate">

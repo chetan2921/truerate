@@ -1,5 +1,5 @@
 import type { Report } from "@/lib/api";
-import { compact, inr, pct } from "@/lib/format";
+import { compact, inr } from "@/lib/format";
 
 type Step = Report["price"]["waterfall"][number];
 
@@ -23,14 +23,10 @@ function layout(steps: Step[]) {
 export default function Waterfall({ r }: { r: Report }) {
   const p = r.price;
   const rows = layout(p.waterfall);
-  const paid = r.placement.paid;
+  // Plain reasons, and only for adjustments that moved the price.
   const notes = [
-    paid.n
-      ? `Sponsored performance: ${paid.n} paid reels keep ${pct(paid.ratio ?? 0)} of own-reel views, against ${pct(paid.typical_ratio)} for a typical WLDD creator. Few ads are pulled toward the typical figure.`
-      : `Sponsored performance: no paid reels in the last 30, so the typical ${pct(paid.typical_ratio)} applies and the price is unchanged.`,
-    p.genuine_share < 1
-      ? `Fake engagement: ${pct(1 - p.genuine_share)} of engagement is fake beyond what similar creators show, so that share comes off.`
-      : "Fake engagement: nothing beyond what similar creators show, so nothing comes off.",
+    ...(p.collab_factor < 1 ? ["Their sponsored reels get fewer views than their own, so the price comes down."] : []),
+    ...(p.genuine_share < 1 ? ["Some of their engagement is fake, so the price pays only for the real part."] : []),
   ];
 
   return (
@@ -40,7 +36,7 @@ export default function Waterfall({ r }: { r: Report }) {
           How the price was reached
         </h2>
         <ol className="mt-5 space-y-4">
-          {rows.map((row) => (
+          {rows.filter((row) => row.isTotal || row.amount !== 0).map((row) => (
             <li key={row.step}>
               <div className="flex items-baseline justify-between gap-4">
                 {/* Reports saved before the range became the headline call the last step "Recommended price". */}
@@ -61,20 +57,13 @@ export default function Waterfall({ r }: { r: Report }) {
           ))}
         </ol>
         <ul className="basis mt-5 space-y-1.5">
-          {notes.map((n) => (
-            <li key={n}>{n}</li>
-          ))}
+          {notes.length ? notes.map((n) => <li key={n}>{n}</li>) : <li>Nothing changed it: the audience is real and their sponsored reels keep their reach.</li>}
         </ul>
       </div>
 
       <div>
         <h3 className="font-semibold">The 6 past WLDD deals it compared against</h3>
-        <p className="basis mt-1">
-          Same category first, then closest in views and followers.{" "}
-          {(p.ridge_share ?? 1) >= 0.99
-            ? "The market price itself comes from a regression over all of WLDD's deals; these are the closest for comparison."
-            : `The market price blends their ₹ per 1,000 views (${pct(1 - (p.ridge_share ?? 1))}) with a regression over all deals (${pct(p.ridge_share ?? 1)}).`}
-        </p>
+        <p className="basis mt-1">The closest deals in the same category and of a similar size, and what WLDD paid them.</p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-left text-muted">

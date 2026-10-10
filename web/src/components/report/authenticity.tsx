@@ -1,4 +1,5 @@
 import { VERDICT_COLOR } from "@/components/chips";
+import { StatusIcon } from "@/components/verdicts";
 import type { Report } from "@/lib/api";
 import { pct } from "@/lib/format";
 
@@ -36,20 +37,26 @@ export default function Authenticity({ r }: { r: Report }) {
         <span className="font-semibold" style={{ color: VERDICT_COLOR[a.verdict] }}>
           {a.verdict}
         </span>
-        <span className="basis">
-          {a.failed_families.length === 0 ? "All three check families pass" : `${a.failed_families.length} of 3 check families fail`}, compared with WLDD creators of the same follower band
-        </span>
       </div>
 
-      {a.flags.length > 0 && (
-        <ul className="mt-4 space-y-1.5">
-          {a.flags.map((f) => (
-            <li key={f.signal} className="text-avoid">
-              {f.text}
+      {/* One plain answer per family; the measurements behind them stay one click away. */}
+      <ul className="mt-4 space-y-2">
+        {FAMILIES.map((fam) => {
+          const failed = a.failed_families.includes(fam.key);
+          const odd = CHECKS.filter((c) => c.family === fam.key && flagged.has(c.key)).map((c) => c.label.toLowerCase());
+          return (
+            <li key={fam.key} className="flex items-start gap-3">
+              <span className="mt-0.5">
+                <StatusIcon status={failed ? "bad" : odd.length ? "warn" : "good"} />
+              </span>
+              <span>
+                <b className="font-semibold">{fam.label}</b> {failed ? "look bought or faked" : odd.length ? "mostly look genuine" : "look genuine"}
+                {odd.length > 0 && <span className="basis">: {odd.join(", ")} stand out</span>}
+              </span>
             </li>
-          ))}
-        </ul>
-      )}
+          );
+        })}
+      </ul>
       {a.warnings.length > 0 && (
         <ul className="mt-2 space-y-1">
           {a.warnings.map((w) => (
@@ -60,44 +67,56 @@ export default function Authenticity({ r }: { r: Report }) {
         </ul>
       )}
 
-      <div className="mt-5 overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="text-left text-muted">
-            <tr>
-              <th className="py-2 pr-3 font-normal">Check</th>
-              <th className="py-2 pr-3 text-right font-normal">This creator</th>
-              <th className="py-2 pr-3 text-right font-normal">Similar creators</th>
-              <th className="py-2 pr-3 font-normal">Based on</th>
-              <th className="py-2 font-normal">Result</th>
-            </tr>
-          </thead>
-          {FAMILIES.map((fam) => (
-            <tbody key={fam.key} className="divide-y divide-line">
+      <details className="mt-5">
+        <summary className="basis cursor-pointer hover:text-text">Show all 9 checks, compared with WLDD creators of the same size</summary>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-muted">
               <tr>
-                <th colSpan={5} scope="colgroup" className="pb-1 pt-4 text-left font-semibold">
-                  {fam.label}
-                  <span className={`ml-2 font-normal ${a.failed_families.includes(fam.key) ? "text-avoid" : "text-go"}`}>
-                    {a.failed_families.includes(fam.key) ? "fails" : "passes"}
-                  </span>
-                </th>
+                <th className="py-2 pr-3 font-normal">Check</th>
+                <th className="py-2 pr-3 text-right font-normal">This creator</th>
+                <th className="py-2 pr-3 text-right font-normal">Similar creators</th>
+                <th className="py-2 pr-3 font-normal">Based on</th>
+                <th className="py-2 font-normal">Result</th>
               </tr>
-              {CHECKS.filter((c) => c.family === fam.key).map((c) => {
-                const value = a.signals[c.key];
-                const median = a.medians[c.key];
-                return (
-                  <tr key={c.key}>
-                    <td className="py-2 pr-3">{c.label}</td>
-                    <td className="figure py-2 pr-3 text-right">{value == null ? "not measured" : c.fmt(value)}</td>
-                    <td className="figure basis py-2 pr-3 text-right">{median == null ? "no norm yet" : c.fmt(median)}</td>
-                    <td className="basis py-2 pr-3">{c.basis(a.signals)}</td>
-                    <td className={`py-2 ${flagged.has(c.key) ? "text-avoid" : "text-muted"}`}>{flagged.has(c.key) ? "Red flag" : "Normal"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          ))}
-        </table>
-      </div>
+            </thead>
+            {FAMILIES.map((fam) => (
+              <tbody key={fam.key} className="divide-y divide-line">
+                <tr>
+                  <th colSpan={5} scope="colgroup" className="pb-1 pt-4 text-left font-semibold">
+                    {fam.label}
+                    <span className={`ml-2 font-normal ${a.failed_families.includes(fam.key) ? "text-avoid" : "text-go"}`}>
+                      {a.failed_families.includes(fam.key) ? "fails" : "passes"}
+                    </span>
+                  </th>
+                </tr>
+                {CHECKS.filter((c) => c.family === fam.key).map((c) => {
+                  const value = a.signals[c.key];
+                  const median = a.medians[c.key];
+                  return (
+                    <tr key={c.key}>
+                      <td className="py-2 pr-3">{c.label}</td>
+                      <td className="figure py-2 pr-3 text-right">{value == null ? "not measured" : c.fmt(value)}</td>
+                      <td className="figure basis py-2 pr-3 text-right">{median == null ? "no norm yet" : c.fmt(median)}</td>
+                      <td className="basis py-2 pr-3">{c.basis(a.signals)}</td>
+                      <td className={`py-2 ${flagged.has(c.key) ? "text-avoid" : "text-muted"}`}>{flagged.has(c.key) ? "Red flag" : "Normal"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            ))}
+          </table>
+        </div>
+        {a.flags.length > 0 && (
+          <ul className="mt-3 space-y-1">
+            {a.flags.map((f) => (
+              <li key={f.signal} className="basis">
+                {f.text}
+              </li>
+            ))}
+          </ul>
+        )}
+      </details>
     </section>
   );
 }
