@@ -136,17 +136,20 @@ def test_every_price_carries_the_published_asking_range_for_its_size():
     assert price(model, synthetic_rows()[0] | {"followers": 3_000_000})["market_reference"]["low"] == 6_00_000
 
 
-def test_beyond_wldds_largest_creator_the_range_widens_and_reaches_the_market():
+def test_beyond_wldds_largest_creator_the_range_widens_and_the_market_price_stays_separate():
     rows = synthetic_rows()
     model = fit(rows)
     top = max(r["followers"] for r in rows)
     inside = price(model, rows[0])
-    big = price(model, rows[0] | {"followers": top * 8, "views": rows[0]["views"] * 8})
+    # Many followers but few views: WLDD's deals price this well under the market's mega-creator asking price.
+    big = price(model, rows[0] | {"followers": top * 8, "views": min(r["views"] for r in rows)})
     # A bigger creator is likely to ask more, not less: only the top of the range widens (a mega creator at ₹6,000 is nonsense)
     assert big["high"] / big["fair"] > inside["high"] / inside["fair"]
     assert abs(big["fair"] / big["low"] - inside["fair"] / inside["low"]) < 0.25
-    assert big["high"] >= big["market_reference"]["low"]
-    assert "published rate cards" in big["note"]
+    # The range is WLDD's own, even when the published asking price for that size starts higher (user decision, 2026-10-10):
+    # merging the two made ranges like ₹18,500 to ₹6,00,000. The market price comes back beside it.
+    assert big["high"] < big["market_reference"]["low"] == 6_00_000
+    assert "published asking price" in big["note"] and "runs up to" not in big["note"]
 
 
 def test_below_wldds_smallest_creator_only_the_bottom_widens():

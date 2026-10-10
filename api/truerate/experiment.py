@@ -232,7 +232,7 @@ def predict(point: str, rng: str, train: list[dict], test: list[dict]) -> list[d
 
 
 def _served(train: list[dict], test: list[dict]) -> list[dict]:
-    """Exactly what the app shows today: MAPIE's 80% range, lifted to the market's low end past WLDD's largest deal."""
+    """Exactly what the app shows: `pricing.price`, with MAPIE's 80% range."""
     model = _today(train)
     return [{"fair": p["fair"], "low80": p["low"], "high80": p["high"]} for p in (price(model, r) for r in test)]
 

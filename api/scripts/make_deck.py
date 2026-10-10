@@ -174,7 +174,7 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> No
         ("Range", 18, ACCENT, True),
         (f"{report.get('range_method', 'Leave-one-out errors')}: each creator's interval comes from out-of-fold errors over 10 refits. "
          f"It held {report['holdout']['coverage']:.0%} of held-out real prices.", 14, TEXT, False),
-        ("Past WLDD's largest creator the range stretches up, to at least the published market asking price for that size.", 14, TEXT, False),
+        ("Past WLDD's largest creator the range widens upward, and the published market asking price for that size is shown beside it, never mixed in.", 14, TEXT, False),
     ])
     d.table(s, 7.6, 1.6, [2.0, 1.6, 1.6], [["Follower band", "TruRate", "Band median"]] +
             [[label, pct(h["model"]["by_band"][b]), pct(h["band_median"]["by_band"][b])] for b, label in BANDS], size=14)

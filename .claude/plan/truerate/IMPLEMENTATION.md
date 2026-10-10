@@ -27,7 +27,7 @@ Decision rule, fixed before any held-out number was computed:
 - Dropped (user, 2026-10-10): the HypeAuditor hand check. The outside comparison stays the Modash-style baseline `validate` already scores.
 - [x] Asked about the fresh deals (user, 2026-10-10): one reel each; when they were made is unknown. So the big-creator gap isn't explained by deal terms. It's either price drift over time or the noise floor.
 - [x] Report tabs (2026-10-10): Summary · Price · Audience · Content · Similar, with `#tab` deep links and a sticky bar. Checked: lint, types, ui-check (audit, first screen at all 11 sizes, slop scan 0 of 12), cold deep links to all 5 tabs in Chrome, keyboard, a quote check surviving a tab switch, sticky bar, no console errors.
-- [ ] Show WLDD's range and the market reference separately for creators beyond WLDD's deals.
+- [x] Market price shown separately (2026-10-10): beyond WLDD's largest deal the range stays WLDD's own (still widened 1.4× per doubling), and the note points to the separate market line. A real check on a creator with 7.8L followers: ₹10,500 to ₹74,500 instead of ₹10,500 to ₹2,00,000. Saved reports keep their old numbers. No held-out or fresh creator is beyond WLDD's deals, so the experiment numbers don't change.
 - [ ] Brand match page (`/brand`).
 - [ ] Notes and pitch; demo prep; housekeeping; then the model work (judge-familiar metrics, anti-gaming chart, ensemble, model-card slides).
 

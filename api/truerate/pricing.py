@@ -135,8 +135,8 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
     steps = [round500(market), round500(market * factor), round500(fair)]
     in_category = [per_1k(r) for r in model.rows if r["category"] == m["category"]]
     # Outside WLDD's deals the range widens about 1.4x per doubling beyond them, toward the side being extrapolated:
-    # up for a bigger creator (who will likely ask more, so it also reaches the market's published low end), down for
-    # a smaller one.
+    # up for a bigger creator (who will likely ask more), down for a smaller one. The range stays WLDD's own; the
+    # published asking price for the creator's size is returned beside it, never merged in (user decision, 2026-10-10).
     top_followers, top_views = max(r["followers"] for r in model.rows), max(r["views"] for r in model.rows)
     least_followers = min(r["followers"] for r in model.rows)
     above = max(m["followers"] / top_followers, m["views"] / top_views, 1.0)
@@ -151,10 +151,9 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
     ref = market_reference(m["followers"])
     note = None
     if m["followers"] > top_followers or m["views"] > top_views:
-        high = max(high, ref["low"])
         note = (f"Bigger than any creator WLDD has booked (largest: {_group(top_followers)} followers, {_group(top_views)} typical views). "
-                f"The price is what WLDD's past deals suggest; published rate cards ask {inr(ref['low'])} to {inr(ref['high'])} for "
-                f"{ref['tier'].split(' (')[0].lower()} creators, so the range runs up to the market's low end.")
+                "The range is what WLDD's past deals suggest, wider because it reaches past them. The market's published asking "
+                "price for this size is shown separately, not mixed into the range.")
     elif m["followers"] < least_followers:
         note = f"Smaller than any creator WLDD has booked (smallest: {_group(least_followers)} followers), so the range is wider."
     return {

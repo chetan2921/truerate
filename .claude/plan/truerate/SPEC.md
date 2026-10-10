@@ -179,6 +179,7 @@ Response models are Pydantic. The web types are generated from `/openapi.json` (
 **Pricing:**
 - Market price is a blend in log space of Ridge on log(price) (log views, log followers, engagement, comments per 1K views, category) and KNN, where the 6 nearest past deals' ₹ per 1,000 views is multiplied by this creator's views. Nearest means the same category first, then the closest views and followers. The blend weight is picked by leave-one-out.
 - Fair price = market × collab factor × genuine share, rounded to ₹500.
+- Past WLDD's largest or smallest creator, the 80% range widens about 1.4× per doubling toward the side being extrapolated. The published market asking price for the creator's size (`market_reference`) is shown on its own line, never merged into the range (user decision, 2026-10-10).
 - On WLDD's 148 deals, leave-one-out picked a Ridge weight of 1.0, so the market price is the regression alone and the 6 nearest deals are comparables in the report.
 - **Collab factor:**
   - Measure how many views this creator's paid reels keep, relative to their own reels.

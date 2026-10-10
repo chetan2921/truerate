@@ -27,7 +27,7 @@ This file is safe to commit: no WLDD prices. Prices live only in git-ignored `da
 - Real price inside the 80% range: 83%.
 - Median gap between the middle of the range and the price paid: 57%, against 65% for the band median and 73% for the Modash-style formula.
 - The range is about **0.36× to 2.27× the middle** (≈6× wide). That width comes from the data: near-identical creators in WLDD's deals were paid a median 53% apart. Earlier repeated-CV trials of other models and features landed at 44-46%, no better.
-- Above WLDD's largest deal, the range also widens 1.4× per doubling and its high end is lifted to the published market low (`pricing.price`). That is why mega creators show ranges like ₹18,500 to ₹6,00,000.
+- Above WLDD's largest deal, the range widens 1.4× per doubling. Since 2026-10-10 it is no longer lifted to the published market low: the market price is shown separately (`pricing.price`, user decision).
 - Fake-creator test: 4 main fakes caught 99-100%, smart fake 72%, real creators flagged 9.5%.
 - `data/fresh_test_20.csv` holds 20 creators with prices the user gave, none in the 150 deals. Ask whether they are real WLDD prices. A batch run on them was stopped after 3; rerun it as an unseen test set.
 
