@@ -170,6 +170,11 @@ def _today_point(train: list[dict], test: list[dict], capped: bool = True) -> np
 
 POINT_FNS = {"today": _today_point, "today_uncapped": partial(_today_point, capped=False)} | {n: partial(_sklearn_point, n) for n in ESTIMATORS}
 
+# Models whose mistakes differ (one better on the held-out deals, another on the fresh ones), averaged in log price.
+# TabPFN stays out so the ensemble can run while the app's servers are up.
+ENSEMBLE = ("today", "elasticnet_v2", "boosting_v2")
+POINT_FNS["ensemble"] = lambda train, test: np.mean([POINT_FNS[m](train, test) for m in ENSEMBLE], axis=0)
+
 
 def _oof(rows: list[dict], point: str, folds: int = 10, seed: int = 0) -> np.ndarray:
     pred = np.empty(len(rows))

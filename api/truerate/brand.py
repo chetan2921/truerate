@@ -85,7 +85,7 @@ def brand_partners(data: dict) -> list[str]:
     return sorted(names - {me})
 
 
-EMPTY = {"category": None, "topics": {}, "verdict": None, "fair": None, "likely_low": None, "likely_high": None, "cost_per_1k": None,
+EMPTY = {"category": None, "topics": {}, "verdict": None, "fair": None, "low": None, "high": None, "likely_low": None, "likely_high": None, "cost_per_1k": None,
          "category_cost_per_1k": None, "expected_views": None, "hits_last_10": None, "followers": None, "analysis_id": None}
 
 
@@ -108,7 +108,7 @@ def candidates(db, model: PriceModel, brand_handle: str | None, partners: list[s
         topics = Counter((m.get("labels") or {}).get("topics", {}).values())
         add(m["_id"], "WLDD booked", {
             "category": m["category"], "topics": dict(topics), "verdict": verdict(m, norms)["verdict"] if norms else None, "fair": p["fair"],
-            "likely_low": p["likely_low"], "likely_high": p["likely_high"], "cost_per_1k": p["delivery"]["cost_per_1k"],
+            "low": p["low"], "high": p["high"], "likely_low": p["likely_low"], "likely_high": p["likely_high"], "cost_per_1k": p["delivery"]["cost_per_1k"],
             "category_cost_per_1k": p["delivery"]["category_cost_per_1k"], "expected_views": p["delivery"]["views"][1],
             "hits_last_10": m["hits_last_10"], "followers": m["followers"]})
     latest = {}
@@ -119,7 +119,7 @@ def candidates(db, model: PriceModel, brand_handle: str | None, partners: list[s
         low, high = (p["likely_low"], p["likely_high"]) if p.get("likely_low") else likely_band(p["fair"], p["low"], p["high"])
         add(handle, "Analysed before", {
             "category": r["category"], "topics": r["niche"]["topics"], "verdict": r["audience"]["verdict"], "fair": p["fair"],
-            "likely_low": low, "likely_high": high, "cost_per_1k": p["delivery"]["cost_per_1k"],
+            "low": p["low"], "high": p["high"], "likely_low": low, "likely_high": high, "cost_per_1k": p["delivery"]["cost_per_1k"],
             "category_cost_per_1k": p["delivery"]["category_cost_per_1k"], "expected_views": p["delivery"]["views"][1],
             "hits_last_10": r["placement"]["hits_last_10"], "followers": r["profile"]["followers"], "analysis_id": a["_id"]})
     for handle in partners:

@@ -236,7 +236,8 @@ def experiment_cmd(out_dir: Path = REPO_ROOT / "data" / "models" / "experiments"
     result = ex.run(train, holdout, fresh, repeats=repeats, points=chosen)
     picked, test = result["picked"]["price"], holdout + fresh
     curves = {n: ex.learning_curve(n, train, test, (30, 50, 70, 90, len(train))) for n in dict.fromkeys(("today", picked))}
-    imp = {n: ex.importance(n, rows) for n in dict.fromkeys((picked, "ridge_v2"))}
+    # The ensemble mixes models whose importances are in different units (SHAP in log price, a drop in R²), so it has none.
+    imp = {n: ex.importance(n, rows) for n in dict.fromkeys((picked, "ridge_v2")) if n != "ensemble"}
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "results.json").write_text(json.dumps(result | {"learning_curve": curves, "importance": imp}, indent=1))
     (out_dir / "table.md").write_text(ex.report_table(result))

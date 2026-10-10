@@ -62,14 +62,16 @@ export function Recommendation({ rows }: { rows: Row[] }) {
           <p className="text-2xl font-bold">
             {best.call === "Go" ? "Book " : "Best of these, after a negotiation: "}
             <Link href={`/analyses/${best.analysis_id}`}>@{best.handle}</Link>
-            {best.call === "Go" ? " first" : ""}, at about <span className="figure">{inr(best.fair!)}</span>
+            {best.call === "Go" ? " first" : ""}, for <span className="figure whitespace-nowrap">{inr(best.low!)} to {inr(best.high!)}</span>
           </p>
           <p className="mt-2">{why(best, "good").slice(0, 4).join(" · ")}</p>
           {why(best, "warn", "bad").length > 0 && <p className="mt-1 text-negotiate">Watch: {why(best, "bad", "warn").slice(0, 2).join(" · ")}</p>}
           {cheapest !== best && cheapest.call !== "Avoid" && (
             <p className="mt-4">
-              Cheapest views: <Link href={`/analyses/${cheapest.analysis_id}`}>@{cheapest.handle}</Link> at about{" "}
-              <span className="figure">{inr(cheapest.fair!)}</span>
+              Cheapest views: <Link href={`/analyses/${cheapest.analysis_id}`}>@{cheapest.handle}</Link> for{" "}
+              <span className="figure whitespace-nowrap">
+                {inr(cheapest.low!)} to {inr(cheapest.high!)}
+              </span>
               {why(cheapest, "bad", "warn").length > 0 && `, but ${why(cheapest, "bad", "warn")[0].toLowerCase()}: negotiate first`}.
             </p>
           )}
@@ -103,7 +105,7 @@ export function Scorecard({ rows }: { rows: Row[] }) {
           <tr>
             <th className="py-2 pr-4 font-normal">Creator</th>
             <th className="py-2 pr-4 font-normal">Call</th>
-            <th className="py-2 pr-4 text-right font-normal">Pay about</th>
+            <th className="py-2 pr-4 text-right font-normal">Fair range</th>
             <th className="py-2 pr-4 text-right font-normal">Expected views</th>
             {cols.map(([key, label]) => (
               <th key={key} className="py-2 pr-4 font-normal">
@@ -121,13 +123,8 @@ export function Scorecard({ rows }: { rows: Row[] }) {
               {r.status === "done" && r.fair != null ? (
                 <>
                   <td className="py-3 pr-4">{r.call && <CallChip call={r.call} />}</td>
-                  <td className="py-3 pr-4 text-right">
-                    <span className="figure font-semibold">{inr(r.fair)}</span>
-                    {r.likely_low != null && r.likely_high != null && (
-                      <span className="figure basis block whitespace-nowrap text-xs">
-                        likely {inr(r.likely_low)} to {inr(r.likely_high)}
-                      </span>
-                    )}
+                  <td className="figure whitespace-nowrap py-3 pr-4 text-right font-semibold">
+                    {inr(r.low!)} to {inr(r.high!)}
                   </td>
                   <td className="figure py-3 pr-4 text-right">{r.expected_views != null && compact(r.expected_views)}</td>
                   {cols.map(([key]) => (
@@ -163,7 +160,7 @@ export function PriceChart({ rows, budget }: { rows: Row[]; budget: number | nul
   return (
     <figure>
       <figcaption className="section-title">What each creator should cost{budget ? " against your budget" : ""}</figcaption>
-      <p className="basis mt-1">The tick is the price to aim for, the bright bar where about half of real deals land, the faint bar the full range.</p>
+      <p className="basis mt-1">Each bar is a creator&apos;s fair range; the tick is its middle. Hover a bar for its numbers.</p>
       <div className="relative mt-5 space-y-4">
         {budget && (
           <div className="pointer-events-none absolute inset-y-0 z-10 ml-40 w-[calc(100%-10rem)]" aria-hidden>
@@ -179,18 +176,16 @@ export function PriceChart({ rows, budget }: { rows: Row[]; budget: number | nul
               className="flex-1"
               lines={[
                 `@${r.handle}`,
-                `Aim for ${inr(r.fair!)}`,
-                `Likely ${inr(r.likely_low ?? r.low!)} to ${inr(r.likely_high ?? r.high!)} (about half of real deals)`,
-                `Full range ${inr(r.low!)} to ${inr(r.high!)}`,
+                `Fair range ${inr(r.low!)} to ${inr(r.high!)}`,
+                `Middle ${inr(r.fair!)}`,
                 ...(budget ? [`Your budget ${inr(budget)}`] : []),
               ]}
             >
             <div className="relative h-6">
-              <span className="absolute top-2.5 h-1 rounded bg-info/35" style={{ left: `${x(r.low!)}%`, width: `${x(r.high!) - x(r.low!)}%` }} />
-              <span className="absolute top-1.5 h-3 rounded bg-info" style={{ left: `${x(r.likely_low ?? r.low!)}%`, width: `${x(r.likely_high ?? r.high!) - x(r.likely_low ?? r.low!)}%` }} />
+              <span className="absolute top-1.5 h-3 rounded bg-info" style={{ left: `${x(r.low!)}%`, width: `${x(r.high!) - x(r.low!)}%` }} />
               <span className="absolute top-0 h-6 w-0.5 bg-accent" style={{ left: `${x(r.fair!)}%` }} />
               <span className="figure absolute top-0.5 whitespace-nowrap pl-2 text-xs" style={{ left: `${x(r.high!)}%` }}>
-                {inr(r.fair!)}
+                {inr(r.low!)} to {inr(r.high!)}
               </span>
             </div>
             </ChartTip>

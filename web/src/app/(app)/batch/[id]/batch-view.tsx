@@ -7,9 +7,9 @@ import { api, type Batch } from "@/lib/api";
 import { inr } from "@/lib/format";
 
 function toCsv(b: Batch): string {
-  const head = ["rank", "handle", "decision", "pay_about_inr", "likely_low_inr", "likely_high_inr", "low_inr", "high_inr", "inr_per_1000_views", "expected_views", "verdicts", "status"];
-  const rows = b.rows.map((r, i) => [i + 1, r.handle, r.call ?? "", r.fair ?? "", r.likely_low ?? "", r.likely_high ?? "", r.low ?? "", r.high ?? "", r.cost_per_1k ?? "",
-    r.expected_views ?? "", r.outputs.map((o) => o.title).join("; "), r.status]);
+  const head = ["rank", "handle", "decision", "low_inr", "high_inr", "middle_inr", "inr_per_1000_views", "expected_views", "verdicts", "status"];
+  const rows = b.rows.map((r, i) => [i + 1, r.handle, r.call ?? "", r.low ?? "", r.high ?? "", r.fair ?? "", r.cost_per_1k ?? "", r.expected_views ?? "",
+    r.outputs.map((o) => o.title).join("; "), r.status]);
   return [head, ...rows].map((r) => r.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(",")).join("\n");
 }
 
@@ -54,7 +54,7 @@ export default function BatchView({ params }: { params: Promise<{ id: string }> 
     <main className="mx-auto max-w-6xl px-6 pb-24 pt-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Shortlist of {batch.total}</h1>
+          <h1 className="text-3xl font-bold">Comparing {batch.total} creators</h1>
           <p className="basis mt-1">
             {batch.done < batch.total ? `${batch.done} of ${batch.total} done; this fills in as each finishes.` : "All done."} Who to book, then the details
             {batch.inputs.category ? ` · for ${batch.inputs.category}` : ""}

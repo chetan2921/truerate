@@ -391,6 +391,8 @@ class BrandPick(BaseModel):
     category: str | None
     verdict: str | None
     fair: int
+    low: int | None = None  # runs saved before the full range was added don't have it
+    high: int | None = None
     likely_low: int | None
     likely_high: int | None
     cost_per_1k: int | None

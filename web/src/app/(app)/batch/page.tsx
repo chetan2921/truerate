@@ -116,7 +116,7 @@ export default function BatchPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-6 pb-24 pt-[min(6vh,3rem)]">
-      <h1 className="text-3xl font-bold">Shortlist several creators</h1>
+      <h1 className="text-3xl font-bold">Compare creators</h1>
       <p className="basis mt-2 max-w-2xl">Each creator gets the full analysis. The table ranks them by what one reel costs per 1,000 views.</p>
       <form onSubmit={submit} className="mt-6 grid max-w-4xl items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <fieldset className="flex min-w-0 flex-col gap-2">

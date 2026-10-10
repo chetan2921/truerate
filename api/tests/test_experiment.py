@@ -127,3 +127,17 @@ def test_coverage_by_width_counts_prices_inside_a_range_of_each_width_around_the
     preds = [{"fair": 100}, {"fair": 120}, {"fair": 200}, {"fair": 400}]  # off by 1.0x, 1.2x, 2x and 4x
     # A range 2x wide spans the middle ÷1.41 to ×1.41, so it holds the first two; 4x wide (÷2 to ×2) holds three.
     assert coverage_by_width(test, preds, widths=(2, 4, 16)) == {2: 0.5, 4: 0.75, 16: 1.0}
+
+
+def test_the_ensemble_averages_its_members_in_log_price():
+    from truerate.experiment import ENSEMBLE, POINT_FNS
+
+    def with_extras(rows, seed):  # boosting needs the new features to have values, as WLDD's deals do
+        rng = np.random.default_rng(seed)
+        return [r | {"age_years": rng.uniform(1, 9), "reel_seconds": rng.uniform(10, 90), "reels_per_month": rng.uniform(4, 30), "n_reels": 30,
+                     "youtube": bool(rng.integers(2)), "email": bool(rng.integers(2)), "verified": bool(rng.integers(2)), "english": rng.uniform(),
+                     "views_cv": rng.uniform(0.3, 2), "trend": rng.uniform(0.5, 1.5)} for r in rows]
+
+    train, test = with_extras(synthetic_rows(60, 3), 1), with_extras(synthetic_rows(10, 4), 2)
+    members = np.mean([POINT_FNS[m](train, test) for m in ENSEMBLE], axis=0)
+    assert np.allclose(POINT_FNS["ensemble"](train, test), members) and "tabpfn_v2" not in ENSEMBLE  # runs with the servers on

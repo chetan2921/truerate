@@ -1,12 +1,15 @@
 "use client";
 
-import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useState } from "react";
+import { Bar, BarChart, Cell, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import type { Report } from "@/lib/api";
 import { compact, pct } from "@/lib/format";
 
 const KIND_COLOR = { own: "var(--accent)", paid: "var(--negotiate)", collab: "var(--info)", repost: "rgb(251 251 251 / 0.35)" } as const;
 const KIND_LABEL = { own: "Own reel", paid: "Paid", collab: "Collab with a creator", repost: "Repost of someone else's reel" } as const;
+const METRICS = ["views", "likes", "comments", "followers"] as const;
+type Metric = (typeof METRICS)[number];
 
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 
@@ -35,42 +38,72 @@ function BrandChips({ items, path }: { items: ReturnType<typeof byBrand>; path: 
 }
 
 export default function Placement({ r }: { r: Report }) {
+  const [metric, setMetric] = useState<Metric>("views");
   const p = r.placement;
   const reels = [...p.reels].reverse().map((x) => ({ ...x, day: day(x.taken_at) }));
+  const history = p.followers_history.map((h) => ({ ...h, day: day(h.at) }));
   const undisclosed = p.ads.filter((a) => !a.disclosed).length;
   const paidVsUsual = p.paid.ratio == null ? null : p.paid.ratio >= p.paid.typical_ratio;
 
   return (
     <section aria-labelledby="placement">
-      <h2 id="placement" className="section-title">
-        How their reels perform
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="placement" className="section-title">
+          How their reels perform
+        </h2>
+        <div className="flex gap-1 rounded-lg bg-surface p-1" role="group" aria-label="Chart shows">
+          {METRICS.map((m) => (
+            <button
+              key={m}
+              type="button"
+              aria-pressed={metric === m}
+              onClick={() => setMetric(m)}
+              className={`rounded-md px-3 py-1 text-sm capitalize transition-colors duration-150 ${metric === m ? "bg-text text-bg" : "text-muted hover:text-text"}`}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      <div className="mt-4 h-64" role="img" aria-label="Views on each of the last 30 reels">
+      <div className="mt-4 h-64" role="img" aria-label={metric === "followers" ? "Followers over time" : `${metric} on each of the last 30 reels`}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={reels} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-            <XAxis dataKey="day" tick={{ fill: "var(--text-muted)", fontSize: 12 }} axisLine={{ stroke: "var(--line)" }} tickLine={false} interval="preserveStartEnd" minTickGap={24} />
-            <YAxis tickFormatter={compact} tick={{ fill: "var(--text-muted)", fontSize: 12 }} axisLine={false} tickLine={false} width={48} />
-            <Tooltip
-              cursor={{ fill: "rgb(251 251 251 / 0.06)" }}
-              contentStyle={{ background: "var(--surface)", border: "none", borderRadius: 8 }} labelStyle={{ color: "var(--text)" }} itemStyle={{ color: "var(--text)" }}
-              formatter={(v, _n, item) => [`${compact(Number(v))} views`, KIND_LABEL[(item.payload as (typeof reels)[number]).kind]]}
-            />
-            <Bar dataKey="views" radius={[3, 3, 0, 0]} isAnimationActive={false}>
-              {reels.map((x) => (
-                <Cell key={x.code} fill={KIND_COLOR[x.kind]} />
-              ))}
-            </Bar>
-          </BarChart>
+          {metric === "followers" ? (
+            <LineChart data={history} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+              <XAxis dataKey="day" tick={{ fill: "var(--text-muted)", fontSize: 12 }} axisLine={{ stroke: "var(--line)" }} tickLine={false} />
+              <YAxis tickFormatter={compact} tick={{ fill: "var(--text-muted)", fontSize: 12 }} axisLine={false} tickLine={false} width={48} domain={["auto", "auto"]} />
+              <Tooltip formatter={(v) => `${compact(Number(v))} followers`} contentStyle={{ background: "var(--surface)", border: "none", borderRadius: 8 }} labelStyle={{ color: "var(--text)" }} itemStyle={{ color: "var(--text)" }} />
+              <Line dataKey="followers" stroke="var(--accent)" strokeWidth={2} dot={{ r: 4, fill: "var(--accent)" }} isAnimationActive={false} />
+            </LineChart>
+          ) : (
+            <BarChart data={reels} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+              <XAxis dataKey="day" tick={{ fill: "var(--text-muted)", fontSize: 12 }} axisLine={{ stroke: "var(--line)" }} tickLine={false} interval="preserveStartEnd" minTickGap={24} />
+              <YAxis tickFormatter={compact} tick={{ fill: "var(--text-muted)", fontSize: 12 }} axisLine={false} tickLine={false} width={48} />
+              <Tooltip
+                cursor={{ fill: "rgb(251 251 251 / 0.06)" }}
+                contentStyle={{ background: "var(--surface)", border: "none", borderRadius: 8 }} labelStyle={{ color: "var(--text)" }} itemStyle={{ color: "var(--text)" }}
+                formatter={(v, _n, item) => [`${compact(Number(v))} ${metric}`, KIND_LABEL[(item.payload as (typeof reels)[number]).kind]]}
+              />
+              <Bar dataKey={metric} radius={[3, 3, 0, 0]} isAnimationActive={false}>
+                {reels.map((x) => (
+                  <Cell key={x.code} fill={KIND_COLOR[x.kind]} />
+                ))}
+              </Bar>
+            </BarChart>
+          )}
         </ResponsiveContainer>
       </div>
       <p className="basis mt-2 flex flex-wrap gap-x-5 gap-y-1">
-        {(Object.keys(KIND_COLOR) as (keyof typeof KIND_COLOR)[]).map((k) => (
-          <span key={k} className="inline-flex items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: KIND_COLOR[k] }} aria-hidden />
-            {KIND_LABEL[k]}
-          </span>
-        ))}
+        {metric === "followers" ? (
+          <span>Instagram doesn&apos;t share follower history, so this builds from TruRate&apos;s first snapshot ({history.length} so far).</span>
+        ) : (
+          (Object.keys(KIND_COLOR) as (keyof typeof KIND_COLOR)[]).map((k) => (
+            <span key={k} className="inline-flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ background: KIND_COLOR[k] }} aria-hidden />
+              {KIND_LABEL[k]}
+            </span>
+          ))
+        )}
       </p>
 
       <ul className="mt-6 max-w-3xl space-y-2">

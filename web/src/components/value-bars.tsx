@@ -3,7 +3,7 @@ import { compact, inr } from "@/lib/format";
 
 export type ValueRow = { handle: string; fair: number; views: number; highlight?: boolean; usualPerK?: number | null };
 
-// What ₹10,000 buys with each creator: expected views per ₹10,000 at the price to aim for, best value first. One bar per
+// What ₹10,000 buys with each creator: expected views per ₹10,000 at the middle of the fair range, best value first. One bar per
 // row with its handle and figure written beside it, so nothing has to be decoded from axes or a key.
 export default function ValueBars({ rows, caption }: { rows: ValueRow[]; caption: string }) {
   if (!rows.length) return null;
@@ -14,7 +14,7 @@ export default function ValueBars({ rows, caption }: { rows: ValueRow[]; caption
   return (
     <figure>
       <figcaption className="font-semibold">What ₹10,000 buys</figcaption>
-      <p className="basis mt-1">Expected views for every ₹10,000 at the price to aim for. Longer is better value. {caption} Hover a bar for its numbers.</p>
+      <p className="basis mt-1">Expected views for every ₹10,000, at the middle of each fair range. Longer is better value. {caption} Hover a bar for its numbers.</p>
       <ol className="mt-4 space-y-2.5">
         {sorted.map((r) => (
           <li key={r.handle} className="grid grid-cols-[8.5rem_minmax(0,1fr)_4.5rem] items-center gap-3 text-sm">
@@ -22,7 +22,7 @@ export default function ValueBars({ rows, caption }: { rows: ValueRow[]; caption
             <ChartTip
               lines={[
                 r.handle,
-                `Pay about ${inr(r.fair)} for about ${compact(r.views)} views`,
+                `Middle of the fair range ${inr(r.fair)}, for about ${compact(r.views)} views`,
                 `₹10,000 buys about ${compact(buys(r))} views`,
                 ...(r.usualPerK ? [`White tick: WLDD's usual ${inr(r.usualPerK)} per 1,000 views, so ₹10,000 buys ${compact(usual(r))}`] : []),
               ]}

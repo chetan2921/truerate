@@ -86,6 +86,8 @@ def test_the_pool_labels_where_each_creator_came_from(world):
     world.analyses.insert_one({"_id": "a1", "handle": "newcreator", "status": "done", "result": r, "inputs": {}, "created_at": datetime.now(timezone.utc)})
     by = {c["handle"]: c for c in candidates(world, model, "somebrand", ["newcreator", "unknown.creator"])}
     assert by["creator0"]["sources"] == ["WLDD booked"] and by["creator0"]["fair"] > 0 and by["creator0"]["verdict"]
+    assert by["creator0"]["low"] < by["creator0"]["fair"] < by["creator0"]["high"]  # the full range, shown on the page
+    assert (by["newcreator"]["low"], by["newcreator"]["high"]) == (r["price"]["low"], r["price"]["high"])
     assert by["newcreator"]["sources"] == ["Analysed before", "Worked with the brand"] and by["newcreator"]["fair"] == r["price"]["fair"]
     assert by["unknown.creator"]["sources"] == ["Worked with the brand"] and by["unknown.creator"]["fair"] is None  # not analysed yet
     assert "somebrand" not in by

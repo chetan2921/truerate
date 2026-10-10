@@ -424,6 +424,10 @@ export interface components {
             verdict: string | null;
             /** Fair */
             fair: number;
+            /** Low */
+            low?: number | null;
+            /** High */
+            high?: number | null;
             /** Likely Low */
             likely_low: number | null;
             /** Likely High */

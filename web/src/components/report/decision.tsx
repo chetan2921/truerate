@@ -9,21 +9,13 @@ export default function Decision({ r, outputs }: { r: Report; outputs: Output[] 
     <section aria-label="Decision" className="panel p-6 sm:p-8">
       <div className="flex flex-wrap items-start justify-between gap-6">
         <div>
-          <p className="basis">Pay about, for one reel</p>
+          <p className="basis">Fair price range for one reel</p>
           <p className="figure font-bold leading-none" style={{ fontSize: "clamp(2.5rem, min(5vw, 11vh), 4.5rem)" }}>
-            {inr(p.fair)}
+            {inr(p.low)} to {inr(p.high)}
           </p>
-          {/* Honest about spread: a band 3x wide holds about half of real prices on unseen deals; the full range about 3 in 4. */}
-          {p.likely_low != null && p.likely_high != null && (
-            <p className="mt-3 text-lg">
-              Likely <span className="figure font-semibold">{inr(p.likely_low)} to {inr(p.likely_high)}</span>
-              <span className="basis"> · about half of real deals land in a band this wide</span>
-            </p>
-          )}
-          <p className="basis mt-1">
-            Full range <span className="figure text-text">{inr(p.low)} to {inr(p.high)}</span> · holds about 3 in 4 real prices in testing
-          </p>
-          {p.market_reference && (
+          <p className="basis mt-2">Holds about 3 in 4 real prices in testing.</p>
+          {/* Only for mega creators: below 10L followers the published rate cards are noise next to WLDD's own deals. */}
+          {p.market_reference && r.profile.followers >= 1_000_000 && (
             <p className="basis mt-1 max-w-xl">
               Published asking price for {p.market_reference.tier.toLowerCase()}: {inr(p.market_reference.low)} to {inr(p.market_reference.high)}.
             </p>

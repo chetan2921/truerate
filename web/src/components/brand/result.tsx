@@ -90,7 +90,7 @@ export default function BrandResult({ run }: { run: BrandRun }) {
             <p className="text-2xl font-bold">None of the top creators fits {inr(budget)}; the closest are below.</p>
           ) : top ? (
             <p className="text-2xl font-bold">
-              Best match: <Handle p={top} /> at about <span className="figure">{inr(top.fair)}</span>
+              Best match: <Handle p={top} /> for <span className="figure whitespace-nowrap">{inr(top.low ?? top.fair)} to {inr(top.high ?? top.fair)}</span>
             </p>
           ) : (
             <p className="text-2xl font-bold">No creator in the pool can be priced for this brand yet.</p>
@@ -129,7 +129,7 @@ export default function BrandResult({ run }: { run: BrandRun }) {
               <tr>
                 <th className="py-2 pr-3 font-normal">#</th>
                 <th className="py-2 pr-4 font-normal">Creator</th>
-                <th className="py-2 pr-4 text-right font-normal">Pay about</th>
+                <th className="py-2 pr-4 text-right font-normal">Fair range</th>
                 <th className="py-2 pr-4 text-right font-normal">Expected views</th>
                 {cols.map(([key, label]) => (
                   <th key={key} className="py-2 pr-4 font-normal">
@@ -146,13 +146,8 @@ export default function BrandResult({ run }: { run: BrandRun }) {
                     <Handle p={p} />
                     <span className="basis block text-xs">{p.sources.join(" · ")}</span>
                   </td>
-                  <td className="py-3 pr-4 text-right">
-                    <span className="figure font-semibold">{inr(p.fair)}</span>
-                    {p.likely_low != null && p.likely_high != null && (
-                      <span className="figure basis block whitespace-nowrap text-xs">
-                        likely {inr(p.likely_low)} to {inr(p.likely_high)}
-                      </span>
-                    )}
+                  <td className="figure whitespace-nowrap py-3 pr-4 text-right font-semibold">
+                    {inr(p.low ?? p.fair)} to {inr(p.high ?? p.fair)}
                   </td>
                   <td className="figure py-3 pr-4 text-right">{p.expected_views != null && compact(p.expected_views)}</td>
                   {cols.map(([key]) => (
