@@ -189,12 +189,12 @@ def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int
 
 
 def _or_empty(fetch, key: str, empty=None):
-    """HikerAPI answers 404 for comments turned off, hidden followers, an account it can't describe and the like.
-    Those count as empty (`[]` unless given), not as a failed creator."""
+    """HikerAPI answers 404 for hidden followers, an account it can't describe and the like, and 403 for comments the
+    author turned off. Those count as empty (`[]` unless given), not as a failed creator."""
     try:
         return fetch(key)
     except HikerError as e:
-        if e.status == 404:
+        if e.status in (403, 404):
             return [] if empty is None else empty
         raise
 

@@ -38,7 +38,7 @@ def fixture(name):
     return json.loads((FIXTURES / f"{name}.json").read_text())
 
 
-def fake_hiker(store, calls=None, status=200, private=False, missing=()):
+def fake_hiker(store, calls=None, status=200, private=False, missing=(), disabled=()):
     def handler(request):
         if calls is not None:
             calls.append(request.url.path)
@@ -46,6 +46,8 @@ def fake_hiker(store, calls=None, status=200, private=False, missing=()):
             return httpx.Response(status, json={"error": "Top up your account", "exc_type": "InsufficientFunds"})
         if request.url.path in missing:  # comments off, hidden followers and the like
             return httpx.Response(404, json={"detail": "Entries not found", "exc_type": "NotFoundError"})
+        if request.url.path in disabled:
+            return httpx.Response(403, json={"detail": "Comments disabled by author", "exc_type": "CommentsDisabled"})
         if request.url.path == "/v1/user/clips/chunk" and "end_cursor" in request.url.params:
             return httpx.Response(200, json=[[], None])
         body = fixture(ROUTES[request.url.path])
@@ -187,3 +189,8 @@ def test_collect_treats_hidden_lists_as_empty(tmp_path):
 def test_collect_survives_a_missing_about(tmp_path):
     data = collect(fake_hiker(tmp_path, missing={"/gql/user/about"}), "komalpandeyofficial")["data"]
     assert data["about"] == {"country": "", "joined": "", "former_usernames": 0} and len(data["reels"]) == 12
+
+
+def test_collect_treats_disabled_comments_as_empty(tmp_path):
+    data = collect(fake_hiker(tmp_path, disabled={"/v1/media/comments/chunk"}), "komalpandeyofficial")["data"]
+    assert all(cs == [] for cs in data["comments"].values()) and len(data["likers"]) == 3
