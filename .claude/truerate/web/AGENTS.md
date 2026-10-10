@@ -24,6 +24,8 @@ The Next.js front end the WLDD team uses: login, analyze, report with a quote ch
 - `src/app/(app)/about/`: `page.tsx` (accuracy chart and tables, fake test, flow, signals, other pages, limits) and `content.ts` (static text, condensed from SPEC)
 - `src/app/(app)/nav.tsx`: header nav; `layout.tsx` wraps it in Suspense because it reads the path
 - `src/components/report/`: `report.tsx` lays the report out in five tabs through `tabs.tsx` (ARIA tabs, `#tab` deep links, sticky bar, each panel mounted on first open): Summary (`decision`, `negotiation`), Price (`waterfall` with the 6 comparables, `quote`, `CheaperCreators` from `evidence`), Audience (`authenticity`, `engagement`, `audience`), Content (`placement`, Recharts), Similar (`Suggestions` from `evidence`). A heading id must never equal a tab key, or the hash would scroll to it.
+- `src/app/(app)/brand/`: the brand form with recent runs, and `[id]/brand-view.tsx` (polls the run); `src/components/brand/result.tsx` draws the result
+- `src/components/chart-tip.tsx`: the hover/focus card every hand-drawn chart uses; `src/components/value-bars.tsx`: the ranked "What ₹10,000 buys" bars (batch and brand)
 - `src/components/verdicts.tsx`: the plain verdict list and `StatusIcon` (icon plus word, never colour alone)
 - `src/components/batch/compare.tsx`: the batch page's recommendation, scorecard and three CSS bar charts (price against budget, what ₹10,000 buys, expected views)
 - `src/components/chips.tsx`: decision chip and verdict colours

@@ -32,6 +32,9 @@ A one-click "Demo login" button, or an email that must end in `@wldd.in` (checke
    - A private account or faceless page gets status `out_of_scope` with the reason in one sentence.
    - An API error gets status `failed` with the message and a Retry button.
 
+### Brand match
+`/brand`: the brand's Instagram handle or link, website, or name, plus an optional product and budget; recent runs are listed. `POST /api/brands` runs in the background (4 steps): read the brand (Instagram: profile, one page of reels and the posts that tag it, about 3 HikerAPI requests; a website: its visible text), profile it with Gemini from its own words only (category, product, audience, tone, price tier, rivals), gather candidates (WLDD's creators priced with the served model, every creator analysed before, and accounts seen with the brand), each labelled by source, and rank them by fit, real audience, value for money, budget and reliability. `/brand/[id]` shows the plan within budget (most expected views, never a creator with a weak fit, a fake audience or reels that mostly flop), the best matches with reasons, "What ₹10,000 buys" bars, the ranked scorecard, and a one-click batch for the accounts seen with the brand that have no analysis yet.
+
 ### Quote check
 Type a quote on the report: `POST /api/analyses/{id}/quote` returns below/within/above range, the difference, a counter-offer and 3 talking points. No re-scraping.
 

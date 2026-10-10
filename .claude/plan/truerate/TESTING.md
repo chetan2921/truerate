@@ -48,6 +48,7 @@
 | Audience signals, band norms, verdict, genuine share, warnings | yes | no | no | synthetic genuine band; live signals on 2 creators |
 | Gemini labels, hidden-ad split, commenter mix | yes | no | no | `FakeLLM` / `SchemaLLM`; live on 2 creators |
 | Face check, Louvain rings | yes | no | no | stand-in detector in the unit test; real MediaPipe live on 2 creators' covers |
+| Brand match (`brand.py`, `/api/brands`) | yes | no | no | stand-in LLM, recorded HikerAPI fixtures and the synthetic world; live: one brand end to end |
 | Plain verdicts (`outputs.py`), web check (`webcheck.py`), market anchoring past WLDD's deals | yes | no | no | hand-made results and the synthetic world; live: one big creator end to end |
 | Model v2 experiments (`experiment.py`, `truerate experiment`) | yes | no | no | synthetic deals; the pick ignores held-out prices; ranges hold their level; the live run writes `data/models/experiments/` |
 | Red-team (`make_fake`, `redteam`, command) | yes | no | no | synthetic creators; live run waits for the 150 |

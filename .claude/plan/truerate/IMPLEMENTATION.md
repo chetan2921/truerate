@@ -33,10 +33,8 @@ Decision rule, fixed before any held-out number was computed:
 - [x] Batch comparison (2026-10-11): who to book and why, a verdict scorecard, and charts for price against budget, what ₹10,000 buys, and expected views.
 - [x] Range question answered (2026-10-11): per-creator ranges were no narrower; coverage by width is in `data/models/experiments_local/table.md`.
 - [x] Big creators (2026-10-11): price leans on the WLDD-discounted market rate past WLDD's largest deal; web check for their own listed price, shown as information. Live: a creator with 21.7L followers went from ₹58,000 to about ₹2.3L, and the web check found his own listing at ₹80,000 to ₹1,00,000 (confirmed on the source page).
-- [ ] Brand match page (`/brand`), in flight:
-  - `truerate/brand.py`: `parse_brand` (handle, website or name), `site_text`, `profile_brand` (Gemini; brand data only), `brand_partners` (creators who co-authored, appear in or tagged the brand's posts), `candidates` (WLDD's creators priced with the served model, past analyses from their stored results, partners; each labelled by source), `score` (fit, audience, value, budget, reliability, as plain reasons), `budget_plan` (most expected views within budget), `run_brand`. Verify: unit tests with stand-ins.
-  - API: `POST /api/brands` (202), `GET /api/brands/{id}`, `GET /api/brands`; a background job like analyses. Verify: endpoint test.
-  - Web: `/brand` form plus recent runs; `/brand/[id]`: brand profile, top picks with reasons and sources, side-by-side scorecard, value map, budget plan, and "Price them" for unanalysed partners. Verify: lint, build, ui-check, and one live brand run.
+- [x] Brand match (2026-10-11): `brand.py`, `POST/GET /api/brands`, `/brand` and `/brand/[id]`. Live: boAt from @boat.nirvana in 12 s (3 HikerAPI requests, 1 Gemini call), 180 creators considered, a ₹2,00,000 plan of 6 creators with about 23.4L views. The plan never books a creator with a weak fit, a fake audience or reels that mostly flop.
+- [x] Charts (2026-10-11): ranked "What ₹10,000 buys" bars instead of the scatter; every hand-drawn chart shows its numbers on hover or focus (`ChartTip`); the empty "Rival ad" and "Worked with them" columns removed.
 - [ ] Notes and pitch; demo prep; housekeeping; then the model work (judge-familiar metrics, anti-gaming chart, ensemble, model-card slides).
 
 Ideas for after the hackathon: a refresh option for saved HikerAPI responses; reuse stored signals in the red-team (it takes about 30 minutes); a faster model for the labelling call.
