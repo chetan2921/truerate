@@ -26,3 +26,4 @@
   Decided: the deck uses Arial, because a .pptx can't embed fonts. The deck screenshot is the decision block only, so no WLDD deal price next to a creator reaches a slide.
 - 2026-10-10 storage: HikerAPI responses moved from the 24 h Mongo `cache` collection to files on disk (`data/hikerapi/`), raw and gzipped, kept with no expiry. Live check: two lookups cost 1 request.
   Decided with Chetan: keep each response once, with no expiry or refresh option until after the hackathon. Raw, not parsed, so parser fixes cost no credit. Snapshots stay in Mongo. The old cache documents expire on their own.
+- 2026-10-10 M1 done: benchmark collected with the paid key (148 of 150 creators with 12+ reels; prashantrajputofficial._ no longer exists). `collect-benchmark` and `build-metrics` gained `--workers`. HikerAPI 403 and 404 on list endpoints now count as empty.

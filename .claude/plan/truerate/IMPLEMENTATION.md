@@ -2,7 +2,7 @@
 
 ## Now
 Waiting on the paid HikerAPI key for the live steps, in order:
-1. `uv run truerate collect-benchmark` for all 150 deal creators (about 3,000 requests).
+1. ~~`uv run truerate collect-benchmark`~~ done 2026-10-10: 149 creators, 148 with 12+ reels (one account deleted from Instagram), about 4,400 requests, 93 MB in `data/hikerapi/`. Use `--workers 12`.
 2. `uv run truerate build-metrics`: about 150 Gemini labelling calls, plus niche calls for the 115 without a CSV niche.
 3. `uv run truerate validate`. Milestone 2 is done when the holdout median error is below both baselines.
 4. `uv run truerate redteam`. Milestone 3 is done when at least 80% are caught on flat views, bot likers, pod comments and bought followers, and the smart-fake rate is reported.
