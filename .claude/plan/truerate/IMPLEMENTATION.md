@@ -9,8 +9,26 @@ Real-data results, for the pitch and the About page:
 - Fakes: flat views, flat views with noise, bot likers and pod comments caught 100%, bought followers 99%, smart fake 74%. 18% of WLDD's own creators are flagged, mostly for low likes per view.
 - Live analysis of an unseen creator: 90 to 111 s with fresh Instagram data, about 45 s when it's already saved.
 
-### In flight
-Nothing. Ideas for after the hackathon: a refresh option for saved HikerAPI responses; reuse stored signals in the red-team (it takes about 30 minutes); a faster model for the labelling call.
+### In flight: model v2 experiments (handoff step 2)
+Decision rule, fixed before any held-out number was computed:
+- Challengers are picked by repeated 5×10-fold CV on the 118 training deals only. Price: the lowest CV median error among candidates whose CV 80% coverage is at least 75%. Range: the narrowest CV median width with CV coverage at least 77%.
+- A challenger is served only if it beats today's model on both the 30 held out and the 19 fresh: lower error or narrower ranges, no worse on the other, and the 80% range still holding at least 75% (`experiment.beats`). The paired-bootstrap 90% interval of the difference is reported beside it. Otherwise the served model stays, and the table says so.
+- The fresh deals are scored by models fitted on all 148, as served. The 30 held out are scored by models fitted on the 118. Genuine share is 1.0 for both, as in `validate`.
+
+- [x] `truerate/experiment.py` with the new features and fresh rows rebuilt from stored analyses. Live: all 19 fresh deals re-price to their stored prices exactly.
+- [x] Conformal ranges (80% and 50%; global or per band); synthetic coverage test.
+- [x] Candidates. The harness reproduces `model_report.json` exactly (57%, 83%, every band), and today's served ranges for the fresh 19 exactly.
+- [x] `truerate experiment` writes `data/models/experiments/`. The command is checked by the live run (no unit test); `run` and `report_table` have tests.
+- [x] Adopt or not: **not adopted** (2026-10-10). The CV pick was ElasticNet with the new features (CV 39.5% against 40.0%). Held out: 55% against 57%, ranges 6.7× against 7.0×. Fresh: 56% against 55%, and its range holds 58% against 63%. Bootstrap over the 49: error change −9 to +9 points; width ×0.94 to ×0.97.
+  - Uncapped paid factor: worse (held out 75%). The cap stays.
+  - Per-band ranges: wider. The 50% band holds 33% (held out) and 32% (fresh) against its CV 52%, so it isn't fit to be the headline.
+  - Fresh deals: WLDD paid a median 1.63× the prediction, mostly the big creators (1 of 6 inside the range). The held-out 30 were paid 0.72×. Learning curve: 59% at 30 deals, 56% at 118.
+- [ ] TabPFN v2 (local, `experiments` dependency group) through the same harness: run `uv run --group experiments truerate experiment` when the user's servers are off.
+- [ ] Hand check against HypeAuditor's free calculator on 9 held-out creators (the user enters the handles).
+- [ ] Ask: were the fresh deals more recent, or for more than one reel?
+- Next (decided 2026-10-10): show WLDD's range and the market reference separately for creators beyond WLDD's deals.
+
+Ideas for after the hackathon: a refresh option for saved HikerAPI responses; reuse stored signals in the red-team (it takes about 30 minutes); a faster model for the labelling call.
 
 ## Done
 - 2026-10-10 Scaffold: FastAPI `api/` (Python 3.12, uv) with `/api/health`, Next.js 16 `web/`, `DESIGN.md` on Solo's palette, agent memory.

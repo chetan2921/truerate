@@ -37,3 +37,5 @@
   - The real deck is built, and ui-check passes on the real report, batch, rate card and About.
   Decided with Chetan: a possible competitor is a Negotiate reason ("check exclusivity before booking"), not Avoid; all 6 live runs had come out Avoid.
   Also: a note when a creator is bigger than any WLDD deal; the rate card needs 3+ deals per category; an unknown handle gets a plain sentence.
+- 2026-10-10 model v2: committed and pushed the day's work. Recorded the user's six decisions in HANDOFF. New `truerate experiment` (`experiment.py`, `experiment_plots.py`): candidates picked by repeated CV on the training deals only, scored on the 30 held out and 19 fresh deals. Served model unchanged. TabPFN v2 is installed in the `experiments` group, to run when the servers are off.
+  Kept today's model over ElasticNet with the new features: held out 55% against 57%, but fresh 56% against 55% with a range holding 58%, and a bootstrap error change of −9 to +9 points. The rule was written before any held-out number. Uncapped paid views (75% held out), per-band ranges (wider) and a 50% headline band (holds 32-33% on the test sets) were all rejected on the numbers.

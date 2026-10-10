@@ -23,6 +23,9 @@
 - HikerAPI storage in tests: `fake_hiker(tmp_path)` writes its files into pytest's temporary folder, never `data/hikerapi/`.
 - `fake_hiker(..., missing={paths}, disabled={paths})` answers 404 or 403 on those endpoints, as HikerAPI does for hidden followers and comments turned off.
 - LLM in unit tests: `FakeLLM` in `api/tests/test_signals.py` returns a fixed reply and records each prompt, so a test can check that no price went in. Never call Gemini from a test.
+- Model selection is tested for honesty, not just output: `test_experiment.py` multiplies the held-out and fresh prices, and the pick and every CV number must stay identical while the test scores change.
+- Rebuilt features are checked by re-pricing: a real `analyze()` run is stored the way the app stores it, rebuilt by `fresh_rows`, and must give the same fair, low and high. Live, all 19 fresh deals reproduce their stored prices.
+- A test that passes on its first run gets a mutation check: break the code it guards, watch it fail, restore.
 - Statistical properties (range coverage) are pooled over several synthetic seeds: 15 held-out deals swing too much by chance to test one seed.
 - Pricing tests: `synthetic_rows(n, seed)` in `api/tests/test_pricing.py` makes deals whose true price is known.
 - Audience tests: `genuine_band()` and `genuine_snapshot(i, rng)` in `api/tests/test_audience.py` make believable creators. `fake_embed` gives each distinct text its own random unit vector, so identical texts match and others don't.
@@ -43,6 +46,7 @@
 | Audience signals, band norms, verdict, genuine share, warnings | yes | no | no | synthetic genuine band; live signals on 2 creators |
 | Gemini labels, hidden-ad split, commenter mix | yes | no | no | `FakeLLM` / `SchemaLLM`; live on 2 creators |
 | Face check, Louvain rings | yes | no | no | stand-in detector in the unit test; real MediaPipe live on 2 creators' covers |
+| Model v2 experiments (`experiment.py`, `truerate experiment`) | yes | no | no | synthetic deals; the pick ignores held-out prices; ranges hold their level; the live run writes `data/models/experiments/` |
 | Red-team (`make_fake`, `redteam`, command) | yes | no | no | synthetic creators; live run waits for the 150 |
 | `pipeline.analyze` (Go, bot likers, quote, product fit, out of scope) | yes | no | no | synthetic WLDD world (`world` fixture in `test_pipeline.py`) |
 | Analyses API, background job, meta, model report | yes | no | no | job runs inline (`submit` monkeypatched) |

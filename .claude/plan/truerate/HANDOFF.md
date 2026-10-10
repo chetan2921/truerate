@@ -68,12 +68,13 @@ Each step lists its proof of done.
    - (d) **Lookalike finder** from one great creator.
 6. **Notes and pitch:** update SPEC, IMPLEMENTATION, TESTING, HISTORY, DEMO and the explainer; build the before/after slide from step 2's table.
 
-## Open decisions for the user
-- Are the 20 prices in `data/fresh_test_20.csv` real WLDD deals? Use them as a test set, or add them to training (not both)?
-- Should strong paid-reel views raise the price for ad-heavy creators? It is capped today because it hurt the held-out error before.
-- 50% "most likely" band as the headline? Keep the market reference separate from the range?
-- Which tabs, and which report parts are noise for the WLDD team?
-- Brand page candidate pool: WLDD's creators only, or also creators found through the brand's tags and Instagram suggestions?
+## Decisions (user, 2026-10-10 night)
+- `data/fresh_test_20.csv` holds real WLDD deals: **test only**, never trained on. One of the 20 handles doesn't exist on Instagram, so 19 count.
+- Paid-reel views raising the price: **test it** in step 2; adopt only if the held-out numbers improve.
+- 50% "most likely" band as the headline: **decide after step 2** measures its held-out coverage.
+- Creators beyond WLDD's deals: show WLDD's range and the published market price **separately**, not merged.
+- Report tabs: **the five in step 3**.
+- Brand page pool: **both**, each pick labelled with where it came from (WLDD's creators and past analyses, plus the brand's and rivals' tagged creators and their suggestions).
 
 ## Constraints that bite
 - The repo is public: never commit `data/`, `.env`, or a creator handle next to a WLDD price, and never send deal prices to Gemini.

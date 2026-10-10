@@ -30,6 +30,9 @@ dev = [
     "mongomock>=4.2",
     "python-pptx>=1.0.2",
 ]
+experiments = [
+    "tabpfn>=9.1.0",
+]
 
 [build-system]
 requires = ["hatchling"]

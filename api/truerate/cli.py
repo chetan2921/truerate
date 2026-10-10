@@ -213,6 +213,42 @@ def validate_cmd(out_dir: Path = REPO_ROOT / "data" / "models") -> None:
         typer.echo(f"  {c} ({v['n']}): model {v['model']:.0%}, band median {v['band_median']:.0%}, Modash-style {v['modash']:.0%}")
 
 
+@app.command("experiment")
+def experiment_cmd(out_dir: Path = REPO_ROOT / "data" / "models" / "experiments", fresh_csv: Path = REPO_ROOT / "data" / "fresh_test_20.csv",
+                   repeats: int = 5, points: str = "") -> None:
+    """Model v2 experiments: candidates picked by repeated CV on the training deals, then scored once on the held-out and
+    fresh deals. Writes the before/after table, results.json and the graphs; the served model is left alone.
+    `--points today,ridge_v2` limits the candidates (default: all; today's model is always one)."""
+    import csv
+
+    from truerate import experiment as ex
+    from truerate import experiment_plots as plots
+    from truerate.app import parse_handle
+
+    db = get_db()
+    rows = ex.deal_rows(db)
+    with fresh_csv.open(newline="") as f:
+        prices = {h: float(r["price"].replace(",", "")) for r in csv.DictReader(f) if (h := parse_handle(r["handle"]))}
+    fresh = ex.fresh_rows(db, prices)
+    typer.echo(f"{len(rows)} deals; {len(fresh)} of {len(prices)} fresh deals have a finished analysis")
+    train, holdout = [r for r in rows if not r["holdout"]], [r for r in rows if r["holdout"]]
+    chosen = tuple(dict.fromkeys(("today", *points.split(",")))) if points else ex.POINTS
+    result = ex.run(train, holdout, fresh, repeats=repeats, points=chosen)
+    picked, test = result["picked"]["price"], holdout + fresh
+    curves = {n: ex.learning_curve(n, train, test, (30, 50, 70, 90, len(train))) for n in dict.fromkeys(("today", picked))}
+    imp = {n: ex.importance(n, rows) for n in dict.fromkeys((picked, "ridge_v2"))}
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "results.json").write_text(json.dumps(result | {"learning_curve": curves, "importance": imp}, indent=1))
+    (out_dir / "table.md").write_text(ex.report_table(result))
+    names = ("Today, as served", f"{result['picked']['range']}, {'adopted' if result['adopt'] else 'not adopted'}")
+    plots.predicted_vs_actual(result, names, out_dir / "predicted_vs_actual.png")
+    plots.ranges(result, names, out_dir / "ranges.png")
+    for n, values in imp.items():
+        plots.importance(values, f"What moves the price in {n}, fitted on all {len(rows)} deals", out_dir / f"importance_{n}.png")
+    plots.learning(curves, {n: n for n in curves}, len(test), out_dir / "learning_curve.png")
+    typer.echo(ex.report_table(result))
+
+
 @app.command("redteam")
 def redteam_cmd(out_dir: Path = MODELS_DIR) -> None:
     """Fakes built from every WLDD creator's latest snapshot: catch rate per kind, and how many real creators get flagged."""
