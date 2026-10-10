@@ -19,6 +19,11 @@ export default function Decision({ r }: { r: Report }) {
             Fair range {inr(p.low)} to {inr(p.high)}
           </p>
           {p.note && <p className="mt-2 max-w-xl text-sm text-negotiate">{p.note}</p>}
+          {p.market_reference && (
+            <p className="basis mt-2 max-w-xl">
+              Published asking price for {p.market_reference.tier.toLowerCase()}: {inr(p.market_reference.low)} to {inr(p.market_reference.high)} ({p.market_reference.source}).
+            </p>
+          )}
         </div>
         <CallChip call={r.decision.call} large />
       </div>

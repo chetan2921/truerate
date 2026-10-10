@@ -268,3 +268,12 @@ def test_label_creator_sends_only_the_8_newest_tagged_posts():
     label_creator(llm, snap, images={})
     prompt = llm.prompts[0]
     assert "TAG00 |" in prompt and "TAG07 |" in prompt and "TAG08 |" not in prompt
+
+
+def test_hidden_like_counts_are_not_zero_likes():
+    # Two real WLDD creators hide likes; read as zero, they looked like seeded views and got flagged.
+    reels = [make_reel(f"09-{30 - i:02d}", 10_000 + i * 1000) | {"likes": 0, "counts_hidden": True} for i in range(14)]
+    m = reel_metrics({"followers": 50_000, "data": {"reels": reels}})
+    assert m["likes_per_view"] is None
+    mixed = [make_reel(f"09-{30 - i:02d}", 10_000) | ({"likes": 0, "counts_hidden": True} if i % 2 else {}) for i in range(14)]
+    assert reel_metrics({"followers": 50_000, "data": {"reels": mixed}})["likes_per_view"] == 0.1  # only reels that show likes

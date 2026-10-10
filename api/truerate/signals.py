@@ -93,6 +93,8 @@ def reel_metrics(snapshot: dict, labels: dict | None = None) -> dict:
     own = [r for r in reels if not r["coauthors"] and not paid_reel(r) and not r.get("repost_of")]
     # A page whose recent reels are all ads or collabs has no own reels: its usual views come from everything it posts.
     base = own or [r for r in reels if not r.get("repost_of")] or reels
+    # Hidden like counts read as 0 likes; they must not look like seeded views. Likes stats use reels that show likes.
+    liked = [r for r in base if r["likes"] > 0 and not r.get("counts_hidden")]
     views = median(r["views"] for r in base)
 
     def ratio(group):
@@ -107,8 +109,8 @@ def reel_metrics(snapshot: dict, labels: dict | None = None) -> dict:
         "views_p25": float(np.percentile([r["views"] for r in base], 25)),
         "views_p75": float(np.percentile([r["views"] for r in base], 75)),
         "views_per_follower": round(views / snapshot["followers"], 4),
-        "engagement": round(median((r["likes"] + r["comments"]) / r["views"] for r in base), 4),
-        "likes_per_view": round(median(r["likes"] / r["views"] for r in base), 4),
+        "engagement": round(median((r["likes"] + r["comments"]) / r["views"] for r in (liked or base)), 4),
+        "likes_per_view": round(median(r["likes"] / r["views"] for r in liked), 4) if liked else None,
         "comments_per_1k": round(median(r["comments"] * 1000 / r["views"] for r in base), 4),
         "hits_last_10": sum(r["views"] >= views / 2 for r in last10),
         "trend": round(median(r["views"] for r in last10) / median(r["views"] for r in prev10), 4) if prev10 else None,
@@ -173,8 +175,9 @@ def comment_signals(comments_by_reel: dict[str, list[dict]], embed) -> dict:
     }
 
 
-def _cv(values: list[float]) -> float:
-    return round(float(np.std(values) / np.mean(values)), 4)
+def _cv(values: list[float]) -> float | None:
+    values = [v for v in values if v > 0]  # hidden counts read as 0
+    return round(float(np.std(values) / np.mean(values)), 4) if len(values) >= 3 else None
 
 
 def audience_signals(snapshot: dict, metrics: dict, fake_model, embed) -> dict:
@@ -467,15 +470,19 @@ def commenter_rings(commenters_by_creator: dict[str, set[str]]) -> dict[str, int
 _ANOMALY_SIGNALS = ["fake_likers", "likes_per_view", "views_cv", "likes_cv", "fake_followers", "views_per_follower", "generic_comments", "repeat_commenters"]
 
 
-def _anomaly_row(signals: dict) -> list[float]:
-    return [_scale(signals.get(s) or 0, AUDIENCE_SIGNALS[s][2]) for s in _ANOMALY_SIGNALS]
+def _anomaly_row(signals: dict, typical: dict) -> list[float]:
+    """A missing signal (likes hidden, no comments) takes the typical value, so it doesn't look extreme."""
+    return [_scale(signals[s] if signals.get(s) is not None else typical[s], AUDIENCE_SIGNALS[s][2]) for s in _ANOMALY_SIGNALS]
 
 
 def fit_anomaly(rows: list[dict]):
     """IsolationForest over WLDD creators' signals: finds fakes shaped in ways no single check predicts."""
     from sklearn.ensemble import IsolationForest
 
-    return IsolationForest(contamination=0.05, random_state=42).fit([_anomaly_row(r) for r in rows])
+    typical = {s: median([r[s] for r in rows if r.get(s) is not None] or [0]) for s in _ANOMALY_SIGNALS}
+    forest = IsolationForest(contamination=0.05, random_state=42).fit([_anomaly_row(r, typical) for r in rows])
+    forest.typical_ = typical
+    return forest
 
 
 def audience_warnings(signals: dict, forest) -> list[str]:
@@ -483,6 +490,6 @@ def audience_warnings(signals: dict, forest) -> list[str]:
     out = []
     if signals.get("former_usernames"):
         out.append(f"Changed username {signals['former_usernames']} times")
-    if forest.predict([_anomaly_row(signals)])[0] == -1:
+    if forest.predict([_anomaly_row(signals, forest.typical_)])[0] == -1:
         out.append("Unusual overall pattern compared with WLDD's creators")
     return out

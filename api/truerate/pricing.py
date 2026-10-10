@@ -91,6 +91,22 @@ def fit(rows: list[dict], blend: tuple[float, float, float] | None = None) -> Pr
 
 FACTOR_FLOOR, FACTOR_CAP = 0.5, 1.0
 
+# Published asking prices for one Instagram reel in India, by follower tier. Context only: WLDD's own deals sit at or
+# below these (median ₹16,000 at 10K to 1L followers, ₹25,000 at 1L to 5L, against ₹50,000+ asked at that size).
+MARKET_SOURCE = "TickTime Journal, Influencer Rate Card India 2026 (May 2026)"
+MARKET_RATES = [  # (followers below, tier, low, high)
+    (10_000, "Nano (under 10K followers)", 2_000, 10_000),
+    (1_00_000, "Micro (10K to 1L followers)", 8_000, 75_000),
+    (5_00_000, "Mid-tier (1L to 5L followers)", 50_000, 3_50_000),
+    (10_00_000, "Macro (5L to 10L followers)", 2_00_000, 8_50_000),
+    (float("inf"), "Mega (10L+ followers)", 6_00_000, 25_00_000),
+]
+
+
+def market_reference(followers: int) -> dict:
+    below, tier, low, high = next(t for t in MARKET_RATES if followers < t[0])
+    return {"tier": tier, "low": low, "high": high, "source": MARKET_SOURCE}
+
 
 def collab_factor(n: int, ratio: float | None, typical: float, prior: float | None = None) -> tuple[float, float]:
     """(Expected paid-reel share of own-reel views, price factor). Past prices already include the typical drop, so
@@ -109,20 +125,32 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
     fair = market * factor * genuine_share
     steps = [round500(market), round500(market * factor), round500(fair)]
     in_category = [per_1k(r) for r in model.rows if r["category"] == m["category"]]
+    # Outside WLDD's deals the range widens about 1.4x each way per doubling beyond them; above the largest it also
+    # reaches the market's published low end, since the creator will likely ask near market.
     top_followers, top_views = max(r["followers"] for r in model.rows), max(r["views"] for r in model.rows)
+    least_followers = min(r["followers"] for r in model.rows)
+    beyond = max(m["followers"] / top_followers, m["views"] / top_views, least_followers / m["followers"], 1.0)
+    widen = math.sqrt(2) ** math.log2(beyond)
+    low, high = fair * math.exp(model.lo) / widen, fair * math.exp(model.hi) * widen
+    ref = market_reference(m["followers"])
     note = None
     if m["followers"] > top_followers or m["views"] > top_views:
-        note = (f"Bigger than any creator WLDD has booked (largest: {_group(top_followers)} followers, {_group(top_views)} typical views), "
-                "so this price extrapolates from smaller deals and is less reliable.")
+        high = max(high, ref["low"])
+        note = (f"Bigger than any creator WLDD has booked (largest: {_group(top_followers)} followers, {_group(top_views)} typical views). "
+                f"The price is what WLDD's past deals suggest; published rate cards ask {inr(ref['low'])} to {inr(ref['high'])} for "
+                f"{ref['tier'].split(' (')[0].lower()} creators, so the range runs up to the market's low end.")
+    elif m["followers"] < least_followers:
+        note = f"Smaller than any creator WLDD has booked (smallest: {_group(least_followers)} followers), so the range is wider."
     return {
         "market": steps[0],
         "fair": steps[2],
-        "low": round500(fair * math.exp(model.lo)),
-        "high": round500(fair * math.exp(model.hi)),
+        "low": round500(low),
+        "high": round500(high),
         "collab_factor": factor,
         "genuine_share": genuine_share,
         "ridge_share": model.w,
         "note": note,
+        "market_reference": ref,
         "waterfall": [
             {"step": "Market price from WLDD's past deals", "amount": steps[0]},
             {"step": "Sponsored-performance adjustment", "amount": steps[1] - steps[0]},
@@ -135,7 +163,7 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
         ],
         "delivery": {
             "views": [round(m["views_p25"] * shrunk), round(m["views"] * shrunk), round(m["views_p75"] * shrunk)],
-            "likes": round(m["views"] * shrunk * m["likes_per_view"]),
+            "likes": round(m["views"] * shrunk * (m["likes_per_view"] or 0)),
             "comments": round(m["views"] * shrunk * m["comments_per_1k"] / 1000),
             "cost_per_1k": round(steps[2] / (m["views"] / 1000)),
             "category_cost_per_1k": round(median(in_category)) if in_category else None,

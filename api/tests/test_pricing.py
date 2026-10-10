@@ -5,7 +5,7 @@ import numpy as np
 from typer.testing import CliRunner
 
 from truerate import cli
-from truerate.pricing import band, band_median_price, collab_factor, fit, modash_price, price, rate_card, round500, validate
+from truerate.pricing import MARKET_SOURCE, band, band_median_price, collab_factor, fit, modash_price, price, rate_card, round500, validate
 
 # Synthetic deals: price = the category's ₹ per 1,000 views × views, with 15% noise.
 CAT_PER_1K = {"Tech and gadgets": 1500, "Food": 600, "Entertainment": 1000}
@@ -122,3 +122,21 @@ def test_a_creator_bigger_than_any_wldd_deal_gets_a_note():
 def test_rate_card_leaves_out_categories_with_fewer_than_3_deals():
     rows = synthetic_rows() + [synthetic_rows(n=3, seed=9)[0] | {"category": "Fitness", "handle": "only.one"}]
     assert "Fitness" not in {c["category"] for c in rate_card(fit(rows))}
+
+
+def test_every_price_carries_the_published_asking_range_for_its_size():
+    model = fit(synthetic_rows())
+    p = price(model, synthetic_rows()[0] | {"followers": 50_000})
+    assert p["market_reference"] == {"tier": "Micro (10K to 1L followers)", "low": 8_000, "high": 75_000, "source": MARKET_SOURCE}
+    assert price(model, synthetic_rows()[0] | {"followers": 3_000_000})["market_reference"]["low"] == 6_00_000
+
+
+def test_beyond_wldds_largest_creator_the_range_widens_and_reaches_the_market():
+    rows = synthetic_rows()
+    model = fit(rows)
+    top = max(r["followers"] for r in rows)
+    inside = price(model, rows[0])
+    big = price(model, rows[0] | {"followers": top * 8, "views": rows[0]["views"] * 8})
+    assert big["high"] / big["fair"] > inside["high"] / inside["fair"] and big["fair"] / big["low"] > inside["fair"] / inside["low"]
+    assert big["high"] >= big["market_reference"]["low"]
+    assert "published rate cards" in big["note"]

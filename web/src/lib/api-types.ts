@@ -452,6 +452,17 @@ export interface components {
             /** Share */
             share: number;
         };
+        /** MarketReference */
+        MarketReference: {
+            /** Tier */
+            tier: string;
+            /** Low */
+            low: number;
+            /** High */
+            high: number;
+            /** Source */
+            source: string;
+        };
         /** Meta */
         Meta: {
             /** Categories */
@@ -579,6 +590,7 @@ export interface components {
             ridge_share: number;
             /** Note */
             note?: string | null;
+            market_reference?: components["schemas"]["MarketReference"] | null;
             /** Waterfall */
             waterfall: components["schemas"]["WaterfallStep"][];
             /** Comparables */

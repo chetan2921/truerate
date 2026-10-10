@@ -77,6 +77,13 @@ class Delivery(BaseModel):
     category_cost_per_1k: int | None
 
 
+class MarketReference(BaseModel):
+    tier: str
+    low: int
+    high: int
+    source: str
+
+
 class Price(BaseModel):
     market: int
     fair: int
@@ -87,6 +94,7 @@ class Price(BaseModel):
     # Defaults keep reports stored before these fields existed readable.
     ridge_share: float = 1.0
     note: str | None = None
+    market_reference: MarketReference | None = None
     waterfall: list[WaterfallStep]
     comparables: list[Comparable]
     delivery: Delivery
