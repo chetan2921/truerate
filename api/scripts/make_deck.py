@@ -135,7 +135,7 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> No
         ["Bought followers", "A block of empty accounts, views far below followers", "Fake-looking newest followers; views per follower"],
         ["Seeded views", "Views with no real viewers behind them", "Likes per view; views and likes too even"],
         ["Engagement pods", "Real accounts trading comments", "Repeat commenters; Louvain rings across WLDD creators"],
-        ["Hidden ads", "Paid reels without #ad, flattering the views", "Rules, then Gemini with cover images"],
+        ["Hidden ads", "Paid reels without #ad, flattering the views", "Rules, then Gemini with cover images, and Gemini listening to the reel"],
     ], size=15)
     d.text(s, 0.6, 4.6, 12, 1.4, [("Paste any face creator. Get a fair price per reel, a range, what it should deliver, and Go, Negotiate or Avoid with the reasons.", 20, TEXT, False)])
 
@@ -172,7 +172,9 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> No
         ("Sponsored performance: paid reels' share of own-reel views, pulled toward WLDD's typical drop when there are few ads. It only discounts, to half at most.", 14, TEXT, False),
         ("Fake engagement: only the fake share above similar creators comes off.", 14, TEXT, False),
         ("Range", 18, ACCENT, True),
-        (f"10th to 90th percentile of leave-one-out errors: {report['range'][0]:.2f}× to {report['range'][1]:.2f}× the fair price.", 14, TEXT, False),
+        (f"{report.get('range_method', 'Leave-one-out errors')}: each creator's interval comes from out-of-fold errors over 10 refits. "
+         f"It held {report['holdout']['coverage']:.0%} of held-out real prices.", 14, TEXT, False),
+        ("Past WLDD's largest creator the range stretches up, to at least the published market asking price for that size.", 14, TEXT, False),
     ])
     d.table(s, 7.6, 1.6, [2.0, 1.6, 1.6], [["Follower band", "TrueRate", "Band median"]] +
             [[label, pct(h["model"]["by_band"][b]), pct(h["band_median"]["by_band"][b])] for b, label in BANDS], size=14)

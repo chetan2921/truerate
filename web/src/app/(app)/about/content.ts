@@ -20,7 +20,7 @@ export const SIGNALS: [string, string, string][] = [
   ["Authenticity", "Former usernames; IsolationForest on the whole pattern", "Renamed or bought pages, and fakes shaped in ways no single check predicts"],
   ["Engagement", "Likes and comments per view on own reels, percentile within the follower band", "Attention per view, comparable across account sizes"],
   ["Placement", "Paid reels' views against own reels, pulled toward the typical drop when there are few ads", "A brand buys sponsored performance, not organic peaks"],
-  ["Placement", "Hidden-ad detection (rules, then Gemini with covers)", "Many paid reels carry no #ad; missing them corrupts the paid-vs-own comparison"],
+  ["Placement", "Hidden-ad detection: rules, then Gemini on captions and covers, and Gemini listening to the 4 newest reels in a live analysis", "Many paid reels carry no #ad, and some ads are only said out loud ('use my code'); missing them corrupts the paid-vs-own comparison"],
   ["Placement", "Collab posts against own reels", "Shared-audience posts behave differently from both"],
   ["Placement", "Consistency over the last 10 reels and the trend", "Brands pay for the floor, and for where the creator is heading"],
   ["Audience", "Niche from WLDD's records, else the bio and captions", "Sets the category rate and the comparison group"],
@@ -49,4 +49,6 @@ export const LIMITS = [
   "WLDD's 150 prices were agreed at different past dates, but only today's stats are visible. That noise sets a floor on accuracy.",
   "Hidden-ad detection is probabilistic. Reels it can't call stay out of the paid-vs-own comparison.",
   "The face check sees any face, so a fan page full of film stars passes. It only turns away clearly faceless pages.",
+  "WLDD's own prices are noisy: two near-identical creators differ by a median 53%. No model or feature tried beat the current one beyond that noise.",
+  "For creators bigger than any WLDD deal, the price is WLDD's extrapolation and the range stretches to published market asking prices, which WLDD usually pays below.",
 ];
