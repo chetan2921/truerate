@@ -141,3 +141,13 @@ def test_verify_endpoints_and_the_report_show_creator_verified_data(client, worl
     analysis_id = client.post("/api/analyses", json={"handle": "asha.cooks"}).json()["id"]
     report = client.get(f"/api/analyses/{analysis_id}").json()["result"]
     assert report["verified"]["followers"] == 78_976 and report["verified"]["countries"][0]["code"] == "US"
+
+
+def test_a_report_made_before_the_creator_verified_shows_their_verified_data(client, world, monkeypatch):
+    from test_phyllo import fake_phyllo
+
+    analysis_id = client.post("/api/analyses", json={"handle": "asha.cooks"}).json()["id"]
+    assert client.get(f"/api/analyses/{analysis_id}").json()["result"]["verified"] is None
+    monkeypatch.setattr(app_module, "make_phyllo", lambda: fake_phyllo())
+    client.get("/api/verify/asha.cooks")
+    assert client.get(f"/api/analyses/{analysis_id}").json()["result"]["verified"]["followers"] == 78_976

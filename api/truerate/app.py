@@ -537,6 +537,9 @@ def get_analysis(analysis_id: str) -> Analysis:
     a = get_db().analyses.find_one({"_id": analysis_id})
     if not a:
         raise HTTPException(404, "No analysis with that id.")
+    if a.get("result"):
+        # Read now, not at analysis time: the creator often verifies after WLDD sends them the link from the report.
+        a["result"]["verified"] = get_db().verified.find_one({"_id": a["result"]["handle"]}, {"_id": 0, "fetched_at": 0})
     return Analysis(id=a.pop("_id"), steps=STEPS, **a)
 
 
