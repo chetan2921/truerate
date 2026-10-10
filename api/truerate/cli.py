@@ -1,3 +1,4 @@
+import csv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -38,10 +39,13 @@ def main() -> None:
 
 
 @app.command("import-deals")
-def import_deals_cmd(csv_path: Annotated[Path, typer.Argument()] = REPO_ROOT / "data" / "creators.csv") -> None:
+def import_deals_cmd(csv_path: Annotated[Path, typer.Argument()] = REPO_ROOT / "data" / "creators.csv",
+                     holdout_share: float | None = None, exclude: Path | None = None) -> None:
+    """`--holdout-share 0.1 --exclude data/creators.csv`: hold out 10% of each tier, never a creator in `--exclude`."""
     db = get_db()
     ensure_indexes(db)
-    counts = import_deals(db, csv_path)
+    skip = {r["handle"].strip().lower() for r in csv.DictReader(exclude.open(newline=""))} if exclude else set()
+    counts = import_deals(db, csv_path, holdout_share, skip)
     typer.echo(f"Imported {counts['deals']} deals ({counts['holdout']} held out)")
 
 
