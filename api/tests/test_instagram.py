@@ -38,12 +38,14 @@ def fixture(name):
     return json.loads((FIXTURES / f"{name}.json").read_text())
 
 
-def fake_hiker(store, calls=None, status=200, private=False):
+def fake_hiker(store, calls=None, status=200, private=False, missing=()):
     def handler(request):
         if calls is not None:
             calls.append(request.url.path)
         if status != 200:
             return httpx.Response(status, json={"error": "Top up your account", "exc_type": "InsufficientFunds"})
+        if request.url.path in missing:  # comments off, hidden followers and the like
+            return httpx.Response(404, json={"detail": "Entries not found", "exc_type": "NotFoundError"})
         if request.url.path == "/v1/user/clips/chunk" and "end_cursor" in request.url.params:
             return httpx.Response(200, json=[[], None])
         body = fixture(ROUTES[request.url.path])
@@ -173,3 +175,10 @@ def test_collect_benchmark_runs_creators_in_parallel_and_survives_one_failure(db
     assert result.exit_code == 0, result.output
     assert "Collected 3, skipped 0 fetched in the last 24 h, failed 1" in result.output and "c: timed out" in result.output
     assert db.snapshots.count_documents({}) == 3
+
+
+def test_collect_treats_hidden_lists_as_empty(tmp_path):
+    hiker = fake_hiker(tmp_path, missing={"/v1/media/comments/chunk", "/v1/user/followers/chunk", "/v1/media/likers", "/v2/user/suggested/profiles"})
+    data = collect(hiker, "komalpandeyofficial")["data"]
+    assert len(data["reels"]) == 12 and data["followers"] == [] and data["suggested"] == []
+    assert all(cs == [] for cs in data["comments"].values()) and all(ls == [] for ls in data["likers"].values())

@@ -123,33 +123,51 @@ def make_llm() -> Gemini:
 
 
 @app.command("build-metrics")
-def build_metrics_cmd() -> None:
-    """Metrics, category and audience signals for every deal creator, from their latest snapshot."""
+def build_metrics_cmd(workers: int = 1) -> None:
+    """Metrics, category and audience signals for every deal creator, from their latest snapshot. The Gemini and cover
+    calls run `workers` at a time; a creator whose call fails is reported and skipped."""
     db = get_db()
-    llm = None
     fake_model = load_fake_model()
-    built = skipped = 0
+    items, skipped = [], 0
     for deal in db.deals.find().sort("handle"):
-        handle = deal["handle"]
-        snap = db.snapshots.find_one({"handle": handle}, sort=[("fetched_at", -1)])
+        snap = db.snapshots.find_one({"handle": deal["handle"]}, sort=[("fetched_at", -1)])
         if not snap or "reels" not in snap["data"] or len(recent_reels(snap)) < 12:
             skipped += 1
             continue
-        stored = db.metrics.find_one({"_id": handle}) or {}
+        items.append((deal, snap, db.metrics.find_one({"_id": deal["handle"]}) or {}))
+    llm = make_llm() if items else None
+
+    def label(item):
+        """Gemini labels and the category; stored ones are reused while the snapshot is the same."""
+        deal, snap, stored = item
         if stored.get("labels_for") == snap["_id"]:
             labels = stored["labels"]
         else:
-            llm = llm or make_llm()
             labels = label_creator(llm, snap, fetch_covers([r for r in recent_reels(snap) if ambiguous(r)]))
-        metrics = reel_metrics(snap, labels)
         if category := category_from_niche(deal["niche"]):
-            source = "wldd"
-        elif stored.get("category_source") == "gemini":
-            category, source = stored["category"], "gemini"
-        else:
-            llm = llm or make_llm()
-            captions = [r["caption"] for r in sorted(snap["data"]["reels"], key=lambda r: r["taken_at"], reverse=True)]
-            category, source = label_niche(llm, snap["data"]["profile"].get("bio", ""), captions), "gemini"
+            return labels, category, "wldd"
+        if stored.get("category_source") == "gemini":
+            return labels, stored["category"], "gemini"
+        captions = [r["caption"] for r in sorted(snap["data"]["reels"], key=lambda r: r["taken_at"], reverse=True)]
+        return labels, label_niche(llm, snap["data"]["profile"].get("bio", ""), captions), "gemini"
+
+    def safe_label(item):
+        try:
+            return label(item)
+        except Exception as e:  # one creator's Gemini error must not stop the other 149
+            return e
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        labelled = list(pool.map(safe_label, items))
+    built = failed = 0
+    for (deal, snap, _), out in zip(items, labelled):
+        handle = deal["handle"]
+        if isinstance(out, Exception):
+            typer.echo(f"{handle}: {out}")
+            failed += 1
+            continue
+        labels, category, source = out
+        metrics = reel_metrics(snap, labels)
         audience = audience_signals(snap, metrics, fake_model, minilm_embed)
         commenters = sorted({c["user"]["username"] for cs in snap["data"]["comments"].values() for c in cs})
         doc = {**metrics, **audience, "mix": commenter_mix(snap, fake_model, labels), "labels": labels, "labels_for": snap["_id"], "commenters": commenters,
@@ -159,7 +177,7 @@ def build_metrics_cmd() -> None:
     rings = commenter_rings({m["_id"]: set(m["commenters"]) for m in db.metrics.find({}, {"commenters": 1})})
     for handle, size in rings.items():
         db.metrics.update_one({"_id": handle}, {"$set": {"ring_size": size}})
-    typer.echo(f"Built metrics for {built} creators; skipped {skipped} without a snapshot of 12+ reels")
+    typer.echo(f"Built metrics for {built} creators; skipped {skipped} without a snapshot of 12+ reels" + (f"; failed {failed}" if failed else ""))
 
 
 @app.command("validate")

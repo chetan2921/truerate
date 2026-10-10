@@ -180,12 +180,22 @@ def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int
     data |= {
         "about": hiker.about(pk),
         "reels": reels,
-        "comments": {r["id"]: hiker.comments(r["id"]) for r in recent[:comment_reels]},
-        "likers": {r["id"]: hiker.likers(r["id"]) for r in recent[:liker_reels]},
-        "followers": hiker.followers(pk),
-        "suggested": hiker.suggested(pk),
+        "comments": {r["id"]: _or_empty(hiker.comments, r["id"]) for r in recent[:comment_reels]},
+        "likers": {r["id"]: _or_empty(hiker.likers, r["id"]) for r in recent[:liker_reels]},
+        "followers": _or_empty(hiker.followers, pk),
+        "suggested": _or_empty(hiker.suggested, pk),
     }
     return snap
+
+
+def _or_empty(fetch, key: str) -> list:
+    """HikerAPI answers 404 "Entries not found" for comments turned off, hidden followers and the like: an empty list."""
+    try:
+        return fetch(key)
+    except HikerError as e:
+        if e.status == 404:
+            return []
+        raise
 
 
 def fetch_covers(reels: list[dict], limit: int = 6) -> dict[str, bytes]:

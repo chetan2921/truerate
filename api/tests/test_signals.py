@@ -141,7 +141,7 @@ def test_build_metrics_uses_wldd_niche_first_and_gemini_otherwise(db, monkeypatc
     monkeypatch.setattr(cli, "fetch_covers", lambda reels: {})
     monkeypatch.setattr(cli, "load_fake_model", lambda: train_fake_model([[1, 0, 2, 0, 0, 0]] * 5 + [[0, 0.6, 0, 0, 0, 0]] * 5, [0] * 5 + [1] * 5))
     monkeypatch.setattr(cli, "minilm_embed", lambda texts: np.eye(len(texts), 8))
-    result = CliRunner().invoke(cli.app, ["build-metrics"])
+    result = CliRunner().invoke(cli.app, ["build-metrics", "--workers", "2"])
     assert result.exit_code == 0, result.output
     assert "Built metrics for 2 creators; skipped 2 without a snapshot of 12+ reels" in result.output
     assert db.metrics.find_one({"_id": "known"})["category"] == "Tech and gadgets"
@@ -200,3 +200,24 @@ def test_reel_metrics_count_hidden_ads_and_brand_co_authors_as_paid():
     assert (m["paid_n"], m["collab_n"], m["n_own"]) == (2, 1, 12)
     unlabelled = reel_metrics(labelled_snapshot())
     assert (unlabelled["paid_n"], unlabelled["collab_n"], unlabelled["n_own"]) == (0, 2, 13)
+
+
+def test_build_metrics_skips_a_creator_whose_gemini_call_fails(db, monkeypatch):
+    db.deals.insert_many([{"handle": h, "tier": "medium", "niche": [], "price": 10_000, "holdout": False} for h in ("good", "broken")])
+    db.snapshots.insert_many([snapshot("good"), snapshot("broken")])
+
+    class FlakyLLM(SchemaLLM):
+        def json(self, prompt, schema, images=()):
+            if "broken bio" in prompt:
+                raise RuntimeError("Gemini 503")
+            return super().json(prompt, schema, images)
+
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    monkeypatch.setattr(cli, "make_llm", lambda: FlakyLLM())
+    monkeypatch.setattr(cli, "fetch_covers", lambda reels: {})
+    monkeypatch.setattr(cli, "load_fake_model", lambda: train_fake_model([[1, 0, 2, 0, 0, 0]] * 5 + [[0, 0.6, 0, 0, 0, 0]] * 5, [0] * 5 + [1] * 5))
+    monkeypatch.setattr(cli, "minilm_embed", lambda texts: np.eye(len(texts), 8))
+    result = CliRunner().invoke(cli.app, ["build-metrics", "--workers", "2"])
+    assert result.exit_code == 0, result.output
+    assert "broken: Gemini 503" in result.output and "Built metrics for 1 creators" in result.output and "failed 1" in result.output
+    assert db.metrics.count_documents({}) == 1
