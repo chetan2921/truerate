@@ -7,7 +7,7 @@ from typing import Callable
 
 from pymongo.database import Database
 
-from truerate.instagram import fetch_covers
+from truerate.instagram import HikerError, fetch_covers
 from truerate.pricing import PriceModel, per_1k, price
 from truerate.signals import (
     CATEGORIES,
@@ -94,7 +94,12 @@ def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] =
     """One creator end to end. Returns {"status": "done", "result": ...} or {"status": "out_of_scope", "reason": ...}."""
     db = deps.db
     step(0)
-    snap = deps.collect(handle)
+    try:
+        snap = deps.collect(handle)
+    except HikerError as e:
+        if e.status == 404:
+            return {"status": "out_of_scope", "reason": f"Instagram has no account called @{handle}. Check the spelling, or paste the profile link."}
+        raise
     db.snapshots.insert_one(snap)
     d = snap["data"]
     if d["profile"]["is_private"]:

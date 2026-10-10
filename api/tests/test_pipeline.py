@@ -7,6 +7,7 @@ from test_audience import fake_embed, genuine_snapshot
 from test_pricing import synthetic_rows
 
 from truerate.pipeline import Deps, analyze, check_quote, inr, when
+from truerate.instagram import HikerError
 from truerate.pricing import fit
 from truerate.signals import audience_signals, make_fake, reel_metrics, train_fake_model
 
@@ -140,3 +141,13 @@ def test_reasons_and_lines_use_indian_grouping(world):
     text = " ".join(r["decision"]["reasons"] + r["negotiation"]["lines"])
     assert "₹15,00,000" in text
     assert not re.search(r"₹\d{3},\d{3}\b|₹\d{1,3},\d{3},\d{3}", text)  # no Western grouping like ₹150,000 or ₹1,500,000
+
+
+def test_a_handle_instagram_doesnt_know_reads_as_a_plain_sentence(world):
+    def missing(handle):
+        raise HikerError(404, 'HikerAPI 404 on /v1/user/by/username: {"exc_type":"UserNotFound"}')
+
+    d = deps(world, None)
+    d.collect = missing
+    out = analyze("no.such.person", {}, d)
+    assert out == {"status": "out_of_scope", "reason": "Instagram has no account called @no.such.person. Check the spelling, or paste the profile link."}
