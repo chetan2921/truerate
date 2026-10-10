@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import ChartTip from "@/components/chart-tip";
 import ProductOptions from "@/components/product-options";
 import { api, type Meta, type RateCard } from "@/lib/api";
 import { compact, inr } from "@/lib/format";
@@ -95,10 +96,15 @@ export default function RateCardPage() {
                       </td>
                       <td className="py-2.5 pr-3">
                         <div className="flex items-center gap-3">
-                          <span className="relative h-2 w-40 shrink-0 rounded bg-line" aria-hidden>
-                            <span className="absolute top-0 h-2 rounded bg-info" style={{ left: `${(100 * c.per_1k.p25) / max}%`, width: `${(100 * (c.per_1k.p75 - c.per_1k.p25)) / max}%` }} />
-                            <span className="absolute -top-0.5 h-3 w-0.5 bg-accent" style={{ left: `${(100 * c.per_1k.median) / max}%` }} />
-                          </span>
+                          <ChartTip
+                            className="w-40 shrink-0"
+                            lines={[c.category, `Middle half of ${c.n} deals: ${inr(c.per_1k.p25)} to ${inr(c.per_1k.p75)} per 1,000 views`, `Lime tick: the median, ${inr(c.per_1k.median)}`]}
+                          >
+                            <span className="relative block h-2 rounded bg-line">
+                              <span className="absolute top-0 h-2 rounded bg-info" style={{ left: `${(100 * c.per_1k.p25) / max}%`, width: `${(100 * (c.per_1k.p75 - c.per_1k.p25)) / max}%` }} />
+                              <span className="absolute -top-0.5 h-3 w-0.5 bg-accent" style={{ left: `${(100 * c.per_1k.median) / max}%` }} />
+                            </span>
+                          </ChartTip>
                           <span className="figure whitespace-nowrap">
                             {inr(c.per_1k.p25)} to {inr(c.per_1k.p75)}
                           </span>

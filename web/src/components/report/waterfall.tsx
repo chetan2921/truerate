@@ -1,3 +1,4 @@
+import ChartTip from "@/components/chart-tip";
 import type { Report } from "@/lib/api";
 import { compact, inr } from "@/lib/format";
 
@@ -45,14 +46,16 @@ export default function Waterfall({ r }: { r: Report }) {
                   {row.isTotal ? inr(row.amount) : row.amount === 0 ? "No change" : `${row.amount < 0 ? "−" : "+"}${inr(Math.abs(row.amount))}`}
                 </span>
               </div>
-              <div className="relative mt-1.5 h-2 rounded bg-line" aria-hidden>
-                {row.width > 0 && (
-                  <span
-                    className={`absolute top-0 h-2 rounded ${row.isTotal ? (row.isLast ? "bg-accent" : "bg-info") : row.negative ? "bg-avoid" : "bg-go"}`}
-                    style={{ left: `${row.left * 100}%`, width: `${Math.max(row.width * 100, 0.8)}%` }}
-                  />
-                )}
-              </div>
+              <ChartTip className="mt-1.5" lines={[row.isLast ? "Middle of the fair range" : row.step, row.isTotal ? inr(row.amount) : `${row.amount < 0 ? "−" : "+"}${inr(Math.abs(row.amount))}`]}>
+                <span className="relative block h-2 rounded bg-line">
+                  {row.width > 0 && (
+                    <span
+                      className={`absolute top-0 h-2 rounded ${row.isTotal ? (row.isLast ? "bg-accent" : "bg-info") : row.negative ? "bg-avoid" : "bg-go"}`}
+                      style={{ left: `${row.left * 100}%`, width: `${Math.max(row.width * 100, 0.8)}%` }}
+                    />
+                  )}
+                </span>
+              </ChartTip>
             </li>
           ))}
         </ol>

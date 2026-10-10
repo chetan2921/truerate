@@ -1,3 +1,4 @@
+import ChartTip from "@/components/chart-tip";
 import type { Report } from "@/lib/api";
 import { pct } from "@/lib/format";
 
@@ -21,9 +22,11 @@ export default function Audience({ r }: { r: Report }) {
         <p className="mt-3">
           Of the {mix.top} most active commenters: {parts.filter((x) => x.n).map((x) => `${x.n} ${x.label}`).join(", ")}.
         </p>
-        <div className="mt-3 flex h-3 overflow-hidden rounded" role="img" aria-label="Top commenters by kind">
-          {parts.map((x) => (x.n ? <span key={x.key} style={{ width: `${(100 * x.n) / Math.max(mix.top, 1)}%`, background: x.color }} /> : null))}
-        </div>
+        <ChartTip className="mt-3" lines={[`The ${mix.top} most active commenters`, ...parts.filter((x) => x.n).map((x) => `${x.n} ${x.label}`)]}>
+          <span className="flex h-3 overflow-hidden rounded" role="img" aria-label="Top commenters by kind">
+            {parts.map((x) => (x.n ? <span key={x.key} style={{ width: `${(100 * x.n) / Math.max(mix.top, 1)}%`, background: x.color }} /> : null))}
+          </span>
+        </ChartTip>
         {languages.length > 0 && (
           <p className="mt-5">Comments are {languages.map((l) => `${pct(l.share)} ${l.language}`).join(", ")}.</p>
         )}

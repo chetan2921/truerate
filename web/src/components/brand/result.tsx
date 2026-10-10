@@ -28,7 +28,6 @@ const COLUMNS: [string, string][] = [
   ["value", "Value"],
   ["budget", "Budget"],
   ["consistency", "Reliable"],
-  ["brand", "Worked with them"],
 ];
 
 function Cell({ a }: { a: Answer | undefined }) {

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import ChartTip from "@/components/chart-tip";
 import { CallChip } from "@/components/chips";
 import ValueBars from "@/components/value-bars";
 import { StatusIcon } from "@/components/verdicts";
@@ -28,7 +29,6 @@ const COLUMNS: [string, string][] = [
   ["consistency", "Reliable"],
   ["ads", "Ads"],
   ["fit", "Product fit"],
-  ["competitor", "Rival ad"],
 ];
 
 const done = (rows: Row[]) => rows.filter((r) => r.status === "done" && r.fair != null);
@@ -95,7 +95,7 @@ export function Recommendation({ rows }: { rows: Row[] }) {
 
 export function Scorecard({ rows }: { rows: Row[] }) {
   // A question nobody asked (no quote, no budget, no product) gets no column.
-  const cols = COLUMNS.filter(([key]) => key === "competitor" || rows.some((r) => find(r, key)));
+  const cols = COLUMNS.filter(([key]) => rows.some((r) => find(r, key)));
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -173,9 +173,19 @@ export function PriceChart({ rows, budget }: { rows: Row[]; budget: number | nul
           </div>
         )}
         {ready.map((r) => (
-          <div key={r.analysis_id} className="flex items-center gap-4" title={`@${r.handle}: aim for ${inr(r.fair!)}, likely ${inr(r.likely_low ?? r.low!)} to ${inr(r.likely_high ?? r.high!)}, full range ${inr(r.low!)} to ${inr(r.high!)}`}>
+          <div key={r.analysis_id} className="flex items-center gap-4">
             <span className="w-36 shrink-0 truncate text-sm">@{r.handle}</span>
-            <div className="relative h-6 flex-1">
+            <ChartTip
+              className="flex-1"
+              lines={[
+                `@${r.handle}`,
+                `Aim for ${inr(r.fair!)}`,
+                `Likely ${inr(r.likely_low ?? r.low!)} to ${inr(r.likely_high ?? r.high!)} (about half of real deals)`,
+                `Full range ${inr(r.low!)} to ${inr(r.high!)}`,
+                ...(budget ? [`Your budget ${inr(budget)}`] : []),
+              ]}
+            >
+            <div className="relative h-6">
               <span className="absolute top-2.5 h-1 rounded bg-info/35" style={{ left: `${x(r.low!)}%`, width: `${x(r.high!) - x(r.low!)}%` }} />
               <span className="absolute top-1.5 h-3 rounded bg-info" style={{ left: `${x(r.likely_low ?? r.low!)}%`, width: `${x(r.likely_high ?? r.high!) - x(r.likely_low ?? r.low!)}%` }} />
               <span className="absolute top-0 h-6 w-0.5 bg-accent" style={{ left: `${x(r.fair!)}%` }} />
@@ -183,6 +193,7 @@ export function PriceChart({ rows, budget }: { rows: Row[]; budget: number | nul
                 {inr(r.fair!)}
               </span>
             </div>
+            </ChartTip>
           </div>
         ))}
       </div>
@@ -203,12 +214,21 @@ export function ReachChart({ rows }: { rows: Row[] }) {
         {ready.map((r) => (
           <div key={r.analysis_id} className="flex items-center gap-4">
             <span className="w-36 shrink-0 truncate text-sm">@{r.handle}</span>
-            <div className="relative h-6 flex-1">
+            <ChartTip
+              className="flex-1"
+              lines={[
+                `@${r.handle}`,
+                `About ${compact(r.expected_views!)} views on the sponsored reel`,
+                ...(r.views_low != null && r.views_high != null ? [`A weak reel ${compact(r.views_low)}, a strong one ${compact(r.views_high)}`] : []),
+              ]}
+            >
+            <div className="relative h-6">
               {r.views_low != null && r.views_high != null && (
                 <span className="absolute top-2.5 h-1 rounded bg-info/35" style={{ left: `${pct(r.views_low)}%`, width: `${pct(r.views_high) - pct(r.views_low)}%` }} />
               )}
               <span className="absolute top-1 h-4 rounded bg-info" style={{ width: `${pct(r.expected_views!)}%` }} />
             </div>
+            </ChartTip>
             <span className="figure w-28 shrink-0 text-right text-sm">{compact(r.expected_views!)}</span>
           </div>
         ))}

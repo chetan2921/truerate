@@ -1,3 +1,4 @@
+import ChartTip from "@/components/chart-tip";
 import type { Report } from "@/lib/api";
 import { pct } from "@/lib/format";
 
@@ -20,10 +21,19 @@ export default function Engagement({ r }: { r: Report }) {
         )}
       </p>
       {e.percentile != null && (
-        <div className="relative mt-4 h-2 rounded bg-line" role="img" aria-label={`Percentile ${e.percentile} of 100 among similar WLDD creators`}>
-          <span className="absolute left-0 top-0 h-2 rounded bg-accent" style={{ width: `${e.percentile}%` }} />
-          <span className="absolute -top-1 h-4 w-0.5 bg-info" style={{ left: "50%" }} title="Median of similar creators" />
-        </div>
+        <ChartTip
+          className="mt-4"
+          lines={[
+            `Beats ${e.percentile}% of similar WLDD creators`,
+            `This creator: ${pct(e.rate, 1)} of viewers engage`,
+            ...(e.band_median != null ? [`Blue tick: their median, ${pct(e.band_median, 1)}`] : []),
+          ]}
+        >
+          <span className="relative block h-2 rounded bg-line" role="img" aria-label={`Percentile ${e.percentile} of 100 among similar WLDD creators`}>
+            <span className="absolute left-0 top-0 h-2 rounded bg-accent" style={{ width: `${e.percentile}%` }} />
+            <span className="absolute -top-1 h-4 w-0.5 bg-info" style={{ left: "50%" }} />
+          </span>
+        </ChartTip>
       )}
       <p className="basis mt-2">Lime is this creator; the blue tick is the similar-creator median.</p>
     </section>
