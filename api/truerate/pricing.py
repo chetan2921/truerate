@@ -37,6 +37,17 @@ def features(m: dict) -> list[float]:
     return [math.log(m["views"]), math.log(m["followers"]), m["engagement"], m["comments_per_1k"]] + [float(m["category"] == c) for c in CATEGORIES]
 
 
+# On deals the model never saw, a range this wide around the middle held about half of real prices (57% of the 30 held
+# out, 42% of the 19 fresh; `truerate experiment`, 2026-10-11). Anything narrower would usually miss: 2x held 30% and 16%.
+LIKELY_WIDTH = 3
+
+
+def likely_band(fair: float, low: float, high: float) -> tuple[int, int]:
+    """The "likely" band shown beside the 80% range: LIKELY_WIDTH wide around the middle, never outside the full range."""
+    half = math.sqrt(LIKELY_WIDTH)
+    return max(round500(fair / half), round500(low)), min(round500(fair * half), round500(high))
+
+
 def per_1k(row: dict) -> float:
     return row["price"] / (row["views"] / 1000)
 
@@ -156,11 +167,14 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
                 "price for this size is shown separately, not mixed into the range.")
     elif m["followers"] < least_followers:
         note = f"Smaller than any creator WLDD has booked (smallest: {_group(least_followers)} followers), so the range is wider."
+    likely_low, likely_high = likely_band(steps[2], low, high)
     return {
         "market": steps[0],
         "fair": steps[2],
         "low": round500(low),
         "high": round500(high),
+        "likely_low": likely_low,
+        "likely_high": likely_high,
         "collab_factor": factor,
         "genuine_share": genuine_share,
         "ridge_share": model.w,

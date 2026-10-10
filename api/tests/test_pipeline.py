@@ -124,6 +124,10 @@ def test_quote_check_places_the_quote_and_counters(world):
     assert within["position"] == "within" and within["counter_offer"] == p["fair"] - 500  # at or under fair: take it
     below = check_quote(r, max(p["low"] - 1_000, 500))
     assert below["position"] == "below" and below["counter_offer"] == below["quote"]
+    # Inside the wide full range but above where most deals land: "high", with a counter at the middle.
+    r["price"] |= {"likely_low": p["fair"] - 1_000, "likely_high": p["fair"] + 1_000, "high": p["fair"] + 20_000}
+    pricey = check_quote(r, p["fair"] + 5_000)
+    assert pricey["position"] == "high" and pricey["counter_offer"] == p["fair"]
 
 
 def test_a_brand_that_tagged_the_creator_recently_is_a_competitor(world):
@@ -200,3 +204,16 @@ def test_a_creator_wldd_has_booked_is_never_turned_away_by_the_cover_check(world
     world.deals.insert_one({"handle": "newcreator", "tier": "big", "niche": ["Food"], "price": 140_000, "holdout": False})
     out = analyze("newcreator", {}, deps(world, target_snapshot(), face=False))
     assert out["status"] == "done"
+
+
+def test_a_quote_above_where_most_deals_land_means_negotiate():
+    from truerate.pipeline import _decide
+
+    p = {"low": 10_000, "fair": 30_000, "high": 90_000, "likely_low": 17_500, "likely_high": 52_000, "collab_factor": 1.0}
+    def call(quote):
+        return _decide({"verdict": "Real audience"}, [], p, {"quote": quote}, {"paid_ratio": 1.0}, 1.0, None, None, None)
+
+    assert call(40_000)["call"] == "Go"
+    # Inside the wide full range but above where most deals land: worth a counter, not a yes.
+    pricey = call(70_000)
+    assert pricey["call"] == "Negotiate" and any("most deals" in reason for reason in pricey["reasons"])

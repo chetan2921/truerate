@@ -1,7 +1,7 @@
 import { Download } from "lucide-react";
 import Link from "next/link";
 
-import type { Analysis, Report } from "@/lib/api";
+import type { Analysis, Output, Report } from "@/lib/api";
 import { compact, daysAgo } from "@/lib/format";
 
 import Audience from "./audience";
@@ -15,7 +15,7 @@ import QuoteChecker from "./quote";
 import ReportTabs from "./tabs";
 import Waterfall from "./waterfall";
 
-export default function ReportView({ id, report: r, inputs }: { id: string; report: Report; inputs: Analysis["inputs"] }) {
+export default function ReportView({ id, report: r, inputs, outputs }: { id: string; report: Report; inputs: Analysis["inputs"]; outputs: Output[] }) {
   const asked = [inputs.category && `for ${inputs.category}`, inputs.quote && `quote ₹${inputs.quote.toLocaleString("en-IN")}`, inputs.budget && `budget ₹${inputs.budget.toLocaleString("en-IN")}`].filter(Boolean);
   return (
     <main className="mx-auto max-w-6xl px-6 pb-24 pt-4">
@@ -38,7 +38,7 @@ export default function ReportView({ id, report: r, inputs }: { id: string; repo
         panels={{
           summary: (
             <>
-              <Decision r={r} />
+              <Decision r={r} outputs={outputs} />
               <div className="mt-12">
                 <Negotiation r={r} />
               </div>

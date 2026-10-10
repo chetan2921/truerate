@@ -128,7 +128,7 @@ export default function AnalysisView({ params }: { params: Promise<{ id: string 
     );
   }
 
-  return <ReportView id={id} report={analysis.result} inputs={analysis.inputs} />;
+  return <ReportView id={id} report={analysis.result} inputs={analysis.inputs} outputs={analysis.outputs ?? []} />;
 }
 
 function Shell({ title, children }: { title: string; children?: React.ReactNode }) {

@@ -5,7 +5,8 @@ import { useState } from "react";
 import { api, type QuoteCheck } from "@/lib/api";
 import { inr } from "@/lib/format";
 
-const POSITION = { below: "text-go", within: "text-go", above: "text-avoid" } as const;
+const POSITION = { below: "text-go", within: "text-go", high: "text-negotiate", above: "text-avoid" } as const;
+const WHERE = { below: "below the fair range", within: "where most deals like this land", high: "on the high side", above: "above the fair range" } as const;
 
 export default function QuoteChecker({ id, initial }: { id: string; initial: number | null }) {
   const [quote, setQuote] = useState(initial ? String(initial) : "");
@@ -42,7 +43,7 @@ export default function QuoteChecker({ id, initial }: { id: string; initial: num
       {check && (
         <div className="mt-4">
           <p className="text-lg">
-            {inr(check.quote)} is <b className={POSITION[check.position]}>{check.position} the fair range</b>,{" "}
+            {inr(check.quote)} is <b className={POSITION[check.position]}>{WHERE[check.position]}</b>,{" "}
             {check.difference === 0 ? "exactly the middle of the range" : `${inr(Math.abs(check.difference))} ${check.difference > 0 ? "above" : "below"} the middle of the range`}.{" "}
             {check.counter_offer < check.quote ? `Counter at ${inr(check.counter_offer)}.` : "Take it."}
           </p>

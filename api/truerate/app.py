@@ -17,8 +17,9 @@ from truerate.config import HIKER_DIR, MODELS_DIR, get_settings
 from truerate.db import ensure_indexes, get_db
 from truerate.instagram import Hiker, collect
 from truerate.llm import Gemini
+from truerate.outputs import outputs
 from truerate.pipeline import STEPS, Deps, analyze, check_quote
-from truerate.pricing import rate_card, thin_categories
+from truerate.pricing import likely_band, rate_card, thin_categories
 from truerate.signals import CATEGORIES, PRODUCTS, _face_detector, _person_detector, minilm_embed
 
 @asynccontextmanager
@@ -95,6 +96,8 @@ class Price(BaseModel):
     fair: int
     low: int
     high: int
+    likely_low: int | None = None  # about half of real prices land in this band; filled in on read for older reports
+    likely_high: int | None = None
     collab_factor: float
     genuine_share: float
     # Defaults keep reports stored before these fields existed readable.
@@ -262,6 +265,13 @@ class Created(BaseModel):
     id: str
 
 
+class Output(BaseModel):
+    key: str
+    status: Literal["good", "warn", "bad", "info"]
+    title: str
+    detail: str
+
+
 class Analysis(BaseModel):
     id: str
     handle: str
@@ -272,6 +282,7 @@ class Analysis(BaseModel):
     reason: str | None = None
     error: str | None = None
     result: Report | None = None
+    outputs: list[Output] = []  # plain answers, worked out from the result on every read
     created_at: datetime
     finished_at: datetime | None = None
 
@@ -294,7 +305,7 @@ class QuoteRequest(BaseModel):
 
 class QuoteCheck(BaseModel):
     quote: int
-    position: Literal["below", "within", "above"]
+    position: Literal["below", "within", "high", "above"]  # high: inside the full range, above where most deals land
     difference: int
     counter_offer: int
     talking_points: list[str]
@@ -316,6 +327,14 @@ class BatchRow(BaseModel):
     cost_per_1k: int | None
     expected_views: int | None
     reason: str | None
+    likely_low: int | None = None
+    likely_high: int | None = None
+    views_low: int | None = None  # a weak and a strong sponsored reel
+    views_high: int | None = None
+    category_cost_per_1k: int | None = None  # what WLDD usually pays per 1,000 views in the creator's category
+    followers: int | None = None
+    category: str | None = None
+    outputs: list[Output] = []
 
 
 class Batch(BaseModel):
@@ -388,6 +407,14 @@ def parse_handle(text: str) -> str | None:
 @lru_cache
 def _models() -> tuple:
     return joblib.load(MODELS_DIR / "fake_accounts.joblib"), joblib.load(MODELS_DIR / "price.joblib")
+
+
+def _with_likely(result: dict | None) -> dict | None:
+    """Reports saved before the likely band existed get it from their own range, as a new report would."""
+    p = (result or {}).get("price")
+    if p and p.get("likely_low") is None:
+        p["likely_low"], p["likely_high"] = likely_band(p["fair"], p["low"], p["high"])
+    return result
 
 
 def _warm() -> None:
@@ -493,12 +520,17 @@ def get_batch(batch_id: str) -> Batch:
         raise HTTPException(404, "No batch with that id.")
     rows = []
     for a in db.analyses.find({"batch_id": batch_id}):
-        r = a.get("result") or {}
+        r = _with_likely(a.get("result")) or {}
         p = r.get("price", {})
+        d = p.get("delivery", {})
+        views = d.get("views") or [None, None, None]
         rows.append(BatchRow(handle=a["handle"], analysis_id=a["_id"], status=a["status"], call=r.get("decision", {}).get("call"),
                              verdict=r.get("audience", {}).get("verdict"), fair=p.get("fair"), low=p.get("low"), high=p.get("high"),
-                             cost_per_1k=p.get("delivery", {}).get("cost_per_1k"), expected_views=(p.get("delivery", {}).get("views") or [None, None])[1],
-                             reason=a.get("reason") or a.get("error")))
+                             cost_per_1k=d.get("cost_per_1k"), expected_views=views[1], reason=a.get("reason") or a.get("error"),
+                             likely_low=p.get("likely_low"), likely_high=p.get("likely_high"),
+                             views_low=views[0], views_high=views[2], category_cost_per_1k=d.get("category_cost_per_1k"),
+                             followers=r.get("profile", {}).get("followers"), category=r.get("category"),
+                             outputs=outputs(r, a.get("inputs") or {}) if a["status"] == "done" and r else []))
     # Cheapest views first, but never ahead of a creator we wouldn't book: Avoid goes after Go and Negotiate.
     rows.sort(key=lambda x: (x.cost_per_1k is None, x.call == "Avoid", x.cost_per_1k or 0, x.handle))
     return Batch(id=batch_id, inputs=b["inputs"], created_at=b["created_at"], total=len(rows), done=sum(x.status != "running" for x in rows), rows=rows)
@@ -528,7 +560,9 @@ def get_analysis(analysis_id: str) -> Analysis:
     a = get_db().analyses.find_one({"_id": analysis_id})
     if not a:
         raise HTTPException(404, "No analysis with that id.")
-    return Analysis(id=a.pop("_id"), steps=STEPS, **a)
+    _with_likely(a.get("result"))
+    done = outputs(a["result"], a.get("inputs") or {}) if a.get("status") == "done" and a.get("result") else []
+    return Analysis(id=a.pop("_id"), steps=STEPS, outputs=done, **a)
 
 
 @app.delete("/api/analyses/{analysis_id}", status_code=204)
@@ -545,7 +579,7 @@ def quote_check(analysis_id: str, req: QuoteRequest) -> QuoteCheck:
         raise HTTPException(404, "No analysis with that id.")
     if not a.get("result"):
         raise HTTPException(409, "This analysis has no price to check against.")
-    return QuoteCheck(**check_quote(a["result"], req.quote))
+    return QuoteCheck(**check_quote(_with_likely(a["result"]), req.quote))
 
 
 @app.get("/api/meta")

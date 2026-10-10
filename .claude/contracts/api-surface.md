@@ -8,3 +8,5 @@
 Routes: `GET /api/health`, `POST /api/analyses` (202, `{id}`), `GET /api/analyses`, `GET /api/analyses/{id}`, `DELETE /api/analyses/{id}` (204, hides it from the recent list; the report still opens), `POST /api/analyses/{id}/quote`, `POST /api/batches` (202), `GET /api/batches` (the 10 newest, with done and total), `GET /api/batches/{id}`, `GET /api/rate-card` (503 until `truerate validate` has run), `GET /api/meta`, `GET /api/model-report`.
 
 Change a route or a response model, then run `make types` and fix `api.ts` in the same session. The client fails at runtime, not at build time, when a field is renamed. The pipeline's result dict must match `Report`, or `GET /api/analyses/{id}` fails validation; `tests/test_app.py` reads a full result through it.
+
+Plain verdicts (2026-10-11): `Analysis.outputs` and `BatchRow.outputs` are lists of `{key, status: good|warn|bad|info, title, detail}` from `truerate/outputs.py`, worked out from the stored result on every read, so old analyses get them too. `BatchRow` also carries `views_low`, `views_high`, `category_cost_per_1k`, `followers` and `category` for the comparison charts.

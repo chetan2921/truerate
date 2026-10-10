@@ -1,24 +1,31 @@
 import { CallChip, VERDICT_COLOR, VERDICTS } from "@/components/chips";
-import type { Report } from "@/lib/api";
-import { compact, inr } from "@/lib/format";
+import Verdicts from "@/components/verdicts";
+import type { Output, Report } from "@/lib/api";
+import { inr } from "@/lib/format";
 
-const REASON_DOT: Record<string, string> = { Go: "bg-go", Negotiate: "bg-negotiate", Avoid: "bg-avoid" };
-
-export default function Decision({ r }: { r: Report }) {
+export default function Decision({ r, outputs }: { r: Report; outputs: Output[] }) {
   const p = r.price;
-  const d = p.delivery;
   return (
     <section aria-label="Decision" className="panel p-6 sm:p-8">
       <div className="flex flex-wrap items-start justify-between gap-6">
         <div>
-          <p className="basis">Fair price range for one reel</p>
+          <p className="basis">Pay about, for one reel</p>
           <p className="figure font-bold leading-none" style={{ fontSize: "clamp(2.5rem, min(5vw, 11vh), 4.5rem)" }}>
-            {inr(p.low)} to {inr(p.high)}
+            {inr(p.fair)}
           </p>
-          {p.note && <p className="mt-2 max-w-xl text-sm text-negotiate">{p.note}</p>}
+          {/* Honest about spread: a band 3x wide holds about half of real prices on unseen deals; the full range about 3 in 4. */}
+          {p.likely_low != null && p.likely_high != null && (
+            <p className="mt-3 text-lg">
+              Likely <span className="figure font-semibold">{inr(p.likely_low)} to {inr(p.likely_high)}</span>
+              <span className="basis"> · about half of real deals land in a band this wide</span>
+            </p>
+          )}
+          <p className="basis mt-1">
+            Full range <span className="figure text-text">{inr(p.low)} to {inr(p.high)}</span> · holds about 3 in 4 real prices in testing
+          </p>
           {p.market_reference && (
-            <p className="basis mt-2 max-w-xl">
-              Published asking price for {p.market_reference.tier.toLowerCase()}: {inr(p.market_reference.low)} to {inr(p.market_reference.high)} ({p.market_reference.source}).
+            <p className="basis mt-1 max-w-xl">
+              Published asking price for {p.market_reference.tier.toLowerCase()}: {inr(p.market_reference.low)} to {inr(p.market_reference.high)}.
             </p>
           )}
         </div>
@@ -42,20 +49,10 @@ export default function Decision({ r }: { r: Report }) {
         })}
       </div>
 
-      <p className="mt-6 max-w-3xl text-base">
-        On the sponsored reel, expect about <b className="figure">{compact(d.views[1])} views</b> (a weak one {compact(d.views[0])}, a strong one {compact(d.views[2])}),{" "}
-        {compact(d.likes)} likes and {compact(d.comments)} comments. At the middle of the range that is {inr(d.cost_per_1k)} per 1,000 typical views
-        {d.category_cost_per_1k ? `, against ${inr(d.category_cost_per_1k)} for the ${r.category} creators WLDD has booked` : ""}.
-      </p>
-
-      <ul className="mt-5 space-y-2">
-        {r.decision.reasons.map((reason) => (
-          <li key={reason} className="flex gap-3">
-            <span className={`mt-2 h-1.5 w-1.5 shrink-0 rounded-full ${REASON_DOT[r.decision.call]}`} aria-hidden />
-            <span>{reason}</span>
-          </li>
-        ))}
-      </ul>
+      {/* The answers, not the measurements: views, value, reliability, ads, fit and rivals each as one plain line. */}
+      <div className="mt-8">
+        <Verdicts outputs={outputs} />
+      </div>
     </section>
   );
 }

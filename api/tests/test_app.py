@@ -14,6 +14,7 @@ def test_settings_read_env(monkeypatch):
 
 
 import json  # noqa: E402
+from datetime import datetime, timezone  # noqa: E402
 
 import pytest  # noqa: E402
 from test_pipeline import deps, target_snapshot, world  # noqa: E402,F401
@@ -158,3 +159,25 @@ def test_recent_batches_are_listed_newest_first_with_progress(client):
     listed = client.get("/api/batches").json()
     assert [b["id"] for b in listed] == [second, first]
     assert {k: listed[1][k] for k in ("handles", "total", "done")} == {"handles": ["one", "two"], "total": 2, "done": 2}  # jobs run inline here
+
+
+def test_finished_analyses_and_batch_rows_carry_plain_verdicts(client):
+    a = client.get(f"/api/analyses/{client.post('/api/analyses', json={'handle': 'newcreator', 'quote': 10**7}).json()['id']}").json()
+    keys = {o["key"]: o for o in a["outputs"]}
+    assert keys["audience"]["status"] in ("good", "warn", "bad") and keys["quote"]["status"] == "bad"  # a ₹1 crore quote is too high
+    b = client.get(f"/api/batches/{client.post('/api/batches', json={'handles': ['one', 'two'], 'budget': 1}).json()['id']}").json()
+    for row in b["rows"]:
+        assert {o["key"] for o in row["outputs"]} >= {"audience", "reach", "budget"} and row["views_low"] <= row["expected_views"] <= row["views_high"]
+        assert row["followers"] > 0 and row["category"] and row["category_cost_per_1k"] > 0
+
+
+def test_reports_saved_before_the_likely_band_get_it_when_read(client, world):
+    new = client.get(f"/api/analyses/{client.post('/api/analyses', json={'handle': 'newcreator'}).json()['id']}").json()
+    old = new["result"] | {"price": {k: v for k, v in new["result"]["price"].items() if not k.startswith("likely")}}
+    world.analyses.insert_one({"_id": "old1", "handle": "newcreator", "status": "done", "step": 3, "inputs": {}, "result": old,
+                               "created_at": datetime.now(timezone.utc), "batch_id": "b1"})
+    world.batches.insert_one({"_id": "b1", "inputs": {}, "handles": ["newcreator"], "created_at": datetime.now(timezone.utc)})
+    p = client.get("/api/analyses/old1").json()["result"]["price"]
+    assert (p["likely_low"], p["likely_high"]) == (new["result"]["price"]["likely_low"], new["result"]["price"]["likely_high"])
+    row = client.get("/api/batches/b1").json()["rows"][0]
+    assert (row["likely_low"], row["likely_high"]) == (p["likely_low"], p["likely_high"])

@@ -207,6 +207,11 @@ export interface components {
             error?: string | null;
             result?: components["schemas"]["Report"] | null;
             /**
+             * Outputs
+             * @default []
+             */
+            outputs: components["schemas"]["Output"][];
+            /**
              * Created At
              * Format: date-time
              */
@@ -324,6 +329,25 @@ export interface components {
             expected_views: number | null;
             /** Reason */
             reason: string | null;
+            /** Likely Low */
+            likely_low?: number | null;
+            /** Likely High */
+            likely_high?: number | null;
+            /** Views Low */
+            views_low?: number | null;
+            /** Views High */
+            views_high?: number | null;
+            /** Category Cost Per 1K */
+            category_cost_per_1k?: number | null;
+            /** Followers */
+            followers?: number | null;
+            /** Category */
+            category?: string | null;
+            /**
+             * Outputs
+             * @default []
+             */
+            outputs: components["schemas"]["Output"][];
         };
         /** BatchSummary */
         BatchSummary: {
@@ -556,6 +580,20 @@ export interface components {
             /** Fit Share */
             fit_share: number | null;
         };
+        /** Output */
+        Output: {
+            /** Key */
+            key: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "good" | "warn" | "bad" | "info";
+            /** Title */
+            title: string;
+            /** Detail */
+            detail: string;
+        };
         /** PaidRatio */
         PaidRatio: {
             /** N */
@@ -613,6 +651,10 @@ export interface components {
             low: number;
             /** High */
             high: number;
+            /** Likely Low */
+            likely_low?: number | null;
+            /** Likely High */
+            likely_high?: number | null;
             /** Collab Factor */
             collab_factor: number;
             /** Genuine Share */
@@ -661,7 +703,7 @@ export interface components {
              * Position
              * @enum {string}
              */
-            position: "below" | "within" | "above";
+            position: "below" | "within" | "high" | "above";
             /** Difference */
             difference: number;
             /** Counter Offer */

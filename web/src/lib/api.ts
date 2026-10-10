@@ -13,6 +13,7 @@ export type BatchRequest = Schemas["BatchRequest"];
 export type RateCard = Schemas["RateCard"];
 export type ModelReport = Schemas["ModelReport"];
 export type Product = Schemas["Product"];
+export type Output = Schemas["Output"];
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 

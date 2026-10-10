@@ -25,7 +25,8 @@ from truerate.signals import CATEGORIES, band, recent_reels, reel_metrics
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
 LEVELS = (0.8, 0.5)
 POINTS = ("today", "today_uncapped", "ridge_v2", "elasticnet_v2", "boosting_v2") + (("tabpfn_v2",) if find_spec("tabpfn") else ())
-RANGES = ("global", "band")
+RANGES = ("global", "band", "local")
+K_LOCAL = 15  # "local" ranges scale with the typical error among this many nearest training deals
 BEFORE = "today_served"
 BANDS = ("small", "medium", "big")
 PERMUTATION = ("boosting_v2", "tabpfn_v2")  # not linear: importance is the drop in R² when a feature is shuffled, not SHAP
@@ -200,6 +201,21 @@ def conformal_offsets(rows: list[dict], point: str, by_band: bool = False, folds
     return _band_offsets(rows, np.log([r["price"] for r in rows]) - _oof(rows, point, folds, seed), by_band)
 
 
+def _local_spread(train: list[dict], resid: np.ndarray, targets: list[dict], leave_out_self: bool = False) -> np.ndarray:
+    """Typical size of the out-of-fold error among the K_LOCAL training deals nearest each target in views and
+    followers: small where similar deals were priced alike, large where they weren't."""
+    def pos(rows):
+        return np.log([[r["views"], r["followers"]] for r in rows])
+
+    A = pos(train)
+    mu, sd = A.mean(axis=0), A.std(axis=0) + 1e-9
+    d = np.linalg.norm(((pos(targets) - mu) / sd)[:, None, :] - ((A - mu) / sd)[None, :, :], axis=2)
+    if leave_out_self:
+        np.fill_diagonal(d, np.inf)
+    nearest = np.argsort(d, axis=1)[:, :K_LOCAL]
+    return np.maximum(np.abs(resid)[nearest].mean(axis=1), 0.05)
+
+
 def _widen(rows: list[dict], m: dict) -> tuple[float, float]:
     """As in `pricing.price`: about 1.4x wider per doubling beyond WLDD's deals, toward the side being extrapolated."""
     above = max(m["followers"] / max(r["followers"] for r in rows), m["views"] / max(r["views"] for r in rows), 1.0)
@@ -211,15 +227,20 @@ def _predict_both(point: str, train: list[dict], test: list[dict], folds: int = 
     """Fair price and 80% and 50% ranges for each test creator, with global and per-band offsets, fitted on `train` only."""
     logs = POINT_FNS[point](train, test)
     resid = np.log([r["price"] for r in train]) - _oof(train, point, folds)
+    # Local: each training deal's error measured in units of its neighbourhood's typical error (itself left out),
+    # so one set of conformal offsets serves every creator, scaled by the spread around them.
+    local = _offsets(resid / _local_spread(train, resid, train, leave_out_self=True))
+    spread = _local_spread(train, resid, test)
     out = {}
     for rng in RANGES:
         offs = _band_offsets(train, resid, rng == "band")
         preds = []
-        for r, lp in zip(test, logs):
+        for j, (r, lp) in enumerate(zip(test, logs)):
             below, above = _widen(train, r)
             fair = math.exp(lp)
             row = {"fair": round500(fair)}
-            for level, (lo, hi) in offs.get(band(r["followers"]), offs["all"]).items():
+            levels = {lv: (lo * spread[j], hi * spread[j]) for lv, (lo, hi) in local.items()} if rng == "local" else offs.get(band(r["followers"]), offs["all"])
+            for level, (lo, hi) in levels.items():
                 k = round(level * 100)
                 row[f"low{k}"], row[f"high{k}"] = round500(fair * math.exp(lo) / below), round500(fair * math.exp(hi) * above)
             preds.append(row)
@@ -261,6 +282,16 @@ def score(test: list[dict], preds: list[dict]) -> dict:
     pairs = list(zip(test, preds))
     by_band = {b: _summary(ps) for b in BANDS if (ps := [(r, p) for r, p in pairs if band(r["followers"]) == b])}
     return _summary(pairs) | {"by_band": by_band}
+
+
+WIDTHS = (1.5, 2, 3, 4, 6, 8)
+
+
+def coverage_by_width(test: list[dict], preds: list[dict], widths=WIDTHS) -> dict:
+    """Share of real prices inside a range of each width (high ÷ low) centred on the middle price: what a range of
+    that width would have held."""
+    off = [max(p["fair"] / r["price"], r["price"] / p["fair"]) for r, p in zip(test, preds)]
+    return {w: float(np.mean([x <= math.sqrt(w) + 1e-12 for x in off])) for w in widths}
 
 
 def _mean(scores: list[dict]) -> dict:
@@ -338,6 +369,7 @@ def run(train: list[dict], holdout: list[dict], fresh: list[dict], repeats: int 
         "bootstrap": _bootstrap(holdout + fresh, hold[after] + new[after], hold[BEFORE] + new[BEFORE]),
         "points": points_out,
     }
+    result["coverage_by_width"] = {s: coverage_by_width(rows, preds[BEFORE]) for s, rows, preds in (("holdout", holdout, hold), ("fresh", fresh, new))}
     result["adopt"] = after != BEFORE and all(beats(result[s][after], result[s][BEFORE]) for s in ("holdout", "fresh"))
     return result
 
@@ -398,4 +430,9 @@ def report_table(result: dict) -> str:
     for name in [BEFORE] + [x for x in result["cv"] if x != BEFORE]:
         mark = " ←" if name == p["range"] else ""
         lines.append(f"| {name}{mark} | " + " | ".join(cells(result["cv"][name]) + cells(result["holdout"][name]) + cells(result["fresh"][name])) + " |")
+    if "coverage_by_width" in result:
+        lines += ["", "How wide a range must be: the share of real prices inside a range of each width around today's middle price.", "",
+                  "| Width (high ÷ low) | " + " | ".join(f"{w:g}×" for w in WIDTHS) + " |", "|" + "---|" * (len(WIDTHS) + 1)]
+        for s, label in (("holdout", "Held out"), ("fresh", "Fresh")):
+            lines.append(f"| {label} | " + " | ".join(pct(result["coverage_by_width"][s][w]) for w in WIDTHS) + " |")
     return "\n".join(lines) + "\n"

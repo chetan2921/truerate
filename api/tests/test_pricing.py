@@ -7,7 +7,7 @@ from typer.testing import CliRunner
 
 from truerate import cli
 from truerate.signals import CATEGORIES
-from truerate.pricing import MARKET_SOURCE, band, band_median_price, collab_factor, fit, modash_price, price, rate_card, round500, thin_categories, validate
+from truerate.pricing import MARKET_SOURCE, band, band_median_price, collab_factor, fit, likely_band, modash_price, price, rate_card, round500, thin_categories, validate
 
 # Synthetic deals: price = the category's ₹ per 1,000 views × views, with 15% noise.
 CAT_PER_1K = {"Tech and gadgets": 1500, "Food": 600, "Entertainment": 1000}
@@ -176,3 +176,15 @@ def test_the_range_comes_from_mapie_cross_conformal_at_80_percent():
     assert abs(p["low"] - fair * math.exp(pis[0, 0, 0] - pred[0])) <= 500
     assert abs(p["high"] - fair * math.exp(pis[0, 1, 0] - pred[0])) <= 1000  # fair is rounded to ₹500 before this multiply
     assert validate(rows)["range_method"] == "MAPIE cross-conformal (CV+), 80% confidence"
+
+
+def test_the_likely_band_is_about_3x_wide_around_the_middle_and_inside_the_full_range():
+    # On deals the model never saw, a range 3x wide around the middle held about half of real prices (57% of the 30
+    # held out, 42% of the 19 fresh; experiments, 2026-10-11), so it is shown as "likely", with the 80% range beside it.
+    model = fit(synthetic_rows())
+    for r in synthetic_rows(20, seed=4):
+        p = price(model, r)
+        assert p["low"] <= p["likely_low"] <= p["fair"] <= p["likely_high"] <= p["high"]
+        assert 2.5 <= p["likely_high"] / p["likely_low"] <= 3.5 or p["likely_low"] == p["low"] or p["likely_high"] == p["high"]
+    assert likely_band(30_000, 1_000, 10**7) == (17_500, 52_000)  # 30,000 ÷ √3 and × √3, to the nearest ₹500
+    assert likely_band(30_000, 25_000, 40_000) == (25_000, 40_000)  # never outside the full range

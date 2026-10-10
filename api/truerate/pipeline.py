@@ -234,6 +234,8 @@ def _decide(v, flags, p, inputs, metrics, typical, fit, fit_share, competitor) -
     if quote:
         if quote > p["high"]:
             negotiate.append(f"Quoted {inr(quote)} is {inr(quote - p['high'])} above the fair range ({inr(p['low'])} to {inr(p['high'])})")
+        elif p.get("likely_high") and quote > p["likely_high"]:
+            negotiate.append(f"Quoted {inr(quote)} is above where most deals like this land ({inr(p['likely_low'])} to {inr(p['likely_high'])}): counter at {inr(p['fair'])}")
         else:
             good.append(f"Quoted {inr(quote)} is {'below' if quote < p['low'] else 'within'} the fair range")
     if budget and p["fair"] > budget:
@@ -256,7 +258,8 @@ def _negotiation(p: dict, flags: list[dict], metrics: dict, category: str) -> di
 def check_quote(r: dict, quote: int) -> dict:
     """A creator's quote against a finished report: where it sits, what to counter with, and 3 data-backed points."""
     p, d = r["price"], r["price"]["delivery"]
-    position = "below" if quote < p["low"] else "above" if quote > p["high"] else "within"
+    above_likely = bool(p.get("likely_high")) and quote > p["likely_high"]
+    position = "below" if quote < p["low"] else "above" if quote > p["high"] else "high" if above_likely else "within"
     per_1k = round(quote / (r["placement"]["typical_views"] / 1000))
     points = [
         f"At {inr(quote)}, a reel costs {inr(per_1k)} per 1,000 typical views"
