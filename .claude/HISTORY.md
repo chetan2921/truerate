@@ -27,3 +27,7 @@
 - 2026-10-10 storage: HikerAPI responses moved from the 24 h Mongo `cache` collection to files on disk (`data/hikerapi/`), raw and gzipped, kept with no expiry. Live check: two lookups cost 1 request.
   Decided with Chetan: keep each response once, with no expiry or refresh option until after the hackathon. Raw, not parsed, so parser fixes cost no credit. Snapshots stay in Mongo. The old cache documents expire on their own.
 - 2026-10-10 M1 done: benchmark collected with the paid key (148 of 150 creators with 12+ reels; prashantrajputofficial._ no longer exists). `collect-benchmark` and `build-metrics` gained `--workers`. HikerAPI 403 and 404 on list endpoints now count as empty.
+- 2026-10-10 M2 done on real data: build-metrics on 148 creators (tagged posts and repost labels added; labels saved per creator), validate holdout 56% vs 65% and 62% baselines, coverage 77%.
+  Decided:
+  - The sponsored-performance factor is bounded to 0.5–1.0, from systematic debugging. Ridge alone scored 57%; the unbounded factor reached 120× because viral reels were labelled as ads, giving 83%. Discount-only won on leave-one-out over the training creators (39%), not by peeking at the holdout.
+  - Leave-one-out gives the 6-nearest-deals estimate zero weight, so the copy now says the market price is the regression.
