@@ -18,7 +18,7 @@ function isActive(href: string, path: string): boolean {
 // Rendered as-is while the path is unknown (the Suspense fallback), then with the current page marked.
 export function NavLinks({ path }: { path: string | null }) {
   return (
-    <nav aria-label="Main" className="flex gap-1 text-base sm:gap-3">
+    <nav aria-label="Main" className="flex flex-wrap gap-1 text-base sm:gap-3">
       {LINKS.map((l) => {
         const active = path !== null && isActive(l.href, path);
         return (

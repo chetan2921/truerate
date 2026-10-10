@@ -185,7 +185,7 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path, exper
         ("Range", 18, ACCENT, True),
         (f"{report.get('range_method', 'Leave-one-out errors')}: each creator's interval comes from out-of-fold errors over 10 refits. "
          f"It held {report['holdout']['coverage']:.0%} of held-out real prices.", 14, TEXT, False),
-        ("The team sees \"Pay about\", a likely band 3× wide that held about half of unseen prices, and the full range.", 14, TEXT, False),
+        ("The team sees the full range, labelled with how often it held real prices in testing.", 14, TEXT, False),
         ("Past WLDD's largest creator the price leans on the published market rate, discounted the way WLDD really pays, and a web check shows the creator's own listed price.", 14, TEXT, False),
     ])
     d.table(s, 7.6, 1.6, [2.0, 1.6, 1.6], [["Follower band", "TruRate", "Band median"]] +
@@ -254,7 +254,7 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path, exper
                                                         ["Held out"] + [pct(widths["holdout"][k]) for k in keys],
                                                         ["Fresh"] + [pct(widths["fresh"][k]) for k in keys]], size=15)
         d.text(s, 0.6, 3.6, 12, 2.6, [(f"A tight 2× range would hold the real price only {pct(widths['holdout']['2'])} of the time on held-out deals. A narrow range would usually be wrong.", 17, TEXT, False),
-                                      ("So the report leads with \"Pay about\", a likely band 3× wide that holds about half, and the full range, each labelled with how often it holds.", 15, TEXT, False),
+                                      ("So the report shows the full range, labelled with how often it holds, rather than a narrow band that would usually miss.", 15, TEXT, False),
                                       ("It narrows with more deals and with what each deal included and when it was made.", 15, ACCENT, False)], gap=10)
 
     s = d.slide("Built to resist gaming", "Judging 4: each fake is built from a real WLDD creator's data. Caught means a verdict other than Real audience.")
@@ -272,7 +272,7 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path, exper
         right = 8.6
     else:
         right = 0.6
-    d.text(s, right, 1.5, 12.7 - right, 5, [("\"Pay about\", the likely band and the call first, then plain answers: real audience, good value, reliable, ads work, fits the budget, rival ad.", 15, TEXT, True),
+    d.text(s, right, 1.5, 12.7 - right, 5, [("The fair range and the call first, then plain answers: real audience, good value, reliable, ads work, fits the budget, rival ad.", 15, TEXT, True),
                                            ("Quote check: fair, on the high side or too high, with a counter-offer.", 13, MUTED, False),
                                            ("Negotiation lines to copy: open, aim and walk-away prices.", 13, MUTED, False),
                                            ("Evidence in tabs (price, audience, content, similar) and a client one-pager on A4.", 13, MUTED, False)], gap=10)

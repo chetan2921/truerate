@@ -52,7 +52,7 @@ Pink (`#FF006B`, `#FF90E8`) and orange (`#F76B3E`) are Solo colors we don't use.
 | Screen | Loud | Quiet |
 |---|---|---|
 | Analyze (`/`) | The handle input and its button, on the first screen at every size | Optional inputs (product category, quote, budget), recent analyses list |
-| Report (`/analyses/[id]`) | Summary tab, open by default: "Pay about" in the price headline size, the likely band, the full range, the Go/Negotiate/Avoid chip, the verdict scale, and the plain verdicts (icon plus a short sentence, two columns) | A sticky tab bar (Summary · Price · Audience · Content · Similar), the active tab marked by a 2px accent underline inside the tab. Evidence tabs say little: Price is the adjustments that moved the price, the 6 comparables, the quote checker and cheaper creators; Audience is one plain line per check family (all 9 checks behind a disclosure), engagement, and the audience mix; Content is the views chart, plain lines, and ads and brand tags grouped by brand; Similar is the suggested accounts as buttons |
+| Report (`/analyses/[id]`) | Summary tab, open by default: the full fair range in the price headline size, the Go/Negotiate/Avoid chip, the verdict scale, and the plain verdicts (icon plus a short sentence, two columns) | A sticky tab bar (Summary · Price · Audience · Content · Similar), the active tab marked by a 2px accent underline inside the tab. Evidence tabs say little: Price is the adjustments that moved the price, the 6 comparables, the quote checker and cheaper creators; Audience is one plain line per check family (all 9 checks behind a disclosure), engagement, and the audience mix; Content is the views chart, plain lines, and ads and brand tags grouped by brand; Similar is the suggested accounts as buttons |
 | Batch (`/batch/[id]`) | Who to book first and why, in one panel | A scorecard of verdicts (icon plus one word, the sentence on hover), then CSS bar charts in the rate card's style: price against budget, what ₹10,000 buys, expected views |
 | Brand (`/brand/[id]`) | The budget plan (who to book with the money) or the best match | Best matches with reasons, "What ₹10,000 buys" bars with the plan in green, the ranked scorecard, then the accounts seen with the brand |
 | Rate card (`/rate-card`) | The calculator result | Categories as a table with an inline bar for ₹ per 1,000 views, not a grid of same-size cards |
@@ -70,6 +70,7 @@ The decision block is earned by the brief: the price is the product's entire ans
   - No gridlines except a faint baseline.
 - Tables: right-aligned figures, tabular numerals, sticky header on long tables.
 - Hand-drawn bar charts (value bars, price ranges, rate card, engagement, audience mix, price steps) wrap each bar in `ChartTip`: hover or keyboard focus shows a small card with the bar's numbers, including what every tick stands for. Never a chart whose numbers can only be guessed.
+- Recent lists (creators, comparisons, brands) share `RecentTable`: table columns, the display name with the @handle beside it (never in brackets), × to hide, and only as many one-line rows as fit the first screen, then "Show all". The page itself never scrolls for them.
 - Ranked bars beat scatter plots for this audience: one row per creator, the handle and figure written beside the bar.
 
 ## States

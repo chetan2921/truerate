@@ -209,3 +209,25 @@ def test_a_brand_run_is_started_polled_and_listed(client, monkeypatch):
     monkeypatch.setattr(app_module, "make_brand_deps", brand_deps(missing))
     failed = client.get(f"/api/brands/{client.post('/api/brands', json={'brand': '@nobrand'}).json()['id']}").json()
     assert failed["status"] == "failed" and "no account called @nobrand" in failed["error"]
+
+
+def test_recent_lists_carry_names_and_batches_and_brand_runs_can_be_hidden(client, monkeypatch):
+    from test_brand import BRAND_DATA, BrandLLM
+    from test_pricing import synthetic_rows
+
+    from truerate.brand import BrandDeps
+    from truerate.pricing import fit
+
+    a = client.post("/api/analyses", json={"handle": "newcreator"}).json()["id"]
+    assert client.get("/api/analyses").json()[0]["name"] == "New Creator"  # the name beside the handle
+    batch = client.post("/api/batches", json={"handles": ["newcreator"]}).json()["id"]
+    assert client.get("/api/batches").json()[0]["creators"] == [{"handle": "newcreator", "name": "New Creator"}]
+    assert client.delete(f"/api/batches/{batch}").status_code == 204 and batch not in [b["id"] for b in client.get("/api/batches").json()]
+    assert client.get(f"/api/batches/{batch}").status_code == 200 and client.delete("/api/batches/nope").status_code == 404
+
+    monkeypatch.setattr(app_module, "make_brand_deps", lambda db: BrandDeps(db=db, llm=BrandLLM(), price_model=fit(synthetic_rows()),
+                                                                           fetch_instagram=lambda h: BRAND_DATA, fetch_site=lambda u: ""))
+    run = client.post("/api/brands", json={"brand": "@somebrand"}).json()["id"]
+    assert client.delete(f"/api/brands/{run}").status_code == 204 and run not in [b["id"] for b in client.get("/api/brands").json()]
+    assert client.get(f"/api/brands/{run}").status_code == 200 and client.delete("/api/brands/nope").status_code == 404
+    assert a

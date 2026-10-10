@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useState } from "react";
 
 import ProductOptions from "@/components/product-options";
+import RecentTable from "@/components/recent-table";
 import { api, type BrandSummary, type Meta } from "@/lib/api";
 import { daysAgo } from "@/lib/format";
 
@@ -51,7 +51,7 @@ export default function BrandPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-6 pb-24 pt-[min(6vh,3rem)]">
+    <main className="mx-auto max-w-6xl px-6 pb-12 pt-[min(6vh,3rem)]">
       <h1 className="text-3xl font-bold">Find creators for a brand</h1>
       <p className="basis mt-2 max-w-2xl">
         Give the brand&apos;s Instagram handle, website or name. TruRate reads what it sells and to whom, then ranks WLDD&apos;s creators, everyone analysed
@@ -83,29 +83,32 @@ export default function BrandPage() {
         </p>
       )}
 
-      {recent && recent.length > 0 && (
-        <section aria-labelledby="recent-brands" className="mt-16 max-w-4xl">
-          <h2 id="recent-brands" className="section-title">
-            Recent brands
-          </h2>
-          <ul className="mt-3 divide-y divide-line">
-            {recent.map((b) => (
-              <li key={b.id}>
-                <Link href={`/brand/${b.id}`} className="grid grid-cols-[1fr_auto_6rem] items-center gap-6 py-3 no-underline hover:bg-surface">
-                  <span className="truncate">
-                    {b.name ?? b.brand}
-                    {b.name && <span className="basis"> · {b.brand}</span>}
-                  </span>
-                  <span className={`text-sm ${b.status === "failed" ? "text-avoid" : b.status === "running" ? "text-text" : "text-muted"}`}>
-                    {b.status === "running" ? "Running" : b.status === "failed" ? "Failed" : "Done"}
-                  </span>
-                  <span className="basis text-right">{daysAgo(b.created_at)}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <RecentTable
+        className="mt-12 max-w-5xl"
+        title="Recent brands"
+        items={recent}
+        href={(b) => `/brand/${b.id}`}
+        onRemove={(id) => {
+          setRecent((list) => list?.filter((b) => b.id !== id) ?? null);
+          api.hideBrandRun(id).catch(() => api.listBrandRuns().then(setRecent).catch(() => {}));
+        }}
+        removeLabel={(b) => `Remove ${b.name ?? b.brand} from recent brands`}
+        empty="No brands looked up yet."
+        columns={[
+          {
+            label: "Brand",
+            className: "w-[55%]",
+            cell: (b) => (
+              <span className="flex min-w-0 items-baseline gap-2">
+                <span className="truncate font-semibold">{b.name ?? b.brand}</span>
+                {b.name && <span className="basis shrink-0">{b.brand}</span>}
+              </span>
+            ),
+          },
+          { label: "Status", cell: (b) => <span className={b.status === "failed" ? "text-avoid" : b.status === "running" ? "text-text" : "basis"}>{b.status === "running" ? "Running" : b.status === "failed" ? "Failed" : "Done"}</span> },
+          { label: "When", className: "w-28 text-right", cell: (b) => <span className="basis">{daysAgo(b.created_at)}</span> },
+        ]}
+      />
     </main>
   );
 }

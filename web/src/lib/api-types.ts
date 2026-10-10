@@ -68,7 +68,11 @@ export interface paths {
         get: operations["get_brand_run_api_brands__run_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Hide Brand Run
+         * @description Takes it off the recent list; the result itself still opens by its link.
+         */
+        delete: operations["hide_brand_run_api_brands__run_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -106,7 +110,11 @@ export interface paths {
         get: operations["get_batch_api_batches__batch_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Hide Batch
+         * @description Takes it off the recent list; the comparison itself still opens by its link.
+         */
+        delete: operations["hide_batch_api_batches__batch_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -271,6 +279,8 @@ export interface components {
             id: string;
             /** Handle */
             handle: string;
+            /** Name */
+            name?: string | null;
             /** Status */
             status: string;
             /** Call */
@@ -395,6 +405,11 @@ export interface components {
             created_at: string;
             /** Handles */
             handles: string[];
+            /**
+             * Creators
+             * @default []
+             */
+            creators: components["schemas"]["Creator"][];
             /** Total */
             total: number;
             /** Done */
@@ -612,6 +627,13 @@ export interface components {
         Created: {
             /** Id */
             id: string;
+        };
+        /** Creator */
+        Creator: {
+            /** Handle */
+            handle: string;
+            /** Name */
+            name: string | null;
         };
         /** Decision */
         Decision: {
@@ -1186,6 +1208,35 @@ export interface operations {
             };
         };
     };
+    hide_brand_run_api_brands__run_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_batches_api_batches_get: {
         parameters: {
             query?: never;
@@ -1258,6 +1309,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Batch"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    hide_batch_api_batches__batch_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -1,6 +1,7 @@
 import { Download } from "lucide-react";
 import Link from "next/link";
 
+import Tabs from "@/components/tabs";
 import type { Analysis, Output, Report } from "@/lib/api";
 import { compact, daysAgo } from "@/lib/format";
 
@@ -12,7 +13,6 @@ import { CheaperCreators, Suggestions } from "./evidence";
 import Negotiation from "./negotiation";
 import Placement from "./placement";
 import QuoteChecker from "./quote";
-import ReportTabs from "./tabs";
 import Waterfall from "./waterfall";
 
 export default function ReportView({ id, report: r, inputs, outputs }: { id: string; report: Report; inputs: Analysis["inputs"]; outputs: Output[] }) {
@@ -34,17 +34,18 @@ export default function ReportView({ id, report: r, inputs, outputs }: { id: str
       </div>
 
       {/* Inside each tab, gaps follow weight: loose after a dense table or the chart, tight around one-line blocks. */}
-      <ReportTabs
-        panels={{
-          summary: (
+      <Tabs
+        label="Report sections"
+        tabs={[
+          { key: "summary", label: "Summary", panel: (
             <>
               <Decision r={r} outputs={outputs} />
               <div className="mt-12">
                 <Negotiation r={r} />
               </div>
             </>
-          ),
-          price: (
+          ) },
+          { key: "price", label: "Price", panel: (
             <>
               <Waterfall r={r} />
               <div className="[&>section]:pt-12">
@@ -54,8 +55,8 @@ export default function ReportView({ id, report: r, inputs, outputs }: { id: str
                 <CheaperCreators r={r} />
               </div>
             </>
-          ),
-          audience: (
+          ) },
+          { key: "audience", label: "Audience", panel: (
             <>
               <Authenticity r={r} />
               <div className="[&>section]:pt-10">
@@ -65,10 +66,10 @@ export default function ReportView({ id, report: r, inputs, outputs }: { id: str
                 <Audience r={r} />
               </div>
             </>
-          ),
-          content: <Placement r={r} />,
-          similar: <Suggestions r={r} />,
-        }}
+          ) },
+          { key: "content", label: "Content", panel: <Placement r={r} /> },
+          { key: "similar", label: "Similar", panel: <Suggestions r={r} /> },
+        ]}
       />
     </main>
   );

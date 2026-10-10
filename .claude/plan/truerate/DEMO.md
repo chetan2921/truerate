@@ -10,7 +10,7 @@
 Open them with the API on the real database:
 | What | Path | Shows |
 |---|---|---|
-| vaibhavsisinty (21.7L followers) | `/analyses/068924023341` | Go. "Pay about ₹2,31,500" with the likely band: past WLDD's largest deal the price leans on the WLDD-discounted market rate, and the web check found his own listing (₹80,000 to ₹1,00,000, The Media Ant). The deck screenshot comes from this one |
+| vaibhavsisinty (21.7L followers) | `/analyses/068924023341` | Go. A fair range of ₹87,500 to ₹10,46,500: past WLDD's largest deal the price leans on the WLDD-discounted market rate, and the web check found his own listing (₹80,000 to ₹1,00,000, The Media Ant). The deck screenshot comes from this one |
 | sejalkumar1195 | `/analyses/b254c99898a5` | Negotiate: a possible competitor (exclusivity check). Saved before today's pricing, so its numbers are the old ones |
 | mostlysane | `/analyses/bee87c3f8952` | Negotiate: competitor, weak sponsored reach |
 | foodtalkindia | `/analyses/a93e7df66811` | Out of scope: a food platform, only 1 of 10 covers shows someone on camera |
@@ -25,7 +25,7 @@ A fresh unseen creator takes about 35 s live, one seen before about 25 s, and on
 |---|---|---|
 | 0:00 | Deck slides 1 and 2 | Brands overpay for audiences that aren't there. TruRate says what one reel is worth and whether to book |
 | 0:15 | `/`: paste a judge's creator (or a genuine one) with a product and a quote | Instagram data, ads and reels, audience check, price |
-| 0:50 | The report, Summary tab | "Pay about", the likely band and the full range, then plain answers: real audience, good value, reliable, ads work, fit, rival ad. Hover a chart for its numbers. Price tab for the 6 WLDD deals behind it |
+| 0:50 | The report, Summary tab | The full range and the call, then plain answers: real audience, good value, reliable, ads work, fit, rival ad. Hover a chart for its numbers. Price tab for the 6 WLDD deals behind it |
 | 1:25 | The big creator's report | Past WLDD's deals the price leans on the market, discounted the way WLDD pays, and the web check found his own listed price |
 | 1:45 | `/batch/b4488b3a59fc` and `/brand/b546f14bfdc3` | Who to book and why; for a brand, the set that brings the most views within budget |
 | 2:20 | Deck slides 6 to 8 | 70% of held-out prices within 2× of what WLDD paid, beating both baselines on every score; six models tested on unseen deals, the simplest held up; why the range is wide, honestly |

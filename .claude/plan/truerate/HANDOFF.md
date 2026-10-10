@@ -6,7 +6,7 @@ This file is safe to commit: no WLDD prices. Prices live only in git-ignored `da
 ## Where things stand
 - Everything is committed and pushed to `origin main`. Run: `make api` (8000) and `make web` (3000), Demo login. Tests: `cd api && uv run pytest -q` (all pass); web: `cd web && npm run lint && npm run build`; UI: `web/scripts/ui-check.sh /analyses/<id> /batch/<id> /brand/<id>`.
 - **The app shows answers, not measurements** (the founders read outputs):
-  - Report Summary: "Pay about", a likely band 3× wide, the full range, the call, and plain verdicts from `api/truerate/outputs.py` (✓/!/✗ with one sentence).
+  - Report Summary: the full fair range, the call, and plain verdicts from `api/truerate/outputs.py` (✓/!/✗ with one sentence).
   - Evidence sits in tabs: Price, Audience (9 checks behind a disclosure), Content (ads grouped by brand) and Similar.
 - **Batch** (`/batch/[id]`): who to book first and why, the cheapest-views alternative, "What ₹10,000 buys" ranked bars, a verdict scorecard, and price and reach charts. `/batch` lists recent batches.
 - **Brand match** (`/brand`, `api/truerate/brand.py`):
@@ -30,6 +30,7 @@ This file is safe to commit: no WLDD prices. Prices live only in git-ignored `da
 - Answers over numbers; likely band plus full range; quote checker kept; stand-out extras dropped; HypeAuditor not used.
 - Big creators: market rate discounted the way WLDD pays; their own listed price found online is **information only**.
 - Batch "Rival ad" and brand "Worked with them" columns removed.
+- 2026-10-11 late: nav reads Price a creator · Compare creators · Creators for a brand · Rate card · About. The **full range** is the headline everywhere (no "Pay about", no likely band on screen; the likely band still sets "on the high side" quotes). The published asking price shows only for 10L+ followers. Recent lists are tables with names beside handles, × to hide, and as many rows as fit the first screen. The brand result is in three tabs. Cross-platform strength (YouTube, X, LinkedIn) via Apify is researched, not built: see IMPLEMENTATION.
 
 ## Left
 - Optional: the api and web AGENTS.md notes are stamped at an old commit; re-map them (`/repo-setup` or by hand) before trusting their details.

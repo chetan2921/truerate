@@ -1,11 +1,11 @@
 "use client";
 
 import { Plus, X } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import ProductOptions from "@/components/product-options";
+import RecentTable, { NameHandle } from "@/components/recent-table";
 import { api, type BatchSummary, type Meta } from "@/lib/api";
 import { daysAgo } from "@/lib/format";
 
@@ -115,7 +115,7 @@ export default function BatchPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-6 pb-24 pt-[min(6vh,3rem)]">
+    <main className="mx-auto max-w-6xl px-6 pb-12 pt-[min(6vh,3rem)]">
       <h1 className="text-3xl font-bold">Compare creators</h1>
       <p className="basis mt-2 max-w-2xl">Each creator gets the full analysis. The table ranks them by what one reel costs per 1,000 views.</p>
       <form onSubmit={submit} className="mt-6 grid max-w-4xl items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
@@ -180,30 +180,34 @@ export default function BatchPage() {
         </div>
       </form>
 
-      {recent && recent.length > 0 && (
-        <section aria-labelledby="recent-batches" className="mt-16 max-w-4xl">
-          <h2 id="recent-batches" className="section-title">
-            Recent batches
-          </h2>
-          <ul className="mt-3 divide-y divide-line">
-            {recent.map((b) => {
-              const running = b.done < b.total;
-              return (
-                <li key={b.id}>
-                  <Link href={`/batch/${b.id}`} className="grid grid-cols-[1fr_auto_6rem] items-center gap-6 py-3 no-underline hover:bg-surface">
-                    <span className="truncate">
-                      {b.handles.slice(0, 3).map((h) => `@${h}`).join(", ")}
-                      {b.handles.length > 3 && <span className="basis"> and {b.handles.length - 3} more</span>}
-                    </span>
-                    <span className={`figure text-sm ${running ? "text-text" : "text-muted"}`}>{running ? `Running, ${b.done} of ${b.total} done` : `${b.total} done`}</span>
-                    <span className="basis text-right">{daysAgo(b.created_at)}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
+      <RecentTable
+        className="mt-12 max-w-5xl"
+        title="Recent comparisons"
+        items={recent}
+        href={(b) => `/batch/${b.id}`}
+        onRemove={(id) => {
+          setRecent((list) => list?.filter((b) => b.id !== id) ?? null);
+          api.hideBatch(id).catch(() => api.listBatches().then(setRecent).catch(() => {}));
+        }}
+        removeLabel={() => "Remove this comparison from the list"}
+        empty="No comparisons yet."
+        columns={[
+          {
+            label: "Creators",
+            className: "w-[60%]",
+            cell: (b) => (
+              <span className="flex min-w-0 items-baseline gap-4 overflow-hidden">
+                {(b.creators.length ? b.creators : b.handles.map((h) => ({ handle: h, name: null }))).slice(0, 3).map((c) => (
+                  <NameHandle key={c.handle} name={c.name} handle={c.handle} />
+                ))}
+                {b.handles.length > 3 && <span className="basis shrink-0">and {b.handles.length - 3} more</span>}
+              </span>
+            ),
+          },
+          { label: "Progress", cell: (b) => <span className={b.done < b.total ? "text-text" : "basis"}>{b.done < b.total ? `Running, ${b.done} of ${b.total} done` : `${b.total} done`}</span> },
+          { label: "When", className: "w-28 text-right", cell: (b) => <span className="basis">{daysAgo(b.created_at)}</span> },
+        ]}
+      />
     </main>
   );
 }

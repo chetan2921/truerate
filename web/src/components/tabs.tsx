@@ -2,40 +2,35 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const TABS = [
-  { key: "summary", label: "Summary" },
-  { key: "price", label: "Price" },
-  { key: "audience", label: "Audience" },
-  { key: "content", label: "Content" },
-  { key: "similar", label: "Similar" },
-] as const;
+export type Tab = { key: string; label: string; panel: React.ReactNode };
 
-export type TabKey = (typeof TABS)[number]["key"];
-
-// The open tab lives in the URL hash, so a shared link can open the report on Price or Audience.
-function fromHash(): TabKey {
+// The open tab lives in the URL hash, so a shared link can open a page on a given tab. The first tab is the default.
+function fromHash(keys: string[]): string {
   const key = location.hash.slice(1);
-  return TABS.find((t) => t.key === key)?.key ?? "summary";
+  return keys.includes(key) ? key : keys[0];
 }
 
-export default function ReportTabs({ panels }: { panels: Record<TabKey, React.ReactNode> }) {
-  const [active, setActive] = useState(fromHash);
-  // A panel mounts the first time it opens and then stays, so a quote check survives a look at another tab.
-  const [opened, setOpened] = useState(() => new Set<TabKey>([fromHash()]));
+// Tabs for the creator report and the brand result: a sticky bar, arrow keys, `#tab` links, and each panel mounted the
+// first time it opens and then kept, so a quote check survives a look at another tab.
+export default function Tabs({ tabs, label }: { tabs: Tab[]; label: string }) {
+  const keys = tabs.map((t) => t.key);
+  const joined = keys.join(",");
+  const [active, setActive] = useState(() => fromHash(keys));
+  const [opened, setOpened] = useState(() => new Set<string>([fromHash(keys)]));
   const start = useRef<HTMLDivElement>(null);
-  const buttons = useRef(new Map<TabKey, HTMLButtonElement>());
+  const buttons = useRef(new Map<string, HTMLButtonElement>());
 
   useEffect(() => {
     const onHash = () => {
-      const key = fromHash();
+      const key = fromHash(joined.split(","));
       setActive(key);
       setOpened((s) => (s.has(key) ? s : new Set(s).add(key)));
     };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
-  }, []);
+  }, [joined]);
 
-  function select(key: TabKey) {
+  function select(key: string) {
     setActive(key);
     setOpened((s) => (s.has(key) ? s : new Set(s).add(key)));
     window.history.replaceState(null, "", `#${key}`);
@@ -45,11 +40,11 @@ export default function ReportTabs({ panels }: { panels: Record<TabKey, React.Re
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
-    const i = TABS.findIndex((t) => t.key === active);
-    const next = ({ ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 } as Record<string, number>)[e.key];
+    const i = keys.indexOf(active);
+    const next = ({ ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: keys.length - 1 } as Record<string, number>)[e.key];
     if (next === undefined) return;
     e.preventDefault();
-    const key = TABS[(next + TABS.length) % TABS.length].key;
+    const key = keys[(next + keys.length) % keys.length];
     select(key);
     buttons.current.get(key)?.focus();
   }
@@ -58,8 +53,8 @@ export default function ReportTabs({ panels }: { panels: Record<TabKey, React.Re
     <>
       <div ref={start} />
       {/* On a narrow window the bar scrolls sideways instead of widening the page; the underline and focus ring sit inside each tab so the scroll can't clip them. */}
-      <div role="tablist" aria-label="Report sections" onKeyDown={onKeyDown} className="sticky top-0 z-10 -mx-6 mt-4 flex gap-1 overflow-x-auto border-b border-line bg-bg px-6">
-        {TABS.map((t) => {
+      <div role="tablist" aria-label={label} onKeyDown={onKeyDown} className="sticky top-0 z-10 -mx-6 mt-4 flex gap-1 overflow-x-auto border-b border-line bg-bg px-6">
+        {tabs.map((t) => {
           const on = t.key === active;
           return (
             <button
@@ -82,9 +77,9 @@ export default function ReportTabs({ panels }: { panels: Record<TabKey, React.Re
           );
         })}
       </div>
-      {TABS.map((t) => (
+      {tabs.map((t) => (
         <div key={t.key} role="tabpanel" id={`panel-${t.key}`} aria-labelledby={`tab-${t.key}`} hidden={t.key !== active} className="pt-6">
-          {opened.has(t.key) && panels[t.key]}
+          {opened.has(t.key) && t.panel}
         </div>
       ))}
     </>

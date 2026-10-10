@@ -308,6 +308,7 @@ class Analysis(BaseModel):
 class AnalysisSummary(BaseModel):
     id: str
     handle: str
+    name: str | None = None  # the profile's display name, shown beside the handle
     status: str
     call: str | None
     fair: int | None
@@ -364,10 +365,16 @@ class Batch(BaseModel):
     rows: list[BatchRow]
 
 
+class Creator(BaseModel):
+    handle: str
+    name: str | None
+
+
 class BatchSummary(BaseModel):
     id: str
     created_at: datetime
     handles: list[str]
+    creators: list[Creator] = []  # each creator with the display name its analysis found
     total: int
     done: int
 
@@ -618,7 +625,14 @@ def create_brand_run(req: BrandRequest) -> Created:
 @app.get("/api/brands")
 def list_brand_runs() -> list[BrandSummary]:
     return [BrandSummary(id=b["_id"], brand=b["request"]["brand"], name=((b.get("result") or {}).get("brand") or {}).get("name"), status=b["status"],
-                         created_at=b["created_at"]) for b in get_db().brands.find().sort("created_at", -1).limit(10)]
+                         created_at=b["created_at"]) for b in get_db().brands.find({"hidden": {"$ne": True}}).sort("created_at", -1).limit(10)]
+
+
+@app.delete("/api/brands/{run_id}", status_code=204)
+def hide_brand_run(run_id: str) -> None:
+    """Takes it off the recent list; the result itself still opens by its link."""
+    if not get_db().brands.update_one({"_id": run_id}, {"$set": {"hidden": True}}).matched_count:
+        raise HTTPException(404, "No brand run with that id.")
 
 
 @app.get("/api/brands/{run_id}")
@@ -653,10 +667,19 @@ def list_batches() -> list[BatchSummary]:
     """The 10 newest batches with their progress, so a running batch can be found again after leaving its page."""
     db = get_db()
     out = []
-    for b in db.batches.find().sort("created_at", -1).limit(10):
-        statuses = [a["status"] for a in db.analyses.find({"batch_id": b["_id"]}, {"status": 1})]
-        out.append(BatchSummary(id=b["_id"], created_at=b["created_at"], handles=b["handles"], total=len(statuses), done=sum(x != "running" for x in statuses)))
+    for b in db.batches.find({"hidden": {"$ne": True}}).sort("created_at", -1).limit(10):
+        analyses = list(db.analyses.find({"batch_id": b["_id"]}, {"status": 1, "handle": 1, "result.profile.full_name": 1}))
+        names = {a["handle"]: ((a.get("result") or {}).get("profile") or {}).get("full_name") or None for a in analyses}
+        out.append(BatchSummary(id=b["_id"], created_at=b["created_at"], handles=b["handles"], creators=[Creator(handle=h, name=names.get(h)) for h in b["handles"]],
+                                total=len(analyses), done=sum(a["status"] != "running" for a in analyses)))
     return out
+
+
+@app.delete("/api/batches/{batch_id}", status_code=204)
+def hide_batch(batch_id: str) -> None:
+    """Takes it off the recent list; the comparison itself still opens by its link."""
+    if not get_db().batches.update_one({"_id": batch_id}, {"$set": {"hidden": True}}).matched_count:
+        raise HTTPException(404, "No batch with that id.")
 
 
 @app.get("/api/batches/{batch_id}")
@@ -697,7 +720,7 @@ def list_analyses() -> list[AnalysisSummary]:
     out = []
     for a in get_db().analyses.find({"hidden": {"$ne": True}}).sort("created_at", -1).limit(50):
         r = a.get("result") or {}
-        out.append(AnalysisSummary(id=a["_id"], handle=a["handle"], status=a["status"], call=r.get("decision", {}).get("call"),
+        out.append(AnalysisSummary(id=a["_id"], handle=a["handle"], name=(r.get("profile") or {}).get("full_name") or None, status=a["status"], call=r.get("decision", {}).get("call"),
                                    fair=r.get("price", {}).get("fair"), low=r.get("price", {}).get("low"), high=r.get("price", {}).get("high"), verdict=r.get("audience", {}).get("verdict"), created_at=a["created_at"]))
     return out
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import Tabs from "@/components/tabs";
 import ValueBars from "@/components/value-bars";
 import { StatusIcon } from "@/components/verdicts";
 import { api, type BrandRun } from "@/lib/api";
@@ -74,7 +75,11 @@ export default function BrandResult({ run }: { run: BrandRun }) {
         considered
       </p>
 
-      <section aria-label="Recommendation" className="panel mt-6 grid items-start gap-8 p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+      <Tabs
+        label="Brand result"
+        tabs={[
+          { key: "plan", label: budget ? "Plan" : "Best matches", panel: (
+      <section aria-label="Recommendation" className="panel grid items-start gap-8 p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
         <div>
           {budget && planned.length > 0 ? (
             <>
@@ -118,7 +123,9 @@ export default function BrandResult({ run }: { run: BrandRun }) {
         />
       </section>
 
-      <section aria-labelledby="ranked" className="pt-12">
+          ) },
+          { key: "matches", label: `All ${r.picks.length} matches`, panel: (
+      <section aria-labelledby="ranked">
         <h2 id="ranked" className="section-title">
           The top {r.picks.length} for {b.product}
         </h2>
@@ -163,8 +170,9 @@ export default function BrandResult({ run }: { run: BrandRun }) {
         {inPlan.size > 0 && <p className="basis mt-2">Highlighted rows are the budget plan.</p>}
       </section>
 
-      {r.to_price.length > 0 && (
-        <section aria-labelledby="to-price" className="pt-14">
+          ) },
+          ...(r.to_price.length ? [{ key: "unpriced", label: `Not priced yet (${r.to_price.length})`, panel: (
+        <section aria-labelledby="to-price">
           <h2 id="to-price" className="section-title">
             Seen with {b.name}, not priced yet
           </h2>
@@ -185,7 +193,9 @@ export default function BrandResult({ run }: { run: BrandRun }) {
             {starting ? "Starting…" : `Price ${Math.min(r.to_price.length, 20)} of them as a batch`}
           </button>
         </section>
-      )}
+          ) }] : []),
+        ]}
+      />
     </main>
   );
 }
