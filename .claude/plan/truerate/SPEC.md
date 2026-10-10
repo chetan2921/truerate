@@ -22,25 +22,12 @@ A one-click "Demo login" button, or an email that must end in `@wldd.in` (checke
 1. `/` shows a handle-or-link input. Product category, quoted price and budget are optional fields under it. Recent analyses are listed below.
 2. Submit: `POST /api/analyses` returns an id, and the page moves to `/analyses/[id]`.
 3. The page polls every 1.5 s and shows 4 steps: reading profile, reels and audience · spotting ads and measuring reels · checking audience quality · calculating fair price.
-4. The report, top to bottom:
-   - **Decision block.** Price range, recommended price, Go/Negotiate/Avoid with reasons, the verdict scale (Real audience · Some fake activity · Mostly fake), and expected delivery: views, likes and comments on the sponsored reel, plus cost per 1,000 views against the category average.
-   - **How the price was reached.** A waterfall: market price from WLDD's past deals → sponsored-performance adjustment → fake-engagement adjustment → recommended price. Below it, the 6 past deals it compared against.
-   - **Quote checker.** Competitor-conflict warning, if any.
-   - **1. Authenticity.** Verdict plus every check, each with its value, sample size and the similar-creator median. Specific red flags with evidence.
-   - **2. Engagement.** Rate, similar-creator median, and "better than X% of similar creators".
-   - **3. Placement performance.**
-     - last 30 reels chart (views, likes, comments, followers toggle; sponsored reels marked)
-     - consistency (how many of the last 10 reels reached half the usual views, and a typical bad reel)
-     - trend
-     - paid reels vs own reels
-     - collab posts with other creators vs own reels
-     - list of detected ads, disclosed or not
-   - **4. Audience and niche.**
-     - niche
-     - who engages (fake-looking commenters, creators and brands among top commenters, comment languages)
-     - whether the audience is worth reaching: category value rank, product fit, and one plain sentence combining them
-   - **5. Fair price evidence.** Similar creators WLDD paid, cheaper alternatives, Instagram-suggested accounts to analyse.
-   - **Negotiation lines.** Copy and Download-PDF buttons.
+4. The report: the handle line and the client one-pager link, then five tabs in a sticky bar. Summary opens by default; `#summary`, `#price`, `#audience`, `#content` and `#similar` open a tab directly. A tab mounts the first time it opens and stays, so a quote check survives a look elsewhere.
+   - **Summary.** The decision block: price range, Go/Negotiate/Avoid with reasons, the verdict scale (Real audience · Some fake activity · Mostly fake), and expected delivery (views, likes and comments on the sponsored reel, cost per 1,000 views against the category). Then the negotiation lines with Copy.
+   - **Price.** How the price was reached: the waterfall (market price from WLDD's past deals → sponsored-performance adjustment → fake-engagement adjustment → middle of the fair range) and the 6 past deals it compared against. The quote checker. Cheaper creators WLDD has booked in the category.
+   - **Audience.** Authenticity (verdict plus every check, with its value, sample size and the similar-creator median), engagement against similar creators, and audience and niche (who engages, comment languages, category value rank, product fit, competitor warning).
+   - **Content.** The last 30 reels chart (views, likes, comments, followers; sponsored reels marked), consistency, trend, paid and collab reels against own reels, brand tags and the detected ads.
+   - **Similar.** The accounts Instagram suggests, each with a button that prices it.
 5. Failures:
    - A private account or faceless page gets status `out_of_scope` with the reason in one sentence.
    - An API error gets status `failed` with the message and a Retry button.

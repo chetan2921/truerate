@@ -23,7 +23,7 @@ The Next.js front end the WLDD team uses: login, analyze, report with a quote ch
 - `src/app/(app)/rate-card/`: calculator plus the category table
 - `src/app/(app)/about/`: `page.tsx` (accuracy chart and tables, fake test, flow, signals, other pages, limits) and `content.ts` (static text, condensed from SPEC)
 - `src/app/(app)/nav.tsx`: header nav; `layout.tsx` wraps it in Suspense because it reads the path
-- `src/components/report/`: `report.tsx` composes `decision`, `waterfall` (with the 6 comparables), `quote`, `authenticity`, `engagement`, `placement` (Recharts), `audience`, `evidence`, `negotiation`
+- `src/components/report/`: `report.tsx` lays the report out in five tabs through `tabs.tsx` (ARIA tabs, `#tab` deep links, sticky bar, each panel mounted on first open): Summary (`decision`, `negotiation`), Price (`waterfall` with the 6 comparables, `quote`, `CheaperCreators` from `evidence`), Audience (`authenticity`, `engagement`, `audience`), Content (`placement`, Recharts), Similar (`Suggestions` from `evidence`). A heading id must never equal a tab key, or the hash would scroll to it.
 - `src/components/chips.tsx`: decision chip and verdict colours
 - `src/lib/api.ts` (fetch calls), `src/lib/api-types.ts` (generated, `make types`), `src/lib/format.ts` (₹ with Indian grouping, K/L/Cr, percentages)
 

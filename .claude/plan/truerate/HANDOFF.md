@@ -74,6 +74,7 @@ Each step lists its proof of done.
 - 50% "most likely" band as the headline: **decide after step 2** measures its held-out coverage.
 - Creators beyond WLDD's deals: show WLDD's range and the published market price **separately**, not merged.
 - Report tabs: **the five in step 3**.
+- Stand-out extras (audience overlap, delivery tracker, brand safety, lookalikes): **dropped** (user, 2026-10-10). Order from here: report tabs → market price shown separately → brand page → notes and pitch → demo prep → housekeeping → model work (metrics judges know, anti-gaming chart, ensemble, model-card slides).
 - Brand page pool: **both**, each pick labelled with where it came from (WLDD's creators and past analyses, plus the brand's and rivals' tagged creators and their suggestions).
 
 ## Constraints that bite

@@ -26,7 +26,10 @@ Decision rule, fixed before any held-out number was computed:
 - [x] TabPFN v2 (local, v2 weights, `experiments` group), run with the servers off: **not adopted**. It became the CV pick (39.1% against 40.0%). Held out: 62% against 57% (worse). Fresh: 50% against 55%, with a range holding 58% against 63%. Bootstrap over the 49: −13 to +12 points. About 50 minutes with TabPFN.
 - Dropped (user, 2026-10-10): the HypeAuditor hand check. The outside comparison stays the Modash-style baseline `validate` already scores.
 - [x] Asked about the fresh deals (user, 2026-10-10): one reel each; when they were made is unknown. So the big-creator gap isn't explained by deal terms. It's either price drift over time or the noise floor.
-- Next (decided 2026-10-10): show WLDD's range and the market reference separately for creators beyond WLDD's deals.
+- [x] Report tabs (2026-10-10): Summary · Price · Audience · Content · Similar, with `#tab` deep links and a sticky bar. Checked: lint, types, ui-check (audit, first screen at all 11 sizes, slop scan 0 of 12), cold deep links to all 5 tabs in Chrome, keyboard, a quote check surviving a tab switch, sticky bar, no console errors.
+- [ ] Show WLDD's range and the market reference separately for creators beyond WLDD's deals.
+- [ ] Brand match page (`/brand`).
+- [ ] Notes and pitch; demo prep; housekeeping; then the model work (judge-familiar metrics, anti-gaming chart, ensemble, model-card slides).
 
 Ideas for after the hackathon: a refresh option for saved HikerAPI responses; reuse stored signals in the red-team (it takes about 30 minutes); a faster model for the labelling call.
 

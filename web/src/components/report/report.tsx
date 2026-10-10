@@ -8,10 +8,11 @@ import Audience from "./audience";
 import Authenticity from "./authenticity";
 import Decision from "./decision";
 import Engagement from "./engagement";
-import Evidence from "./evidence";
+import { CheaperCreators, Suggestions } from "./evidence";
 import Negotiation from "./negotiation";
 import Placement from "./placement";
 import QuoteChecker from "./quote";
+import ReportTabs from "./tabs";
 import Waterfall from "./waterfall";
 
 export default function ReportView({ id, report: r, inputs }: { id: string; report: Report; inputs: Analysis["inputs"] }) {
@@ -32,34 +33,43 @@ export default function ReportView({ id, report: r, inputs }: { id: string; repo
         </Link>
       </div>
 
-      <div className="mt-5">
-        <Decision r={r} />
-      </div>
-      {/* Gaps follow weight: loose after the dense table and the chart, tight around the one-line engagement block. */}
-      <div className="[&>section]:pt-12">
-        <Waterfall r={r} />
-      </div>
-      <div className="[&>section]:pt-10">
-        <QuoteChecker id={id} initial={inputs.quote ?? null} />
-      </div>
-      <div className="[&>section]:pt-16">
-        <Authenticity r={r} />
-      </div>
-      <div className="[&>section]:pt-10">
-        <Engagement r={r} />
-      </div>
-      <div className="[&>section]:pt-14">
-        <Placement r={r} />
-      </div>
-      <div className="[&>section]:pt-16">
-        <Audience r={r} />
-      </div>
-      <div className="[&>section]:pt-12">
-        <Evidence r={r} />
-      </div>
-      <div className="mt-12">
-        <Negotiation r={r} />
-      </div>
+      {/* Inside each tab, gaps follow weight: loose after a dense table or the chart, tight around one-line blocks. */}
+      <ReportTabs
+        panels={{
+          summary: (
+            <>
+              <Decision r={r} />
+              <div className="mt-12">
+                <Negotiation r={r} />
+              </div>
+            </>
+          ),
+          price: (
+            <>
+              <Waterfall r={r} />
+              <div className="[&>section]:pt-12">
+                <QuoteChecker id={id} initial={inputs.quote ?? null} />
+              </div>
+              <div className="[&>section]:pt-16">
+                <CheaperCreators r={r} />
+              </div>
+            </>
+          ),
+          audience: (
+            <>
+              <Authenticity r={r} />
+              <div className="[&>section]:pt-10">
+                <Engagement r={r} />
+              </div>
+              <div className="[&>section]:pt-14">
+                <Audience r={r} />
+              </div>
+            </>
+          ),
+          content: <Placement r={r} />,
+          similar: <Suggestions r={r} />,
+        }}
+      />
     </main>
   );
 }

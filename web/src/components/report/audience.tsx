@@ -13,9 +13,9 @@ export default function Audience({ r }: { r: Report }) {
   const topics = Object.entries(r.niche.topics).sort((a, b) => b[1] - a[1]);
 
   return (
-    <section aria-labelledby="audience" className="grid gap-10 lg:grid-cols-2">
+    <section aria-labelledby="audience-title" className="grid gap-10 lg:grid-cols-2">
       <div>
-        <h2 id="audience" className="section-title">
+        <h2 id="audience-title" className="section-title">
           Audience and niche
         </h2>
         <p className="mt-3">
