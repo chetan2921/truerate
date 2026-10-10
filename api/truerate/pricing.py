@@ -76,11 +76,17 @@ def fit(rows: list[dict], blend: tuple[float, float, float] | None = None) -> Pr
     return PriceModel(Core.fit(rows), *blend, paid_typical=median(ratios) if ratios else 1.0)
 
 
+FACTOR_FLOOR, FACTOR_CAP = 0.5, 1.0
+
+
 def collab_factor(n: int, ratio: float | None, typical: float, prior: float | None = None) -> tuple[float, float]:
-    """(Shrunk paid-reel ratio, price factor). Past prices already include the typical drop, so the factor divides it out."""
+    """(Expected paid-reel share of own-reel views, price factor). Past prices already include the typical drop, so
+    the factor divides it out. Bounded to 0.5-1.0: on WLDD's deals an upward factor (viral reels labelled as ads)
+    took the holdout error from 57% to 83%, while discounting weak sponsored reach helped (leave-one-out 43% -> 39%)."""
     prior = typical if prior is None else prior
     shrunk = (n * ratio + SHRINK * prior) / (n + SHRINK) if n else prior
-    return round(shrunk, 4), round(shrunk / typical, 4)
+    factor = min(max(shrunk / typical, FACTOR_FLOOR), FACTOR_CAP)
+    return round(typical * factor, 4), round(factor, 4)
 
 
 def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:

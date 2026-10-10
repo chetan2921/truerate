@@ -42,6 +42,13 @@ def test_collab_factor_shrinks_few_ads_toward_the_typical_drop():
     assert collab_factor(30, 0.6, typical=0.6)[1] == 1.0
 
 
+def test_collab_factor_never_raises_a_price_and_never_more_than_halves_it():
+    # Real data: a few viral reels labelled as ads made paid reels look 100x stronger, and prices followed. Past
+    # prices already include strong creators, so the factor only discounts weak sponsored reach, down to half.
+    assert collab_factor(5, 10.0, typical=0.9) == (0.9, 1.0)
+    assert collab_factor(20, 0.05, typical=0.9) == (0.45, 0.5)
+
+
 def test_baselines():
     rows = [{"followers": 50_000, "price": p, "views": 20_000, "engagement": e} for p, e in [(10_000, 0.04), (20_000, 0.05), (30_000, 0.06)]]
     assert band_median_price(rows, 60_000) == 20_000
