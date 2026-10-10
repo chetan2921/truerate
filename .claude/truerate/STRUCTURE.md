@@ -76,6 +76,7 @@ web/src/components/brand/result.tsx
 web/src/components/chart-tip.tsx
 web/src/components/chips.tsx
 web/src/components/product-options.tsx
+web/src/components/recent-table.tsx
 web/src/components/report/audience.tsx
 web/src/components/report/authenticity.tsx
 web/src/components/report/decision.tsx
@@ -85,8 +86,8 @@ web/src/components/report/negotiation.tsx
 web/src/components/report/placement.tsx
 web/src/components/report/quote.tsx
 web/src/components/report/report.tsx
-web/src/components/report/tabs.tsx
 web/src/components/report/waterfall.tsx
+web/src/components/tabs.tsx
 web/src/components/value-bars.tsx
 web/src/components/verdicts.tsx
 web/src/lib/api-types.ts
@@ -107,7 +108,8 @@ api/scripts/make_deck.py:71:    def table(self, s, x, y, widths, rows, size=13, 
 api/scripts/make_deck.py:93:def _plain_style(tbl):
 api/scripts/make_deck.py:101:def _bottom_rule(cell):
 api/scripts/make_deck.py:109:def _log_axes(chart):
-api/scripts/make_deck.py:120:def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> None:
+api/scripts/make_deck.py:130:def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path, experiments: dict | None = None, widths: dict | None = None) -> None:
+api/scripts/make_deck.py:229:    def scores(m):
 api/scripts/seed_dev.py:43:def snap_for(handle, seed):
 api/scripts/seed_dev.py:61:def save(aid, handle, inputs, out, minutes):
 api/tests/conftest.py:8:def db():
@@ -134,6 +136,7 @@ api/tests/test_app.py:174:def test_reports_saved_before_the_likely_band_get_it_w
 api/tests/test_app.py:186:def test_a_brand_run_is_started_polled_and_listed(client, monkeypatch):
 api/tests/test_app.py:194:    def brand_deps(fetch):
 api/tests/test_app.py:206:    def missing(handle):
+api/tests/test_app.py:214:def test_recent_lists_carry_names_and_batches_and_brand_runs_can_be_hidden(client, monkeypatch):
 api/tests/test_audience.py:14:def fake_embed(texts):
 api/tests/test_audience.py:26:def comment(user, text):
 api/tests/test_audience.py:30:def test_comment_signals_find_generic_repeated_and_pod_comments():
@@ -172,9 +175,9 @@ api/tests/test_brand.py:58:def creator(**changes) -> dict:
 api/tests/test_brand.py:64:def test_scoring_puts_a_fitting_real_good_value_creator_first_and_says_why():
 api/tests/test_brand.py:76:def test_budget_plan_picks_the_most_views_that_fit_the_budget():
 api/tests/test_brand.py:83:def test_the_pool_labels_where_each_creator_came_from(world):
-api/tests/test_brand.py:94:def test_a_brand_run_profiles_ranks_plans_and_lists_who_to_price_next(world):
-api/tests/test_brand.py:111:def test_a_brand_on_instagram_costs_three_requests(tmp_path):
-api/tests/test_brand.py:122:def test_the_plan_never_books_a_creator_with_a_clear_problem():
+api/tests/test_brand.py:96:def test_a_brand_run_profiles_ranks_plans_and_lists_who_to_price_next(world):
+api/tests/test_brand.py:113:def test_a_brand_on_instagram_costs_three_requests(tmp_path):
+api/tests/test_brand.py:124:def test_the_plan_never_books_a_creator_with_a_clear_problem():
 api/tests/test_db.py:9:def write_csv(path, per_tier=11):
 api/tests/test_db.py:18:def test_indexes(db):
 api/tests/test_db.py:25:def test_import_deals_holds_out_10_per_tier_and_is_idempotent(db, tmp_path):
@@ -192,6 +195,8 @@ api/tests/test_experiment.py:97:def test_fresh_deals_are_scored_by_the_model_exa
 api/tests/test_experiment.py:106:def test_per_creator_ranges_are_narrow_where_similar_deals_agree_and_still_hold_their_level():
 api/tests/test_experiment.py:107:    def noisy(n, seed):
 api/tests/test_experiment.py:125:def test_coverage_by_width_counts_prices_inside_a_range_of_each_width_around_the_middle():
+api/tests/test_experiment.py:132:def test_the_ensemble_averages_its_members_in_log_price():
+api/tests/test_experiment.py:135:    def with_extras(rows, seed):  # boosting needs the new features to have values, as WLDD's deals do
 api/tests/test_instagram.py:39:def fixture(name):
 api/tests/test_instagram.py:43:def fake_hiker(store, calls=None, status=200, private=False, missing=(), disabled=()):
 api/tests/test_instagram.py:44:    def handler(request):
@@ -263,16 +268,16 @@ api/tests/test_pricing.py:47:def test_collab_factor_never_raises_a_price_and_nev
 api/tests/test_pricing.py:54:def test_baselines():
 api/tests/test_pricing.py:62:def test_price_has_a_range_waterfall_comparables_and_delivery():
 api/tests/test_pricing.py:77:def test_validate_beats_both_baselines_on_synthetic_deals():
-api/tests/test_pricing.py:89:def test_range_covers_most_held_out_prices():
-api/tests/test_pricing.py:95:def test_validate_command_saves_model_and_report(db, tmp_path, monkeypatch):
-api/tests/test_pricing.py:108:def test_rate_card_per_category():
-api/tests/test_pricing.py:116:def test_a_creator_bigger_than_any_wldd_deal_gets_a_note():
-api/tests/test_pricing.py:124:def test_rate_card_leaves_out_categories_with_fewer_than_3_deals():
-api/tests/test_pricing.py:132:def test_every_price_carries_the_published_asking_range_for_its_size():
-api/tests/test_pricing.py:139:def test_beyond_wldds_largest_creator_the_price_leans_on_the_market_discounted_the_way_wldd_pays():
-api/tests/test_pricing.py:162:def test_below_wldds_smallest_creator_only_the_bottom_widens():
-api/tests/test_pricing.py:171:def test_the_range_comes_from_mapie_cross_conformal_at_80_percent():
-api/tests/test_pricing.py:188:def test_the_likely_band_is_about_3x_wide_around_the_middle_and_inside_the_full_range():
+api/tests/test_pricing.py:94:def test_range_covers_most_held_out_prices():
+api/tests/test_pricing.py:100:def test_validate_command_saves_model_and_report(db, tmp_path, monkeypatch):
+api/tests/test_pricing.py:113:def test_rate_card_per_category():
+api/tests/test_pricing.py:121:def test_a_creator_bigger_than_any_wldd_deal_gets_a_note():
+api/tests/test_pricing.py:129:def test_rate_card_leaves_out_categories_with_fewer_than_3_deals():
+api/tests/test_pricing.py:137:def test_every_price_carries_the_published_asking_range_for_its_size():
+api/tests/test_pricing.py:144:def test_beyond_wldds_largest_creator_the_price_leans_on_the_market_discounted_the_way_wldd_pays():
+api/tests/test_pricing.py:167:def test_below_wldds_smallest_creator_only_the_bottom_widens():
+api/tests/test_pricing.py:176:def test_the_range_comes_from_mapie_cross_conformal_at_80_percent():
+api/tests/test_pricing.py:193:def test_the_likely_band_is_about_3x_wide_around_the_middle_and_inside_the_full_range():
 api/tests/test_signals.py:13:def write_kaggle(path, n=20):
 api/tests/test_signals.py:23:def test_account_features_follow_kaggle_definitions():
 api/tests/test_signals.py:32:def test_load_kaggle_keeps_the_six_list_fields(tmp_path):
@@ -339,54 +344,57 @@ api/truerate/app.py:282:class Created(BaseModel):
 api/truerate/app.py:286:class Output(BaseModel):
 api/truerate/app.py:293:class Analysis(BaseModel):
 api/truerate/app.py:308:class AnalysisSummary(BaseModel):
-api/truerate/app.py:320:class QuoteRequest(BaseModel):
-api/truerate/app.py:324:class QuoteCheck(BaseModel):
-api/truerate/app.py:332:class BatchRequest(Inputs):
-api/truerate/app.py:336:class BatchRow(BaseModel):
-api/truerate/app.py:358:class Batch(BaseModel):
-api/truerate/app.py:367:class BatchSummary(BaseModel):
-api/truerate/app.py:375:class BrandRequest(BaseModel):
-api/truerate/app.py:382:class BrandAnswer(BaseModel):
-api/truerate/app.py:388:class BrandPick(BaseModel):
-api/truerate/app.py:406:class BrandProfile(BaseModel):
-api/truerate/app.py:419:class BrandPlan(BaseModel):
-api/truerate/app.py:425:class BrandResult(BaseModel):
-api/truerate/app.py:433:class BrandRun(BaseModel):
-api/truerate/app.py:444:class BrandSummary(BaseModel):
-api/truerate/app.py:452:class Per1k(BaseModel):
-api/truerate/app.py:458:class CategoryRate(BaseModel):
-api/truerate/app.py:466:class ThinCategory(BaseModel):
-api/truerate/app.py:471:class RateCard(BaseModel):
-api/truerate/app.py:476:class Product(BaseModel):
-api/truerate/app.py:481:class Meta(BaseModel):
-api/truerate/app.py:487:class ModelReport(BaseModel):
-api/truerate/app.py:497:def parse_handle(text: str) -> str | None:
-api/truerate/app.py:503:def _models() -> tuple:
-api/truerate/app.py:507:def _with_likely(result: dict | None) -> dict | None:
-api/truerate/app.py:515:def _warm() -> None:
-api/truerate/app.py:527:def make_deps(db) -> Deps:
-api/truerate/app.py:535:def make_brand_deps(db) -> BrandDeps:
-api/truerate/app.py:543:def _run_brand(run_id: str, req: dict) -> None:
-api/truerate/app.py:546:    def step(i: int) -> None:
-api/truerate/app.py:560:def _run(analysis_id: str, handle: str, inputs: dict) -> None:
-api/truerate/app.py:563:    def step(i: int) -> None:
-api/truerate/app.py:574:def _read_json(name: str) -> dict | None:
-api/truerate/app.py:583:def health() -> dict:
-api/truerate/app.py:588:def create_analysis(req: AnalysisRequest) -> Created:
-api/truerate/app.py:597:def _start(db, handle: str, inputs: dict, batch_id: str | None = None) -> str:
-api/truerate/app.py:606:def create_brand_run(req: BrandRequest) -> Created:
-api/truerate/app.py:617:def list_brand_runs() -> list[BrandSummary]:
-api/truerate/app.py:623:def get_brand_run(run_id: str) -> BrandRun:
-api/truerate/app.py:631:def create_batch(req: BatchRequest) -> Created:
-api/truerate/app.py:650:def list_batches() -> list[BatchSummary]:
-api/truerate/app.py:661:def get_batch(batch_id: str) -> Batch:
-api/truerate/app.py:685:def get_rate_card() -> RateCard:
-api/truerate/app.py:694:def list_analyses() -> list[AnalysisSummary]:
-api/truerate/app.py:704:def get_analysis(analysis_id: str) -> Analysis:
-api/truerate/app.py:714:def hide_analysis(analysis_id: str) -> None:
-api/truerate/app.py:721:def quote_check(analysis_id: str, req: QuoteRequest) -> QuoteCheck:
-api/truerate/app.py:731:def meta() -> Meta:
-api/truerate/app.py:737:def model_report() -> ModelReport:
+api/truerate/app.py:321:class QuoteRequest(BaseModel):
+api/truerate/app.py:325:class QuoteCheck(BaseModel):
+api/truerate/app.py:333:class BatchRequest(Inputs):
+api/truerate/app.py:337:class BatchRow(BaseModel):
+api/truerate/app.py:359:class Batch(BaseModel):
+api/truerate/app.py:368:class Creator(BaseModel):
+api/truerate/app.py:373:class BatchSummary(BaseModel):
+api/truerate/app.py:382:class BrandRequest(BaseModel):
+api/truerate/app.py:389:class BrandAnswer(BaseModel):
+api/truerate/app.py:395:class BrandPick(BaseModel):
+api/truerate/app.py:415:class BrandProfile(BaseModel):
+api/truerate/app.py:428:class BrandPlan(BaseModel):
+api/truerate/app.py:434:class BrandResult(BaseModel):
+api/truerate/app.py:442:class BrandRun(BaseModel):
+api/truerate/app.py:453:class BrandSummary(BaseModel):
+api/truerate/app.py:461:class Per1k(BaseModel):
+api/truerate/app.py:467:class CategoryRate(BaseModel):
+api/truerate/app.py:475:class ThinCategory(BaseModel):
+api/truerate/app.py:480:class RateCard(BaseModel):
+api/truerate/app.py:485:class Product(BaseModel):
+api/truerate/app.py:490:class Meta(BaseModel):
+api/truerate/app.py:496:class ModelReport(BaseModel):
+api/truerate/app.py:506:def parse_handle(text: str) -> str | None:
+api/truerate/app.py:512:def _models() -> tuple:
+api/truerate/app.py:516:def _with_likely(result: dict | None) -> dict | None:
+api/truerate/app.py:524:def _warm() -> None:
+api/truerate/app.py:536:def make_deps(db) -> Deps:
+api/truerate/app.py:544:def make_brand_deps(db) -> BrandDeps:
+api/truerate/app.py:552:def _run_brand(run_id: str, req: dict) -> None:
+api/truerate/app.py:555:    def step(i: int) -> None:
+api/truerate/app.py:569:def _run(analysis_id: str, handle: str, inputs: dict) -> None:
+api/truerate/app.py:572:    def step(i: int) -> None:
+api/truerate/app.py:583:def _read_json(name: str) -> dict | None:
+api/truerate/app.py:592:def health() -> dict:
+api/truerate/app.py:597:def create_analysis(req: AnalysisRequest) -> Created:
+api/truerate/app.py:606:def _start(db, handle: str, inputs: dict, batch_id: str | None = None) -> str:
+api/truerate/app.py:615:def create_brand_run(req: BrandRequest) -> Created:
+api/truerate/app.py:626:def list_brand_runs() -> list[BrandSummary]:
+api/truerate/app.py:632:def hide_brand_run(run_id: str) -> None:
+api/truerate/app.py:639:def get_brand_run(run_id: str) -> BrandRun:
+api/truerate/app.py:647:def create_batch(req: BatchRequest) -> Created:
+api/truerate/app.py:666:def list_batches() -> list[BatchSummary]:
+api/truerate/app.py:679:def hide_batch(batch_id: str) -> None:
+api/truerate/app.py:686:def get_batch(batch_id: str) -> Batch:
+api/truerate/app.py:710:def get_rate_card() -> RateCard:
+api/truerate/app.py:719:def list_analyses() -> list[AnalysisSummary]:
+api/truerate/app.py:729:def get_analysis(analysis_id: str) -> Analysis:
+api/truerate/app.py:739:def hide_analysis(analysis_id: str) -> None:
+api/truerate/app.py:746:def quote_check(analysis_id: str, req: QuoteRequest) -> QuoteCheck:
+api/truerate/app.py:756:def meta() -> Meta:
+api/truerate/app.py:762:def model_report() -> ModelReport:
 api/truerate/audio.py:19:def audio_from_video(data: bytes) -> bytes:
 api/truerate/audio.py:42:def fetch_audio(reels: list[dict]) -> dict[str, bytes]:
 api/truerate/audio.py:45:    def one(reel):
@@ -416,7 +424,7 @@ api/truerate/cli.py:142:    def label(item):
 api/truerate/cli.py:156:    def safe_label(item):
 api/truerate/cli.py:196:def validate_cmd(out_dir: Path = REPO_ROOT / "data" / "models") -> None:
 api/truerate/cli.py:217:def experiment_cmd(out_dir: Path = REPO_ROOT / "data" / "models" / "experiments", fresh_csv: Path = REPO_ROOT / "data" / "fresh_test_20.csv",
-api/truerate/cli.py:254:def redteam_cmd(out_dir: Path = MODELS_DIR) -> None:
+api/truerate/cli.py:255:def redteam_cmd(out_dir: Path = MODELS_DIR) -> None:
 api/truerate/config.py:16:class Settings(BaseSettings):
 api/truerate/config.py:28:def get_settings() -> Settings:
 api/truerate/db.py:18:def _client(uri: str) -> MongoClient:
@@ -438,33 +446,33 @@ api/truerate/experiment.py:129:def _tabpfn():
 api/truerate/experiment.py:139:def _sklearn_point(name: str, train: list[dict], test: list[dict]) -> np.ndarray:
 api/truerate/experiment.py:149:def _today(train: list[dict]):
 api/truerate/experiment.py:156:def _today_point(train: list[dict], test: list[dict], capped: bool = True) -> np.ndarray:
-api/truerate/experiment.py:174:def _oof(rows: list[dict], point: str, folds: int = 10, seed: int = 0) -> np.ndarray:
-api/truerate/experiment.py:181:def _offsets(resid: np.ndarray) -> dict:
-api/truerate/experiment.py:191:def _band_offsets(rows: list[dict], resid: np.ndarray, by_band: bool) -> dict:
-api/truerate/experiment.py:199:def conformal_offsets(rows: list[dict], point: str, by_band: bool = False, folds: int = 10, seed: int = 0) -> dict:
-api/truerate/experiment.py:204:def _local_spread(train: list[dict], resid: np.ndarray, targets: list[dict], leave_out_self: bool = False) -> np.ndarray:
-api/truerate/experiment.py:207:    def pos(rows):
-api/truerate/experiment.py:219:def _widen(rows: list[dict], m: dict) -> tuple[float, float]:
-api/truerate/experiment.py:226:def _predict_both(point: str, train: list[dict], test: list[dict], folds: int = 10) -> dict[str, list[dict]]:
-api/truerate/experiment.py:251:def predict(point: str, rng: str, train: list[dict], test: list[dict]) -> list[dict]:
-api/truerate/experiment.py:255:def _served(train: list[dict], test: list[dict]) -> list[dict]:
-api/truerate/experiment.py:261:def _all_preds(train: list[dict], test: list[dict], points, folds: int = 10) -> dict[str, list[dict]]:
-api/truerate/experiment.py:271:def _summary(pairs: list[tuple[dict, dict]]) -> dict:
-api/truerate/experiment.py:280:def score(test: list[dict], preds: list[dict]) -> dict:
-api/truerate/experiment.py:290:def coverage_by_width(test: list[dict], preds: list[dict], widths=WIDTHS) -> dict:
-api/truerate/experiment.py:297:def _mean(scores: list[dict]) -> dict:
-api/truerate/experiment.py:302:def repeated_cv(train: list[dict], points=POINTS, repeats: int = 5, folds: int = 10) -> dict:
-api/truerate/experiment.py:318:def pick(cv: dict, points=POINTS) -> dict:
-api/truerate/experiment.py:329:def beats(after: dict, before: dict) -> bool:
-api/truerate/experiment.py:335:def _bootstrap(test: list[dict], after: list[dict], before: list[dict], draws: int = 2000, seed: int = 0) -> dict:
-api/truerate/experiment.py:339:    def arrays(ps):
-api/truerate/experiment.py:349:def run(train: list[dict], holdout: list[dict], fresh: list[dict], repeats: int = 5, folds: int = 10, points=POINTS) -> dict:
-api/truerate/experiment.py:377:def learning_curve(point: str, train: list[dict], test: list[dict], sizes, draws: int = 20, seed: int = 0) -> list[dict]:
-api/truerate/experiment.py:390:def importance(point: str, rows: list[dict]) -> dict[str, float]:
-api/truerate/experiment.py:411:def report_table(result: dict) -> str:
-api/truerate/experiment.py:413:    def pct(x):
-api/truerate/experiment.py:416:    def width(x):
-api/truerate/experiment.py:419:    def cells(s):
+api/truerate/experiment.py:179:def _oof(rows: list[dict], point: str, folds: int = 10, seed: int = 0) -> np.ndarray:
+api/truerate/experiment.py:186:def _offsets(resid: np.ndarray) -> dict:
+api/truerate/experiment.py:196:def _band_offsets(rows: list[dict], resid: np.ndarray, by_band: bool) -> dict:
+api/truerate/experiment.py:204:def conformal_offsets(rows: list[dict], point: str, by_band: bool = False, folds: int = 10, seed: int = 0) -> dict:
+api/truerate/experiment.py:209:def _local_spread(train: list[dict], resid: np.ndarray, targets: list[dict], leave_out_self: bool = False) -> np.ndarray:
+api/truerate/experiment.py:212:    def pos(rows):
+api/truerate/experiment.py:224:def _widen(rows: list[dict], m: dict) -> tuple[float, float]:
+api/truerate/experiment.py:231:def _predict_both(point: str, train: list[dict], test: list[dict], folds: int = 10) -> dict[str, list[dict]]:
+api/truerate/experiment.py:256:def predict(point: str, rng: str, train: list[dict], test: list[dict]) -> list[dict]:
+api/truerate/experiment.py:260:def _served(train: list[dict], test: list[dict]) -> list[dict]:
+api/truerate/experiment.py:266:def _all_preds(train: list[dict], test: list[dict], points, folds: int = 10) -> dict[str, list[dict]]:
+api/truerate/experiment.py:276:def _summary(pairs: list[tuple[dict, dict]]) -> dict:
+api/truerate/experiment.py:285:def score(test: list[dict], preds: list[dict]) -> dict:
+api/truerate/experiment.py:295:def coverage_by_width(test: list[dict], preds: list[dict], widths=WIDTHS) -> dict:
+api/truerate/experiment.py:302:def _mean(scores: list[dict]) -> dict:
+api/truerate/experiment.py:307:def repeated_cv(train: list[dict], points=POINTS, repeats: int = 5, folds: int = 10) -> dict:
+api/truerate/experiment.py:323:def pick(cv: dict, points=POINTS) -> dict:
+api/truerate/experiment.py:334:def beats(after: dict, before: dict) -> bool:
+api/truerate/experiment.py:340:def _bootstrap(test: list[dict], after: list[dict], before: list[dict], draws: int = 2000, seed: int = 0) -> dict:
+api/truerate/experiment.py:344:    def arrays(ps):
+api/truerate/experiment.py:354:def run(train: list[dict], holdout: list[dict], fresh: list[dict], repeats: int = 5, folds: int = 10, points=POINTS) -> dict:
+api/truerate/experiment.py:382:def learning_curve(point: str, train: list[dict], test: list[dict], sizes, draws: int = 20, seed: int = 0) -> list[dict]:
+api/truerate/experiment.py:395:def importance(point: str, rows: list[dict]) -> dict[str, float]:
+api/truerate/experiment.py:416:def report_table(result: dict) -> str:
+api/truerate/experiment.py:418:    def pct(x):
+api/truerate/experiment.py:421:    def width(x):
+api/truerate/experiment.py:424:    def cells(s):
 api/truerate/experiment_plots.py:27:def _inr(x: float, _=None) -> str:
 api/truerate/experiment_plots.py:32:def _log_axis(axis) -> None:
 api/truerate/experiment_plots.py:38:def predicted_vs_actual(result: dict, names: tuple[str, str], path: Path) -> None:
@@ -511,29 +519,29 @@ api/truerate/pipeline.py:152:    def kind(r):
 api/truerate/pipeline.py:233:def _decide(v, flags, p, inputs, metrics, typical, fit, fit_share, competitor) -> dict:
 api/truerate/pipeline.py:263:def _negotiation(p: dict, flags: list[dict], metrics: dict, category: str) -> dict:
 api/truerate/pipeline.py:272:def check_quote(r: dict, quote: int) -> dict:
-api/truerate/pricing.py:19:def _group(n: float) -> str:
-api/truerate/pricing.py:28:def inr(n: float) -> str:
-api/truerate/pricing.py:32:def round500(x: float) -> int:
-api/truerate/pricing.py:36:def features(m: dict) -> list[float]:
-api/truerate/pricing.py:45:def likely_band(fair: float, low: float, high: float) -> tuple[int, int]:
-api/truerate/pricing.py:51:def per_1k(row: dict) -> float:
-api/truerate/pricing.py:56:class Core:
-api/truerate/pricing.py:65:    def fit(cls, rows: list[dict]) -> "Core":
-api/truerate/pricing.py:72:    def predict_logs(self, m: dict) -> tuple[float, float, list[dict]]:
-api/truerate/pricing.py:83:class PriceModel:
-api/truerate/pricing.py:92:    def rows(self) -> list[dict]:
-api/truerate/pricing.py:96:def fit(rows: list[dict], blend: tuple[float, float, float] | None = None) -> PriceModel:
-api/truerate/pricing.py:130:def market_discount(rows: list[dict]) -> float:
-api/truerate/pricing.py:142:def market_reference(followers: int) -> dict:
-api/truerate/pricing.py:147:def collab_factor(n: int, ratio: float | None, typical: float, prior: float | None = None) -> tuple[float, float]:
-api/truerate/pricing.py:157:def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
-api/truerate/pricing.py:229:def band_median_price(rows: list[dict], followers: int) -> float:
-api/truerate/pricing.py:234:def modash_price(rows: list[dict], m: dict) -> float:
-api/truerate/pricing.py:242:def _summary(errors: list[dict], method: str) -> dict:
-api/truerate/pricing.py:247:def validate(rows: list[dict]) -> dict:
-api/truerate/pricing.py:252:    def errors(r: dict, m: PriceModel, others: list[dict]) -> dict:
-api/truerate/pricing.py:288:def rate_card(model: PriceModel) -> list[dict]:
-api/truerate/pricing.py:301:def thin_categories(model: PriceModel) -> list[dict]:
+api/truerate/pricing.py:20:def _group(n: float) -> str:
+api/truerate/pricing.py:29:def inr(n: float) -> str:
+api/truerate/pricing.py:33:def round500(x: float) -> int:
+api/truerate/pricing.py:37:def features(m: dict) -> list[float]:
+api/truerate/pricing.py:46:def likely_band(fair: float, low: float, high: float) -> tuple[int, int]:
+api/truerate/pricing.py:52:def per_1k(row: dict) -> float:
+api/truerate/pricing.py:57:class Core:
+api/truerate/pricing.py:66:    def fit(cls, rows: list[dict]) -> "Core":
+api/truerate/pricing.py:73:    def predict_logs(self, m: dict) -> tuple[float, float, list[dict]]:
+api/truerate/pricing.py:84:class PriceModel:
+api/truerate/pricing.py:93:    def rows(self) -> list[dict]:
+api/truerate/pricing.py:97:def fit(rows: list[dict], blend: tuple[float, float, float] | None = None) -> PriceModel:
+api/truerate/pricing.py:131:def market_discount(rows: list[dict]) -> float:
+api/truerate/pricing.py:143:def market_reference(followers: int) -> dict:
+api/truerate/pricing.py:148:def collab_factor(n: int, ratio: float | None, typical: float, prior: float | None = None) -> tuple[float, float]:
+api/truerate/pricing.py:158:def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
+api/truerate/pricing.py:230:def band_median_price(rows: list[dict], followers: int) -> float:
+api/truerate/pricing.py:235:def modash_price(rows: list[dict], m: dict) -> float:
+api/truerate/pricing.py:243:def _summary(errors: list[dict], method: str) -> dict:
+api/truerate/pricing.py:255:def validate(rows: list[dict]) -> dict:
+api/truerate/pricing.py:260:    def errors(r: dict, m: PriceModel, others: list[dict]) -> dict:
+api/truerate/pricing.py:296:def rate_card(model: PriceModel) -> list[dict]:
+api/truerate/pricing.py:309:def thin_categories(model: PriceModel) -> list[dict]:
 api/truerate/signals.py:16:def _digit_ratio(text: str) -> float:
 api/truerate/signals.py:20:def account_features(acc: dict) -> list[float]:
 api/truerate/signals.py:33:def load_kaggle(path: Path) -> tuple[list[list[float]], list[int]]:
@@ -601,7 +609,7 @@ web/src/app/(app)/brand/page.tsx:11:export default function BrandPage() {
 web/src/app/(app)/layout.tsx:7:export default function AppLayout({ children }: LayoutProps<"/">) {
 web/src/app/(app)/nav.tsx:19:export function NavLinks({ path }: { path: string | null }) {
 web/src/app/(app)/nav.tsx:35:export default function Nav() {
-web/src/app/(app)/page.tsx:13:export default function AnalyzePage() {
+web/src/app/(app)/page.tsx:12:export default function AnalyzePage() {
 web/src/app/(app)/rate-card/page.tsx:16:export default function RateCardPage() {
 web/src/app/(app)/sign-out.tsx:7:export default function SignOut() {
 web/src/app/layout.tsx:12:export const metadata: Metadata = {
@@ -609,15 +617,18 @@ web/src/app/layout.tsx:17:export default function RootLayout({ children }: Layou
 web/src/app/login/login-form.tsx:8:export default function LoginForm() {
 web/src/app/login/page.tsx:3:export default function LoginPage() {
 web/src/components/batch/compare.tsx:48:export function Recommendation({ rows }: { rows: Row[] }) {
-web/src/components/batch/compare.tsx:96:export function Scorecard({ rows }: { rows: Row[] }) {
-web/src/components/batch/compare.tsx:159:export function PriceChart({ rows, budget }: { rows: Row[]; budget: number | null | undefined }) {
-web/src/components/batch/compare.tsx:204:export function ReachChart({ rows }: { rows: Row[] }) {
-web/src/components/brand/result.tsx:47:export default function BrandResult({ run }: { run: BrandRun }) {
+web/src/components/batch/compare.tsx:98:export function Scorecard({ rows }: { rows: Row[] }) {
+web/src/components/batch/compare.tsx:156:export function PriceChart({ rows, budget }: { rows: Row[]; budget: number | null | undefined }) {
+web/src/components/batch/compare.tsx:199:export function ReachChart({ rows }: { rows: Row[] }) {
+web/src/components/brand/result.tsx:48:export default function BrandResult({ run }: { run: BrandRun }) {
 web/src/components/chart-tip.tsx:5:export default function ChartTip({ lines, children, className = "" }: { lines: React.ReactNode[]; children: React.ReactNode; className?: string }) {
 web/src/components/chips.tsx:7:export function CallChip({ call, large = false }: { call: string; large?: boolean }) {
 web/src/components/chips.tsx:15:export const VERDICTS = ["Real audience", "Some fake activity", "Mostly fake"] as const;
 web/src/components/chips.tsx:16:export const VERDICT_COLOR: Record<string, string> = {
 web/src/components/product-options.tsx:4:export default function ProductOptions({ products, categories }: { products: Product[]; categories: string[] }) {
+web/src/components/recent-table.tsx:8:export type Column<T> = { label: string; cell: (item: T) => React.ReactNode; className?: string };
+web/src/components/recent-table.tsx:11:export function NameHandle({ name, handle }: { name?: string | null; handle: string }) {
+web/src/components/recent-table.tsx:24:export default function RecentTable<T extends { id: string }>({ title, items, href, columns, onRemove, removeLabel, empty, className = "" }: {
 web/src/components/report/audience.tsx:5:export default function Audience({ r }: { r: Report }) {
 web/src/components/report/authenticity.tsx:28:export default function Authenticity({ r }: { r: Report }) {
 web/src/components/report/decision.tsx:6:export default function Decision({ r, outputs }: { r: Report; outputs: Output[] }) {
@@ -625,22 +636,22 @@ web/src/components/report/engagement.tsx:7:export default function Engagement({ 
 web/src/components/report/evidence.tsx:9:export function CheaperCreators({ r }: { r: Report }) {
 web/src/components/report/evidence.tsx:44:export function Suggestions({ r }: { r: Report }) {
 web/src/components/report/negotiation.tsx:9:export default function Negotiation({ r }: { r: Report }) {
-web/src/components/report/placement.tsx:37:export default function Placement({ r }: { r: Report }) {
+web/src/components/report/placement.tsx:40:export default function Placement({ r }: { r: Report }) {
 web/src/components/report/quote.tsx:11:export default function QuoteChecker({ id, initial }: { id: string; initial: number | null }) {
 web/src/components/report/report.tsx:18:export default function ReportView({ id, report: r, inputs, outputs }: { id: string; report: Report; inputs: Analysis["inputs"]; outputs: Output[] }) {
-web/src/components/report/tabs.tsx:13:export type TabKey = (typeof TABS)[number]["key"];
-web/src/components/report/tabs.tsx:21:export default function ReportTabs({ panels }: { panels: Record<TabKey, React.ReactNode> }) {
 web/src/components/report/waterfall.tsx:24:export default function Waterfall({ r }: { r: Report }) {
+web/src/components/tabs.tsx:5:export type Tab = { key: string; label: string; panel: React.ReactNode };
+web/src/components/tabs.tsx:15:export default function Tabs({ tabs, label }: { tabs: Tab[]; label: string }) {
 web/src/components/value-bars.tsx:4:export type ValueRow = { handle: string; fair: number; views: number; highlight?: boolean; usualPerK?: number | null };
 web/src/components/value-bars.tsx:8:export default function ValueBars({ rows, caption }: { rows: ValueRow[]; caption: string }) {
 web/src/components/verdicts.tsx:6:export const STATUS = {
 web/src/components/verdicts.tsx:13:export function StatusIcon({ status, size = 20 }: { status: Output["status"]; size?: number }) {
 web/src/components/verdicts.tsx:19:export default function Verdicts({ outputs }: { outputs: Output[] }) {
 web/src/lib/api-types.ts:6:export interface paths {
-web/src/lib/api-types.ts:205:export type webhooks = Record<string, never>;
-web/src/lib/api-types.ts:206:export interface components {
-web/src/lib/api-types.ts:1024:export type $defs = Record<string, never>;
-web/src/lib/api-types.ts:1025:export interface operations {
+web/src/lib/api-types.ts:213:export type webhooks = Record<string, never>;
+web/src/lib/api-types.ts:214:export interface components {
+web/src/lib/api-types.ts:1050:export type $defs = Record<string, never>;
+web/src/lib/api-types.ts:1051:export interface operations {
 web/src/lib/api.ts:4:export type Analysis = Schemas["Analysis"];
 web/src/lib/api.ts:5:export type AnalysisRequest = Schemas["AnalysisRequest"];
 web/src/lib/api.ts:6:export type AnalysisSummary = Schemas["AnalysisSummary"];
@@ -667,4 +678,4 @@ web/src/proxy.ts:4:export function proxy(request: NextRequest) {
 web/src/proxy.ts:12:export const config = {
 ```
 
-<!-- mapped: .@830bc38 | paths: api/, web/src/ -->
+<!-- mapped: .@fcb7e2f | paths: api/, web/src/ -->
