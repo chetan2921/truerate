@@ -566,6 +566,8 @@ export interface components {
             collab_factor: number;
             /** Genuine Share */
             genuine_share: number;
+            /** Ridge Share */
+            ridge_share: number;
             /** Waterfall */
             waterfall: components["schemas"]["WaterfallStep"][];
             /** Comparables */

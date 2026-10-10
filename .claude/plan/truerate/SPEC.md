@@ -192,11 +192,13 @@ Response models are Pydantic. The web types are generated from `/openapi.json` (
 **Pricing:**
 - Market price is a blend in log space of Ridge on log(price) (log views, log followers, engagement, comments per 1K views, category) and KNN, where the 6 nearest past deals' ₹ per 1,000 views is multiplied by this creator's views. Nearest means the same category first, then the closest views and followers. The blend weight is picked by leave-one-out.
 - Fair price = market × collab factor × genuine share, rounded to ₹500.
+- On WLDD's 148 deals, leave-one-out picked a Ridge weight of 1.0, so the market price is the regression alone and the 6 nearest deals are comparables in the report.
 - **Collab factor:**
   - Measure how many views this creator's paid reels keep, relative to their own reels.
   - With a product category, use their ads in that category, pulled toward the population ratio for matching or non-matching ads.
   - Shrinkage: `(n·r + 3·prior)/(n + 3)`.
   - Divide by the typical ratio, because past prices already include the usual drop.
+  - Bound the factor to 0.5–1.0. Unbounded, viral reels labelled as ads pushed it to 120× and the holdout error from 57% to 83%; discount-only won on leave-one-out (39%).
 - **Range:** the 10th/90th percentile of leave-one-out residuals.
 - **Expected delivery:** own-reel views (25th/50th/75th percentile) × the adjusted ratio. Likes and comments are those views × the creator's likes and comments per view.
 - **Decision:**

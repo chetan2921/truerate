@@ -142,7 +142,7 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> No
     s = d.slide("From a handle to a price in about a minute", "Judging 1: architecture")
     steps = [("Paste a creator", "Handle, optional product, quote, budget"), ("Read Instagram", "About 20 HikerAPI requests, each saved once"),
              ("Find ads", "Rules, then Gemini with covers"), ("Check the audience", "3 families against WLDD creators of the same size"),
-             ("Price", "Ridge + 6 nearest WLDD deals, adjusted"), ("Decide", "Go, Negotiate or Avoid, with reasons")]
+             ("Price", "Ridge on WLDD's deals, then adjusted"), ("Decide", "Go, Negotiate or Avoid, with reasons")]
     for i, (t, sub) in enumerate(steps):
         d.text(s, 0.6 + i * 2.1, 2.0, 1.75, 1.8, [(t, 17, ACCENT if i in (3, 4) else TEXT, True), (sub, 12, MUTED, False)])
         if i < len(steps) - 1:
@@ -165,10 +165,11 @@ def build_deck(report: dict, rt: dict, screenshot: Path | None, out: Path) -> No
     s = d.slide("Pricing that holds for small, medium and big creators", "Judging 3: pricing logic")
     d.text(s, 0.6, 1.5, 6.6, 4.5, [
         ("Market price", 18, ACCENT, True),
-        (f"A blend in log space of Ridge on log price and the 6 most similar past WLDD deals (same category, closest views and followers) times this creator's views. "
-         f"Blend weight {report['blend_weight']:.1f} for Ridge, chosen by leave-one-out.", 14, TEXT, False),
+        (("Ridge regression on log price over WLDD's deals: views, followers, engagement, comments and category. Leave-one-out gave the 6-nearest-deals estimate "
+          "no weight, so they are shown as comparables only." if report["blend_weight"] >= 0.99 else
+          f"A blend in log space of Ridge on log price ({report['blend_weight']:.0%}) and the 6 most similar past WLDD deals' ₹ per 1,000 views, weighted by leave-one-out."), 14, TEXT, False),
         ("Adjustments", 18, ACCENT, True),
-        ("Sponsored performance: paid reels' share of own-reel views, pulled toward WLDD's typical drop when there are few ads.", 14, TEXT, False),
+        ("Sponsored performance: paid reels' share of own-reel views, pulled toward WLDD's typical drop when there are few ads. It only discounts, to half at most.", 14, TEXT, False),
         ("Fake engagement: only the fake share above similar creators comes off.", 14, TEXT, False),
         ("Range", 18, ACCENT, True),
         (f"10th to 90th percentile of leave-one-out errors: {report['range'][0]:.2f}× to {report['range'][1]:.2f}× the fair price.", 14, TEXT, False),

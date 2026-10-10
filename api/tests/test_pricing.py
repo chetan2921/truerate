@@ -67,6 +67,7 @@ def test_price_has_a_range_waterfall_comparables_and_delivery():
     assert steps[0] == p["market"] and sum(steps[:3]) == steps[3] == p["fair"]
     assert steps[1] < 0 and steps[2] < 0  # weak ads and fake engagement both cut the price
     assert len(p["comparables"]) == 6 and {"handle", "price", "views", "per_1k_views"} <= set(p["comparables"][0])
+    assert p["ridge_share"] == model.w  # the report says how much of the market price is the regression
     d = p["delivery"]
     assert d["views"][0] < d["views"][1] < d["views"][2] and d["likes"] > 0 and d["cost_per_1k"] > 0 and d["category_cost_per_1k"] > 0
 

@@ -5,7 +5,7 @@ export const FLOW = [
   { title: "Read Instagram", detail: "Profile, last 30+ reels, 600 likers, newest followers, comments: about 20 HikerAPI requests" },
   { title: "Find ads, measure reels", detail: "Paid-partnership label, sponsor tags, #ad, then Gemini with cover images for the unclear ones" },
   { title: "Check the audience", detail: "Likes, followers and comments against WLDD creators of the same size" },
-  { title: "Price", detail: "Ridge regression plus the 6 most similar past WLDD deals, then sponsored-performance and fake-engagement adjustments" },
+  { title: "Price", detail: "Ridge regression on WLDD's past deals (the 6 most similar shown for comparison), then sponsored-performance and fake-engagement adjustments" },
   { title: "Decide", detail: "Go, Negotiate or Avoid, with the reasons and negotiation lines" },
 ];
 

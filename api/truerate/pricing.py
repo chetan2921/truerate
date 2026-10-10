@@ -103,6 +103,7 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
         "high": round500(fair * math.exp(model.hi)),
         "collab_factor": factor,
         "genuine_share": genuine_share,
+        "ridge_share": model.w,
         "waterfall": [
             {"step": "Market price from WLDD's past deals", "amount": steps[0]},
             {"step": "Sponsored-performance adjustment", "amount": steps[1] - steps[0]},

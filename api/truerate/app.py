@@ -76,6 +76,7 @@ class Price(BaseModel):
     high: int
     collab_factor: float
     genuine_share: float
+    ridge_share: float
     waterfall: list[WaterfallStep]
     comparables: list[Comparable]
     delivery: Delivery
