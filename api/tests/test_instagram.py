@@ -150,3 +150,26 @@ def test_collect_benchmark_stops_when_credit_runs_out(db, tmp_path, monkeypatch)
     result = CliRunner().invoke(cli.app, ["collect-benchmark"])
     assert result.exit_code == 1
     assert result.output.count("402") == 1
+
+
+def test_collect_benchmark_runs_creators_in_parallel_and_survives_one_failure(db, tmp_path, monkeypatch):
+    db.deals.insert_many([{"handle": h} for h in ("a", "b", "c", "d")])
+    good = fake_hiker(tmp_path)
+
+    class Flaky:
+        """Times out on creator c only, as a network hiccup would."""
+
+        def __getattr__(self, name):
+            return getattr(good, name)
+
+        def profile(self, handle):
+            if handle == "c":
+                raise httpx.ReadTimeout("timed out")
+            return good.profile(handle)
+
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    monkeypatch.setattr(cli, "make_hiker", lambda: Flaky())
+    result = CliRunner().invoke(cli.app, ["collect-benchmark", "--workers", "4"])
+    assert result.exit_code == 0, result.output
+    assert "Collected 3, skipped 0 fetched in the last 24 h, failed 1" in result.output and "c: timed out" in result.output
+    assert db.snapshots.count_documents({}) == 3

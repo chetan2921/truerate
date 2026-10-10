@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Annotated
@@ -79,27 +80,37 @@ def collect_cmd(handle: str) -> None:
 
 
 @app.command("collect-benchmark")
-def collect_benchmark_cmd() -> None:
-    """Snapshot every deal creator, skipping any fetched in the last 24 h. Stops when HikerAPI credit runs out."""
+def collect_benchmark_cmd(workers: int = 1) -> None:
+    """Snapshot every deal creator, skipping any fetched in the last 24 h, `workers` at a time.
+    A failed creator is reported and skipped; running out of HikerAPI credit (402) stops the run."""
     db = get_db()
     ensure_indexes(db)
     hiker = make_hiker()
     since = datetime.now(timezone.utc) - timedelta(hours=24)
-    done = skipped = failed = 0
-    for deal in db.deals.find({}, {"handle": 1}).sort("handle"):
-        handle = deal["handle"]
-        if db.snapshots.find_one({"handle": handle, "fetched_at": {"$gt": since}}):
-            skipped += 1
-            continue
-        try:
-            db.snapshots.insert_one(collect(hiker, handle))
+    handles = [d["handle"] for d in db.deals.find({}, {"handle": 1}).sort("handle")]
+    todo = [h for h in handles if not db.snapshots.find_one({"handle": h, "fetched_at": {"$gt": since}})]
+    done = failed = 0
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {pool.submit(collect, hiker, h): h for h in todo}
+        for future in as_completed(futures):
+            handle = futures[future]
+            try:
+                snap = future.result()
+            except HikerError as e:
+                typer.echo(f"{handle}: {e}")
+                if e.status == 402:
+                    pool.shutdown(cancel_futures=True)
+                    raise typer.Exit(1)
+                failed += 1
+                continue
+            except Exception as e:  # one creator's timeout or odd profile must not stop a 3,000-request run
+                typer.echo(f"{handle}: {e}")
+                failed += 1
+                continue
+            db.snapshots.insert_one(snap)
             done += 1
-        except HikerError as e:
-            typer.echo(f"{handle}: {e}")
-            if e.status == 402:
-                raise typer.Exit(1)
-            failed += 1
-    typer.echo(f"Collected {done}, skipped {skipped} fetched in the last 24 h, failed {failed}")
+            typer.echo(f"[{done + failed}/{len(todo)}] {handle}: {snap['followers']:,} followers, {len(snap['data'].get('reels', []))} reels")
+    typer.echo(f"Collected {done}, skipped {len(handles) - len(todo)} fetched in the last 24 h, failed {failed}")
 
 
 def load_fake_model():

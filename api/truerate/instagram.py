@@ -4,6 +4,7 @@ import json
 import random
 import re
 import time
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlencode
@@ -124,9 +125,11 @@ class Hiker:
             raise HikerError(r.status_code, f"HikerAPI {r.status_code} on {path}: {r.text[:200]}")
         raw = r.json()
         file.parent.mkdir(parents=True, exist_ok=True)
-        tmp = file.with_suffix(".tmp")
+        # A unique temp name, then an atomic rename: no half-written file after a crash, and two threads saving
+        # the same response never trip over each other.
+        tmp = file.with_name(f"{file.name}.{uuid.uuid4().hex}.tmp")
         tmp.write_bytes(gzip.compress(r.content))
-        tmp.replace(file)  # atomic, so a crash never leaves a half-written file behind
+        tmp.replace(file)
         return parse(raw)
 
     def profile(self, username: str) -> dict:
