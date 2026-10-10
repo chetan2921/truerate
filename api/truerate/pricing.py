@@ -3,12 +3,16 @@ from dataclasses import dataclass
 from statistics import median
 
 import numpy as np
+from mapie.regression import CrossConformalRegressor
 from sklearn.linear_model import RidgeCV
+from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from truerate.signals import CATEGORIES, band
 
 K = 6  # past deals compared against
+CONFIDENCE = 0.8  # the price range is an 80% conformal interval (MAPIE)
+RANGE_METHOD = f"MAPIE cross-conformal (CV+), {CONFIDENCE:.0%} confidence"
 SHRINK = 3  # the population's paid-reel drop counts as this many ads of the creator's own
 
 
@@ -71,6 +75,7 @@ class PriceModel:
     lo: float  # 10th and 90th percentile of leave-one-out log residuals
     hi: float
     paid_typical: float  # median share of views a paid reel keeps, across WLDD's creators
+    conformal: CrossConformalRegressor | None = None  # gives each creator's 80% price interval
 
     @property
     def rows(self) -> list[dict]:
@@ -86,7 +91,11 @@ def fit(rows: list[dict], blend: tuple[float, float, float] | None = None) -> Pr
         lo, hi = np.percentile(y - (w * loo[:, 0] + (1 - w) * loo[:, 1]), [10, 90])
         blend = (w, float(lo), float(hi))
     ratios = [r["paid_ratio"] for r in rows if r["paid_n"]]
-    return PriceModel(Core.fit(rows), *blend, paid_typical=median(ratios) if ratios else 1.0)
+    # CV+ (cross-conformal): 10 refits of the same Ridge, each creator's interval built from out-of-fold errors.
+    conformal = CrossConformalRegressor(
+        make_pipeline(StandardScaler(), RidgeCV(alphas=np.logspace(-2, 3, 20))), confidence_level=CONFIDENCE, method="plus", cv=10, random_state=42
+    ).fit_conformalize(np.array([features(r) for r in rows]), np.log([r["price"] for r in rows]))
+    return PriceModel(Core.fit(rows), *blend, paid_typical=median(ratios) if ratios else 1.0, conformal=conformal)
 
 
 FACTOR_FLOOR, FACTOR_CAP = 0.5, 1.0
@@ -132,8 +141,13 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
     least_followers = min(r["followers"] for r in model.rows)
     above = max(m["followers"] / top_followers, m["views"] / top_views, 1.0)
     below = max(least_followers / m["followers"], 1.0)
-    low = fair * math.exp(model.lo) / math.sqrt(2) ** math.log2(below)
-    high = fair * math.exp(model.hi) * math.sqrt(2) ** math.log2(above)
+    if model.conformal is not None:
+        pred, pis = model.conformal.predict_interval(np.array([features(m)]))
+        lo_off, hi_off = pis[0, 0, 0] - pred[0], pis[0, 1, 0] - pred[0]
+    else:  # a model pickled before MAPIE
+        lo_off, hi_off = model.lo, model.hi
+    low = fair * math.exp(lo_off) / math.sqrt(2) ** math.log2(below)
+    high = fair * math.exp(hi_off) * math.sqrt(2) ** math.log2(above)
     ref = market_reference(m["followers"])
     note = None
     if m["followers"] > top_followers or m["views"] > top_views:
@@ -224,6 +238,7 @@ def validate(rows: list[dict]) -> dict:
         },
         "n_deals": len(rows),
         "blend_weight": model.w,
+        "range_method": RANGE_METHOD,
         "range": [math.exp(model.lo), math.exp(model.hi)],
     }
 

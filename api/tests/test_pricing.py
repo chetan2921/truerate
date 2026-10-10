@@ -1,4 +1,5 @@
 import json
+import math
 
 import joblib
 import numpy as np
@@ -151,3 +152,20 @@ def test_below_wldds_smallest_creator_only_the_bottom_widens():
     inside = price(model, rows[0])
     tiny = price(model, rows[0] | {"followers": least // 8})
     assert tiny["fair"] / tiny["low"] > inside["fair"] / inside["low"] and "Smaller than any creator" in tiny["note"]
+
+
+def test_the_range_comes_from_mapie_cross_conformal_at_80_percent():
+    from mapie.regression import CrossConformalRegressor
+
+    from truerate.pricing import features
+
+    rows = synthetic_rows()
+    model = fit([r for r in rows if not r["holdout"]])
+    assert isinstance(model.conformal, CrossConformalRegressor)
+    target = rows[0]
+    p = price(model, target)
+    pred, pis = model.conformal.predict_interval(np.array([features(target)]))
+    fair = p["fair"]
+    assert abs(p["low"] - fair * math.exp(pis[0, 0, 0] - pred[0])) <= 500
+    assert abs(p["high"] - fair * math.exp(pis[0, 1, 0] - pred[0])) <= 1000  # fair is rounded to ₹500 before this multiply
+    assert validate(rows)["range_method"] == "MAPIE cross-conformal (CV+), 80% confidence"

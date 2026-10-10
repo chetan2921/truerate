@@ -17,6 +17,7 @@ dependencies = [
     "mediapipe>=1.1.0",
     "pillow>=12.3.0",
     "networkx>=3.7",
+    "mapie>=1.5.0",
 ]
 
 [project.scripts]
