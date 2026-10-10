@@ -493,3 +493,37 @@ def audience_warnings(signals: dict, forest) -> list[str]:
     if forest.predict([_anomaly_row(signals, forest.typical_)])[0] == -1:
         out.append("Unusual overall pattern compared with WLDD's creators")
     return out
+
+
+SPOKEN_REELS = 4  # each costs a ~10 MB video download, so the newest few the rules don't already call ads
+
+
+def spoken_candidates(reels: list[dict], n: int = SPOKEN_REELS) -> list[dict]:
+    """The newest reels the rules don't already mark as paid: where a spoken ad would otherwise go unnoticed."""
+    return [r for r in sorted(reels, key=lambda r: r["taken_at"], reverse=True) if not is_paid(r)][:n]
+
+
+_SPOKEN_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        "reels": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {
+            "code": {"type": "STRING"}, "ad": {"type": "BOOLEAN"}, "brand": {"type": "STRING"}, "quote": {"type": "STRING"}},
+            "required": ["code", "ad", "brand", "quote"]}},
+    },
+    "required": ["reels"],
+}
+
+
+def label_spoken(llm, clips: dict[str, bytes]) -> dict[str, dict]:
+    """Gemini listens to each reel's audio for a spoken promotion. Returns {code: {brand, quote}} for the ads only."""
+    if not clips:
+        return {}
+    codes = list(clips)
+    prompt = (
+        "Each audio clip is an Instagram reel, in this order: " + ", ".join(codes) + ".\n"
+        "For each, decide whether the speaker promotes a brand, product or app (a paid mention: a discount code, 'link in bio', "
+        "'download the app', a brand thanked or recommended by name). Speech may be in English, Hindi or Hinglish.\n"
+        "Give the brand, and quote the promotional words in at most 15 words. Use empty strings when it is not an ad."
+    )
+    reply = llm.json(prompt, _SPOKEN_SCHEMA, audio=[clips[c] for c in codes])
+    return {r["code"]: {"brand": r["brand"], "quote": r["quote"]} for r in reply["reels"] if r["ad"] and r["code"] in clips}

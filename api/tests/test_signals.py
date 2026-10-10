@@ -89,11 +89,12 @@ def test_reel_metrics_on_the_last_30_unpinned_reels():
 
 class FakeLLM:
     def __init__(self, reply):
-        self.reply, self.prompts, self.images = reply, [], []
+        self.reply, self.prompts, self.images, self.audio = reply, [], [], []
 
-    def json(self, prompt, schema, images=()):
+    def json(self, prompt, schema, images=(), audio=()):
         self.prompts.append(prompt)
         self.images.append(list(images))
+        self.audio.append(list(audio))
         return self.reply
 
 
@@ -111,7 +112,7 @@ class SchemaLLM:
     def __init__(self):
         self.niche_prompts, self.label_prompts = [], []
 
-    def json(self, prompt, schema, images=()):
+    def json(self, prompt, schema, images=(), audio=()):
         if "category" in schema["properties"]:
             self.niche_prompts.append(prompt)
             return {"category": "Food"}

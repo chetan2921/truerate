@@ -20,10 +20,14 @@ class TopicLLM:
     def __init__(self, topic="Food"):
         self.topic, self.prompts = topic, []
 
-    def json(self, prompt, schema, images=()):
+    def json(self, prompt, schema, images=(), audio=()):
         self.prompts.append(prompt)
         if "category" in schema["properties"]:
             return {"category": self.topic}
+        if "quote" in schema["properties"]["reels"]["items"]["properties"]:  # the spoken-ad call: the first clip is an ad
+            codes = prompt.split("in this order: ")[1].split(".")[0].split(", ")
+            return {"reels": [{"code": c, "ad": i == 0, "brand": "spokenbrand" if i == 0 else "", "quote": "use my code SPOKEN" if i == 0 else ""}
+                              for i, c in enumerate(codes)]}
         codes = [line.split(" | ")[0] for line in prompt.splitlines() if " | co-authors:" in line or " | by @" in line]
         accounts = next((line.split(": ", 1)[1].split(", ") for line in prompt.splitlines() if line.startswith("Accounts: ")), [])
         return {"reels": [{"code": c, "ad": False, "topic": self.topic} for c in codes],
@@ -53,10 +57,10 @@ def world(db):
     return db
 
 
-def deps(db, snap, llm=None, face=True):
+def deps(db, snap, llm=None, face=True, audio=False):
     return Deps(db=db, collect=lambda handle: snap, llm=llm or TopicLLM(), fake_model=FAKE_MODEL, embed=fake_embed,
                 price_model=fit(synthetic_rows()), fetch_covers=lambda reels, limit=10: {r["code"]: b"img" for r in reels[:limit]},
-                detect_face=lambda img: face)
+                detect_face=lambda img: face, fetch_audio=lambda reels: {r["code"]: b"wav" for r in reels} if audio else {})
 
 
 def test_a_genuine_creator_gets_go_with_a_full_report(world):
@@ -153,3 +157,12 @@ def test_a_handle_instagram_doesnt_know_reads_as_a_plain_sentence(world):
     d.collect = missing
     out = analyze("no.such.person", {}, d)
     assert out == {"status": "out_of_scope", "reason": "Instagram has no account called @no.such.person. Check the spelling, or paste the profile link."}
+
+
+def test_a_spoken_ad_makes_the_reel_paid_and_shows_the_quote(world):
+    snap = target_snapshot()
+    first = sorted(snap["data"]["reels"], key=lambda r: r["taken_at"], reverse=True)[0]["code"]
+    r = analyze("newcreator", {}, deps(world, snap, audio=True))["result"]
+    assert next(x for x in r["placement"]["reels"] if x["code"] == first)["kind"] == "paid"
+    ad = next(a for a in r["placement"]["ads"] if a["code"] == first)
+    assert (ad["brand"], ad["spoken"], ad["disclosed"]) == ("spokenbrand", "use my code SPOKEN", False)

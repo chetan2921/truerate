@@ -136,6 +136,7 @@ export default function Placement({ r }: { r: Report }) {
                   {ad.brand ? `@${ad.brand}` : "Brand not named"}
                 </a>
                 <span className="basis"> · {day(ad.taken_at)} · {ad.disclosed ? "disclosed" : "not disclosed"}</span>
+                {ad.spoken && <span className="basis block">said: &ldquo;{ad.spoken}&rdquo;</span>}
               </li>
             ))}
           </ul>

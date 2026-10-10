@@ -169,6 +169,7 @@ class Ad(BaseModel):
     disclosed: bool
     brand: str | None
     topic: str | None
+    spoken: str | None = None  # the promotional words Gemini heard in the reel, if it was a spoken ad
 
 
 class BrandTag(BaseModel):

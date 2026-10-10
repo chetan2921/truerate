@@ -18,6 +18,7 @@ dependencies = [
     "pillow>=12.3.0",
     "networkx>=3.7",
     "mapie>=1.5.0",
+    "av<19",
 ]
 
 [project.scripts]

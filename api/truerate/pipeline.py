@@ -7,6 +7,7 @@ from typing import Callable
 
 from pymongo.database import Database
 
+from truerate.audio import fetch_audio
 from truerate.instagram import HikerError, fetch_covers
 from truerate.pricing import PriceModel, _group, inr, per_1k, price
 from truerate.signals import (
@@ -27,8 +28,10 @@ from truerate.signals import (
     is_paid,
     label_creator,
     label_niche,
+    label_spoken,
     recent_reels,
     reel_metrics,
+    spoken_candidates,
     verdict,
 )
 
@@ -47,6 +50,7 @@ class Deps:
     price_model: PriceModel
     fetch_covers: Callable = fetch_covers
     detect_face: Callable = field(default=has_face)
+    fetch_audio: Callable = fetch_audio  # live analyses only: each reel is a ~10 MB download
 
 
 def when(days: int) -> str:
@@ -103,10 +107,14 @@ def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] =
     deal = db.deals.find_one({"handle": handle})
     category = category_from_niche(deal["niche"]) if deal else None
     category_source = "wldd" if category else "gemini"
-    with ThreadPoolExecutor(max_workers=2) as pool:  # the niche call runs alongside the long labelling call
+    with ThreadPoolExecutor(max_workers=3) as pool:  # niche and spoken-ad calls run alongside the long labelling call
         niche = None if category else pool.submit(label_niche, deps.llm, d["profile"]["bio"], [r["caption"] for r in reels])
+        spoken = pool.submit(lambda: label_spoken(deps.llm, deps.fetch_audio(spoken_candidates(reels))))
         labels = label_creator(deps.llm, snap, {code: img for code, img in covers.items() if any(r["code"] == code and ambiguous(r) for r in reels)})
         category = category or niche.result()
+        spoken = spoken.result()
+    # Ads said out loud ("use my code", a brand named) count as paid, like the ones Gemini finds in captions and covers.
+    labels = labels | {"ads": labels["ads"] + [c for c in spoken if c not in labels["ads"]], "spoken": spoken}
     metrics = reel_metrics(snap, labels)
 
     step(2)
@@ -130,7 +138,8 @@ def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] =
             return "paid"
         return "collab" if r["coauthors"] else "repost" if r.get("repost_of") else "own"
 
-    ads = [{"code": r["code"], "taken_at": r["taken_at"], "disclosed": is_paid(r), "brand": _brand(r), "topic": labels["topics"].get(r["code"])}
+    ads = [{"code": r["code"], "taken_at": r["taken_at"], "disclosed": is_paid(r), "brand": _brand(r) or spoken.get(r["code"], {}).get("brand") or None,
+            "topic": labels["topics"].get(r["code"]), "spoken": spoken.get(r["code"], {}).get("quote")}
            for r in reels if kind(r) == "paid"]
 
     # Audience worth reaching: category value rank by WLDD's ₹ per 1,000 views, and product fit

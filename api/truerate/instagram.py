@@ -79,6 +79,7 @@ def parse_reels(items: list[dict]) -> list[dict]:
             "thumbnail": it.get("thumbnail_url") or "",
             "duration": it.get("video_duration") or 0,
             "counts_hidden": bool(it.get("like_and_view_counts_disabled")),
+            "video_url": it.get("video_url") or "",  # its audio is plain AAC; the DASH audio track is xHE-AAC
             # Instagram's own "reposted from" label: the original author, when this reel isn't the creator's own work
             "repost_of": ((((it.get("clips_metadata") or {}).get("originality_info") or {}).get("original_media") or {}).get("user") or {}).get("username"),
         }

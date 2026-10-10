@@ -174,6 +174,8 @@ export interface components {
             brand: string | null;
             /** Topic */
             topic: string | null;
+            /** Spoken */
+            spoken?: string | null;
         };
         /** Analysis */
         Analysis: {
