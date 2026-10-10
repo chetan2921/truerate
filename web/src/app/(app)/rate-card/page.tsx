@@ -94,7 +94,7 @@ export default function RateCardPage() {
                 ))}
               </tbody>
             </table>
-            <p className="basis mt-2">The lime tick is each category&apos;s median.</p>
+            <p className="basis mt-2">The lime tick is each category&apos;s median. Categories with fewer than 3 WLDD deals are left out: one or two deals are not a rate.</p>
           </section>
         </>
       )}

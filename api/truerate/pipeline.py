@@ -8,7 +8,7 @@ from typing import Callable
 from pymongo.database import Database
 
 from truerate.instagram import HikerError, fetch_covers
-from truerate.pricing import PriceModel, per_1k, price
+from truerate.pricing import PriceModel, _group, inr, per_1k, price
 from truerate.signals import (
     CATEGORIES,
     FACE_SHARE,
@@ -47,19 +47,6 @@ class Deps:
     price_model: PriceModel
     fetch_covers: Callable = fetch_covers
     detect_face: Callable = field(default=has_face)
-
-
-def _group(n: float) -> str:
-    """Indian digit grouping: 1,50,000 and 1,23,45,678."""
-    digits = str(int(round(n)))
-    head, tail = digits[:-3], digits[-3:]
-    while len(head) > 2:
-        head, tail = head[:-2], head[-2:] + "," + tail
-    return f"{head},{tail}" if head else tail
-
-
-def inr(n: float) -> str:
-    return "₹" + _group(n)
 
 
 def when(days: int) -> str:

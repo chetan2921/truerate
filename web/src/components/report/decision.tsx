@@ -18,6 +18,7 @@ export default function Decision({ r }: { r: Report }) {
           <p className="figure mt-3 text-lg">
             Fair range {inr(p.low)} to {inr(p.high)}
           </p>
+          {p.note && <p className="mt-2 max-w-xl text-sm text-negotiate">{p.note}</p>}
         </div>
         <CallChip call={r.decision.call} large />
       </div>

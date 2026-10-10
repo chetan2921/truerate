@@ -84,7 +84,9 @@ class Price(BaseModel):
     high: int
     collab_factor: float
     genuine_share: float
-    ridge_share: float
+    # Defaults keep reports stored before these fields existed readable.
+    ridge_share: float = 1.0
+    note: str | None = None
     waterfall: list[WaterfallStep]
     comparables: list[Comparable]
     delivery: Delivery
@@ -178,8 +180,8 @@ class Placement(BaseModel):
     paid: PaidRatio
     collab: Ratio
     ads: list[Ad]
-    brand_tags: list[BrandTag]
-    n_reposts: int
+    brand_tags: list[BrandTag] = []
+    n_reposts: int = 0
 
 
 class Niche(BaseModel):

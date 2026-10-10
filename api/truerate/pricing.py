@@ -12,6 +12,19 @@ K = 6  # past deals compared against
 SHRINK = 3  # the population's paid-reel drop counts as this many ads of the creator's own
 
 
+def _group(n: float) -> str:
+    """Indian digit grouping: 1,50,000 and 1,23,45,678."""
+    digits = str(int(round(n)))
+    head, tail = digits[:-3], digits[-3:]
+    while len(head) > 2:
+        head, tail = head[:-2], head[-2:] + "," + tail
+    return f"{head},{tail}" if head else tail
+
+
+def inr(n: float) -> str:
+    return "₹" + _group(n)
+
+
 def round500(x: float) -> int:
     return int(math.floor(x / 500 + 0.5) * 500)
 
@@ -96,6 +109,11 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
     fair = market * factor * genuine_share
     steps = [round500(market), round500(market * factor), round500(fair)]
     in_category = [per_1k(r) for r in model.rows if r["category"] == m["category"]]
+    top_followers, top_views = max(r["followers"] for r in model.rows), max(r["views"] for r in model.rows)
+    note = None
+    if m["followers"] > top_followers or m["views"] > top_views:
+        note = (f"Bigger than any creator WLDD has booked (largest: {_group(top_followers)} followers, {_group(top_views)} typical views), "
+                "so this price extrapolates from smaller deals and is less reliable.")
     return {
         "market": steps[0],
         "fair": steps[2],
@@ -104,6 +122,7 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
         "collab_factor": factor,
         "genuine_share": genuine_share,
         "ridge_share": model.w,
+        "note": note,
         "waterfall": [
             {"step": "Market price from WLDD's past deals", "amount": steps[0]},
             {"step": "Sponsored-performance adjustment", "amount": steps[1] - steps[0]},
@@ -179,12 +198,15 @@ def validate(rows: list[dict]) -> dict:
     }
 
 
+MIN_RATE_DEALS = 3
+
+
 def rate_card(model: PriceModel) -> list[dict]:
     """₹ per 1,000 views by category from the deals behind the served model, priciest views first."""
     card = []
     for c in CATEGORIES:
         rows = [r for r in model.rows if r["category"] == c]
-        if not rows:
+        if len(rows) < MIN_RATE_DEALS:  # one or two deals are not a rate
             continue
         p25, mid, p75 = (round(float(q)) for q in np.percentile([per_1k(r) for r in rows], [25, 50, 75]))
         card.append({"category": c, "n": len(rows), "per_1k": {"p25": p25, "median": mid, "p75": p75},

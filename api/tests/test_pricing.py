@@ -109,3 +109,16 @@ def test_rate_card_per_category():
     food = next(c for c in card if c["category"] == "Food")
     assert food["n"] == 30 and 500 < food["per_1k"]["median"] < 700
     assert food["per_1k"]["p25"] <= food["per_1k"]["median"] <= food["per_1k"]["p75"] and food["typical_price"] > 0
+
+
+def test_a_creator_bigger_than_any_wldd_deal_gets_a_note():
+    rows = synthetic_rows()
+    model = fit([r for r in rows if not r["holdout"]])
+    big = rows[0] | {"followers": max(r["followers"] for r in rows) * 10, "views": max(r["views"] for r in rows) * 10}
+    assert "Bigger than any creator WLDD has booked" in price(model, big)["note"]
+    assert price(model, rows[0])["note"] is None
+
+
+def test_rate_card_leaves_out_categories_with_fewer_than_3_deals():
+    rows = synthetic_rows() + [synthetic_rows(n=3, seed=9)[0] | {"category": "Fitness", "handle": "only.one"}]
+    assert "Fitness" not in {c["category"] for c in rate_card(fit(rows))}

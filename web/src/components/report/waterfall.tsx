@@ -70,9 +70,9 @@ export default function Waterfall({ r }: { r: Report }) {
         <h3 className="font-semibold">The 6 past WLDD deals it compared against</h3>
         <p className="basis mt-1">
           Same category first, then closest in views and followers.{" "}
-          {p.ridge_share >= 0.99
+          {(p.ridge_share ?? 1) >= 0.99
             ? "The market price itself comes from a regression over all of WLDD's deals; these are the closest for comparison."
-            : `The market price blends their ₹ per 1,000 views (${pct(1 - p.ridge_share)}) with a regression over all deals (${pct(p.ridge_share)}).`}
+            : `The market price blends their ₹ per 1,000 views (${pct(1 - (p.ridge_share ?? 1))}) with a regression over all deals (${pct(p.ridge_share ?? 1)}).`}
         </p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-sm">

@@ -96,7 +96,7 @@ export default function Placement({ r }: { r: Report }) {
             ? `${p.paid.n} paid reels keep ${pct(p.paid.ratio ?? 0)} of own-reel views; a typical WLDD creator's keep ${pct(p.paid.typical_ratio)}.`
             : `no paid reels in the last 30. A typical WLDD creator's paid reels keep ${pct(p.paid.typical_ratio)} of own-reel views.`}
         </li>
-        {p.n_reposts > 0 && (
+        {(p.n_reposts ?? 0) > 0 && (
           <li>
             <b>Reposts:</b> {p.n_reposts} of the last 30 reels are someone else&apos;s work, by Instagram&apos;s own label, so they stay out of the own-reel numbers.
           </li>
@@ -106,11 +106,11 @@ export default function Placement({ r }: { r: Report }) {
         </li>
       </ul>
 
-      {p.brand_tags.length > 0 && (
+      {(p.brand_tags ?? []).length > 0 && (
         <div className="mt-6">
           <h3 className="font-semibold">Brands that tagged this creator from their own page</h3>
           <ul className="mt-2 flex flex-wrap gap-2 text-sm">
-            {p.brand_tags.map((t) => (
+            {(p.brand_tags ?? []).map((t) => (
               <li key={t.code} className="rounded-lg px-3 py-1 ring-1 ring-line">
                 <a href={`https://www.instagram.com/p/${t.code}/`} target="_blank" rel="noreferrer">
                   @{t.brand}

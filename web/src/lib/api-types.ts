@@ -547,9 +547,15 @@ export interface components {
             collab: components["schemas"]["Ratio"];
             /** Ads */
             ads: components["schemas"]["Ad"][];
-            /** Brand Tags */
+            /**
+             * Brand Tags
+             * @default []
+             */
             brand_tags: components["schemas"]["BrandTag"][];
-            /** N Reposts */
+            /**
+             * N Reposts
+             * @default 0
+             */
             n_reposts: number;
         };
         /** Price */
@@ -566,8 +572,13 @@ export interface components {
             collab_factor: number;
             /** Genuine Share */
             genuine_share: number;
-            /** Ridge Share */
+            /**
+             * Ridge Share
+             * @default 1
+             */
             ridge_share: number;
+            /** Note */
+            note?: string | null;
             /** Waterfall */
             waterfall: components["schemas"]["WaterfallStep"][];
             /** Comparables */
