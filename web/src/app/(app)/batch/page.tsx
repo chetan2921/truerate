@@ -1,11 +1,13 @@
 "use client";
 
 import { Plus, X } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import ProductOptions from "@/components/product-options";
-import { api, type Meta } from "@/lib/api";
+import { api, type BatchSummary, type Meta } from "@/lib/api";
+import { daysAgo } from "@/lib/format";
 
 const MAX = 50;
 
@@ -22,11 +24,27 @@ export default function BatchPage() {
   const [meta, setMeta] = useState<Meta | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [recent, setRecent] = useState<BatchSummary[] | null>(null);
   const handles = rows.map((r) => r.value.trim()).filter(Boolean);
 
   useEffect(() => {
     api.meta().then(setMeta).catch(() => setMeta(null));
   }, []);
+
+  // Runs again each time this page is shown, so a batch started a moment ago is listed with its progress.
+  useEffect(() => {
+    api.listBatches().then(setRecent).catch(() => setRecent([]));
+  }, []);
+
+  // Next keeps this page alive, hidden, while a batch runs. Coming back must show a fresh form, not "Starting…"
+  // with the last creators; the product and budget stay.
+  useLayoutEffect(
+    () => () => {
+      setBusy(false);
+      setRows([{ id: nextId.current++, value: "" }]);
+    },
+    [],
+  );
 
   // Focus a row once React has rendered it.
   useEffect(() => {
@@ -161,6 +179,31 @@ export default function BatchPage() {
           )}
         </div>
       </form>
+
+      {recent && recent.length > 0 && (
+        <section aria-labelledby="recent-batches" className="mt-16 max-w-4xl">
+          <h2 id="recent-batches" className="section-title">
+            Recent batches
+          </h2>
+          <ul className="mt-3 divide-y divide-line">
+            {recent.map((b) => {
+              const running = b.done < b.total;
+              return (
+                <li key={b.id}>
+                  <Link href={`/batch/${b.id}`} className="grid grid-cols-[1fr_auto_6rem] items-center gap-6 py-3 no-underline hover:bg-surface">
+                    <span className="truncate">
+                      {b.handles.slice(0, 3).map((h) => `@${h}`).join(", ")}
+                      {b.handles.length > 3 && <span className="basis"> and {b.handles.length - 3} more</span>}
+                    </span>
+                    <span className={`figure text-sm ${running ? "text-text" : "text-muted"}`}>{running ? `Running, ${b.done} of ${b.total} done` : `${b.total} done`}</span>
+                    <span className="basis text-right">{daysAgo(b.created_at)}</span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
     </main>
   );
 }

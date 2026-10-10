@@ -327,6 +327,14 @@ class Batch(BaseModel):
     rows: list[BatchRow]
 
 
+class BatchSummary(BaseModel):
+    id: str
+    created_at: datetime
+    handles: list[str]
+    total: int
+    done: int
+
+
 class Per1k(BaseModel):
     p25: int
     median: int
@@ -464,6 +472,17 @@ def create_batch(req: BatchRequest) -> Created:
     for handle in handles:
         _start(db, handle, inputs, batch_id)
     return Created(id=batch_id)
+
+
+@app.get("/api/batches")
+def list_batches() -> list[BatchSummary]:
+    """The 10 newest batches with their progress, so a running batch can be found again after leaving its page."""
+    db = get_db()
+    out = []
+    for b in db.batches.find().sort("created_at", -1).limit(10):
+        statuses = [a["status"] for a in db.analyses.find({"batch_id": b["_id"]}, {"status": 1})]
+        out.append(BatchSummary(id=b["_id"], created_at=b["created_at"], handles=b["handles"], total=len(statuses), done=sum(x != "running" for x in statuses)))
+    return out
 
 
 @app.get("/api/batches/{batch_id}")

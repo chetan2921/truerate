@@ -3,7 +3,7 @@
 import { ChevronDown, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 
 import { CallChip } from "@/components/chips";
 import ProductOptions from "@/components/product-options";
@@ -34,6 +34,17 @@ export default function AnalyzePage() {
       api.listAnalyses().then(setRecent).catch(() => {});
     });
   }
+
+  // Next keeps this page alive, hidden, while the report is open. Coming back must show a fresh form, not "Starting…"
+  // with the last handle; the product and budget stay, since they usually carry over to the next creator.
+  useLayoutEffect(
+    () => () => {
+      setBusy(false);
+      setHandle("");
+      setQuote("");
+    },
+    [],
+  );
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();

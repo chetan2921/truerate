@@ -150,3 +150,11 @@ def test_analyses_left_running_by_a_stopped_server_are_marked_failed(world):
     orphan = world.analyses.find_one({"_id": "orphan"})
     assert orphan["status"] == "failed" and "stopped" in orphan["error"]
     assert world.analyses.find_one({"_id": "finished"})["status"] == "done"
+
+
+def test_recent_batches_are_listed_newest_first_with_progress(client):
+    first = client.post("/api/batches", json={"handles": ["one", "two"]}).json()["id"]
+    second = client.post("/api/batches", json={"handles": ["three"], "category": "Food"}).json()["id"]
+    listed = client.get("/api/batches").json()
+    assert [b["id"] for b in listed] == [second, first]
+    assert {k: listed[1][k] for k in ("handles", "total", "done")} == {"handles": ["one", "two"], "total": 2, "done": 2}  # jobs run inline here

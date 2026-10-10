@@ -46,7 +46,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Batches
+         * @description The 10 newest batches with their progress, so a running batch can be found again after leaving its page.
+         */
+        get: operations["list_batches_api_batches_get"];
         put?: never;
         /** Create Batch */
         post: operations["create_batch_api_batches_post"];
@@ -320,6 +324,22 @@ export interface components {
             expected_views: number | null;
             /** Reason */
             reason: string | null;
+        };
+        /** BatchSummary */
+        BatchSummary: {
+            /** Id */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Handles */
+            handles: string[];
+            /** Total */
+            total: number;
+            /** Done */
+            done: number;
         };
         /** BrandTag */
         BrandTag: {
@@ -829,6 +849,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_batches_api_batches_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchSummary"][];
                 };
             };
         };
