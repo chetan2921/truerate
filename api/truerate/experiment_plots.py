@@ -88,15 +88,18 @@ def ranges(result: dict, names: tuple[str, str], path: Path) -> None:
     plt.close(fig)
 
 
-def importance(values: dict[str, float], title: str, path: Path, top: int = 12) -> None:
+def importance(values: dict[str, float], title: str, path: Path, permutation: bool = False, top: int = 12) -> None:
+    """Linear models: mean |SHAP| in log price, labelled as a price multiplier. Others: permutation importance, which is
+    a drop in R² and has no price meaning, so it is labelled as is."""
     items = list(values.items())[:top][::-1]
     fig, ax = plt.subplots(figsize=(9, 5.4))
     ax.barh([n for n, _ in items], [v for _, v in items], color=AFTER_C, height=0.6)
     for i, (_, v) in enumerate(items):
-        ax.text(v, i, f"  ×{math.exp(v):.2f}", va="center", color=TEXT, fontsize=10)
+        ax.text(v, i, f"  {v:.3f}" if permutation else f"  ×{math.exp(v):.2f}", va="center", color=TEXT, fontsize=10)
     ax.grid(axis="y", visible=False)
     ax.tick_params(axis="y", colors=TEXT)
-    ax.set_xlabel("Typical effect on price (mean |SHAP| in log price; label: as a multiplier)")
+    ax.set_xlabel("Drop in R² when the feature is shuffled (permutation importance)" if permutation
+                  else "Typical effect on price (mean |SHAP| in log price; label: as a multiplier)")
     ax.set_title(title, color=TEXT, loc="left", fontsize=12)
     ax.set_xlim(0, max(v for _, v in items) * 1.25)
     fig.tight_layout()

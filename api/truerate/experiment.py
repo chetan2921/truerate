@@ -28,6 +28,7 @@ POINTS = ("today", "today_uncapped", "ridge_v2", "elasticnet_v2", "boosting_v2")
 RANGES = ("global", "band")
 BEFORE = "today_served"
 BANDS = ("small", "medium", "big")
+PERMUTATION = ("boosting_v2", "tabpfn_v2")  # not linear: importance is the drop in R² when a feature is shuffled, not SHAP
 MIN_BAND = 15  # fewer deals than this in a follower band: its range comes from all deals
 FEATURE_NAMES = (["log views", "log followers", "engagement", "comments per 1,000 views"] + list(CATEGORIES)
                  + ["account age", "log reel seconds", "log reels per month", "ads share", "YouTube link", "contact email", "verified",
@@ -362,7 +363,7 @@ def importance(point: str, rows: list[dict]) -> dict[str, float]:
         model = fit(rows)
         names, Xs, coef = FEATURE_NAMES[: 4 + len(CATEGORIES)], model.core.scaler.transform([features(r) for r in rows]), model.core.ridge.coef_ * model.w
         values = np.abs(coef * (Xs - Xs.mean(axis=0))).mean(axis=0)
-    elif point in ("boosting_v2", "tabpfn_v2"):
+    elif point in PERMUTATION:
         X = np.array([features_v2(r) for r in rows])
         est = ESTIMATORS[point]().fit(X, y)
         names, values = FEATURE_NAMES, np.maximum(permutation_importance(est, X, y, n_repeats=20, random_state=0).importances_mean, 0)

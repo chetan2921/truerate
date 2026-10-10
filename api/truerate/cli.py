@@ -244,7 +244,8 @@ def experiment_cmd(out_dir: Path = REPO_ROOT / "data" / "models" / "experiments"
     plots.predicted_vs_actual(result, names, out_dir / "predicted_vs_actual.png")
     plots.ranges(result, names, out_dir / "ranges.png")
     for n, values in imp.items():
-        plots.importance(values, f"What moves the price in {n}, fitted on all {len(rows)} deals", out_dir / f"importance_{n}.png")
+        plots.importance(values, f"What moves the price in {n}, fitted on all {len(rows)} deals", out_dir / f"importance_{n}.png",
+                         permutation=n in ex.PERMUTATION)
     plots.learning(curves, {n: n for n in curves}, len(test), out_dir / "learning_curve.png")
     typer.echo(ex.report_table(result))
 

@@ -69,7 +69,7 @@ Each step lists its proof of done.
 6. **Notes and pitch:** update SPEC, IMPLEMENTATION, TESTING, HISTORY, DEMO and the explainer; build the before/after slide from step 2's table.
 
 ## Decisions (user, 2026-10-10 night)
-- `data/fresh_test_20.csv` holds real WLDD deals: **test only**, never trained on. One of the 20 handles doesn't exist on Instagram, so 19 count.
+- `data/fresh_test_20.csv` holds real WLDD deals for **one reel each**: **test only**, never trained on. When they were made is unknown. One of the 20 handles doesn't exist on Instagram, so 19 count.
 - Paid-reel views raising the price: **test it** in step 2; adopt only if the held-out numbers improve.
 - 50% "most likely" band as the headline: **decide after step 2** measures its held-out coverage.
 - Creators beyond WLDD's deals: show WLDD's range and the published market price **separately**, not merged.

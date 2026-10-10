@@ -23,9 +23,9 @@ Decision rule, fixed before any held-out number was computed:
   - Uncapped paid factor: worse (held out 75%). The cap stays.
   - Per-band ranges: wider. The 50% band holds 33% (held out) and 32% (fresh) against its CV 52%, so it isn't fit to be the headline.
   - Fresh deals: WLDD paid a median 1.63× the prediction, mostly the big creators (1 of 6 inside the range). The held-out 30 were paid 0.72×. Learning curve: 59% at 30 deals, 56% at 118.
-- [ ] TabPFN v2 (local, `experiments` dependency group) through the same harness: run `uv run --group experiments truerate experiment` when the user's servers are off.
-- [ ] Hand check against HypeAuditor's free calculator on 9 held-out creators (the user enters the handles).
-- [ ] Ask: were the fresh deals more recent, or for more than one reel?
+- [x] TabPFN v2 (local, v2 weights, `experiments` group), run with the servers off: **not adopted**. It became the CV pick (39.1% against 40.0%). Held out: 62% against 57% (worse). Fresh: 50% against 55%, with a range holding 58% against 63%. Bootstrap over the 49: −13 to +12 points. About 50 minutes with TabPFN.
+- Dropped (user, 2026-10-10): the HypeAuditor hand check. The outside comparison stays the Modash-style baseline `validate` already scores.
+- [x] Asked about the fresh deals (user, 2026-10-10): one reel each; when they were made is unknown. So the big-creator gap isn't explained by deal terms. It's either price drift over time or the noise floor.
 - Next (decided 2026-10-10): show WLDD's range and the market reference separately for creators beyond WLDD's deals.
 
 Ideas for after the hackathon: a refresh option for saved HikerAPI responses; reuse stored signals in the red-team (it takes about 30 minutes); a faster model for the labelling call.
