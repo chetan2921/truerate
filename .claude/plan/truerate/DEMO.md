@@ -6,6 +6,17 @@
 3. `make api` and `make web`, then log in with Demo login. Keep tabs open on `/`, both reports, `/about` and `/rate-card`.
 4. Take the deck screenshot from the genuine creator's report: `node web/scripts/report-shot.mjs <analysis id>`. It captures only the decision block; the comparables table under it pairs WLDD creators with prices, which must never reach a slide.
 
+## Real analyses already in Mongo (2026-10-10)
+Open them at `/analyses/<id>` with the API on the real database:
+| Creator | Id | Shows |
+|---|---|---|
+| sejalkumar1195 | `b254c99898a5` | Negotiate: a possible competitor (exclusivity check) and the note for a creator bigger than any WLDD deal. The deck screenshot comes from this one |
+| mostlysane | `bee87c3f8952` | Negotiate: competitor, weak sponsored reach, out-of-range note |
+| shresthvg | `b563b4ebfc74` | Out of scope: only 1 of 10 covers shows a face |
+| riddhiii.vaishnav | `512ada822e9d` | Some fake activity (likes too even), 3.4K followers. A private individual: use it on screen, never on a slide |
+
+A fresh unseen creator takes 90 to 111 s live. One whose Instagram data is already saved takes about 45 s.
+
 ## The three minutes
 | Time | Show | Say |
 |---|---|---|

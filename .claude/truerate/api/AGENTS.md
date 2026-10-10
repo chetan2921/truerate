@@ -32,7 +32,7 @@ The Python service: collects Instagram data, runs the audience checks, prices on
   - `band`, MiniLM `comment_signals`, `audience_signals`, `AUDIENCE_SIGNALS`, `band_norms`, `verdict`, `genuine_share`
   - `make_fake` and `redteam`
   - `ambiguous`, `label_creator` (Gemini), `commenter_mix`, `face_share`, `commenter_rings` (Louvain), `fit_anomaly` and `audience_warnings`
-- `truerate/pricing.py`: `fit()` gives a `PriceModel`; `price()` gives the range, waterfall, comparables and delivery; `validate()` (with predicted-vs-actual points, no handles); the two baselines; `rate_card()`
+- `truerate/pricing.py`: `fit()` gives a `PriceModel`; `price()` gives the range, waterfall, comparables, delivery and an out-of-range `note`; `collab_factor` (bounded 0.5–1.0); `validate()` (with predicted-vs-actual points, no handles); the two baselines; `rate_card()` (3+ deals per category); `inr()` and `_group()` (Indian grouping)
 - `truerate/llm.py`: `Gemini.json(prompt, schema, images)`
 - `truerate/config.py`: `Settings` from the repo-root `.env`; `MODELS_DIR` (env `MODELS_DIR` overrides, relative to the repo root); `HIKER_DIR` (`data/hikerapi/`)
 
@@ -56,4 +56,4 @@ The Python service: collects Instagram data, runs the audience checks, prices on
 - `PriceModel` is pickled into `data/models/price.joblib`; rerun `truerate validate` after changing its fields.
 - Response models are part of the api-surface contract. Change one, then regenerate the web types.
 
-<!-- mapped: .@48a778d | paths: api/ -->
+<!-- mapped: .@8cab386 | paths: api/ -->

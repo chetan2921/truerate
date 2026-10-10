@@ -55,5 +55,13 @@ These are reports, not pass/fail unit tests, and they arrive with milestones 2 a
 - `truerate validate`: 30 held-out creators by follower band, leave-one-out by category, both baselines, range coverage
 - `truerate redteam`: catch rate per fake type (smart fake included) and the flagged share of unmodified creators
 
+## Live checks on real data (2026-10-10)
+- Holdout and leave-one-out: `uv run truerate validate` (seconds). Red-team: `uv run truerate redteam` (about 30 minutes).
+- Live analysis timing: POST `/api/analyses` and poll; a fresh unseen creator took 90 to 111 s. Separate cases:
+  - a mistyped handle reads as a plain sentence
+  - a faceless page is out of scope
+  - a creator bigger than any WLDD deal gets the note
+- When a model metric moves the wrong way, choose fixes by leave-one-out on the training creators, never by the holdout (see the factor bound in HISTORY).
+
 ## Gaps
 - `web/` has no unit tests; lint, build, ui-check and a browser pass on the dev analyses.

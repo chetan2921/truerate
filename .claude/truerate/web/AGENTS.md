@@ -43,4 +43,4 @@ The Next.js front end the WLDD team uses: login, analyze, report with a quote ch
 - React's compiler lint forbids reassigning a variable during render: put running totals in a helper outside the component (see `waterfall.tsx`).
 - The in-app preview tool can't read this repo, so run `make api` and `make web` from a terminal and open localhost.
 
-<!-- mapped: .@cc90011 | paths: web/src/, web/package.json, web/next.config.ts, web/scripts/ -->
+<!-- mapped: .@8cab386 | paths: web/src/, web/package.json, web/next.config.ts, web/scripts/ -->

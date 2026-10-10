@@ -32,3 +32,8 @@
   - The sponsored-performance factor is bounded to 0.5–1.0, from systematic debugging. Ridge alone scored 57%; the unbounded factor reached 120× because viral reels were labelled as ads, giving 83%. Discount-only won on leave-one-out over the training creators (39%), not by peeking at the holdout.
   - Leave-one-out gives the 6-nearest-deals estimate zero weight, so the copy now says the market price is the regression.
 - 2026-10-10 M3 done on real data: red-team caught 99 to 100% of the four main fakes and 74% of the smart fake. 18% of WLDD's own creators are flagged, mostly for low likes per view; thresholds left as they are, since there is no ground truth to tune them against.
+- 2026-10-10 live: M4 to M6 done on real data.
+  - Live analysis at 90 to 111 s, after parallel fetches, warmed models and capping tagged posts at 8 (that call went from 85 s to 32 s).
+  - The real deck is built, and ui-check passes on the real report, batch, rate card and About.
+  Decided with Chetan: a possible competitor is a Negotiate reason ("check exclusivity before booking"), not Avoid; all 6 live runs had come out Avoid.
+  Also: a note when a creator is bigger than any WLDD deal; the rate card needs 3+ deals per category; an unknown handle gets a plain sentence.

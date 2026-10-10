@@ -1,22 +1,16 @@
 # truerate implementation
 
 ## Now
-Waiting on the paid HikerAPI key for the live steps, in order:
-1. ~~`uv run truerate collect-benchmark`~~ done 2026-10-10: 149 creators, 148 with 12+ reels (one account deleted from Instagram), about 4,400 requests, 93 MB in `data/hikerapi/`. Use `--workers 12`.
-2. ~~`uv run truerate build-metrics --workers 6`~~ done: 148 creators. About 40 minutes the first time (one labelling call is about 45 s). Labels are now saved per creator in `labels`, so a rerun only labels what's missing.
-3. ~~`uv run truerate validate`~~ done, milestone 2 met: holdout median error 56% against 65% (band median) and 62% (Modash-style), range coverage 77%. By band: under 20K 29%, 20K to 100K 75%, 100K+ 63%. The first run gave 83%; the cause was an unbounded sponsored-performance factor, now 0.5–1.0.
-4. ~~`uv run truerate redteam`~~ done, milestone 3 met: flat views, flat views with noise, bot likers and pod comments caught 100%; bought followers 99%; smart fake 74%. 18% of unmodified WLDD creators are flagged (27 of 148, mostly low likes per view). Takes about 30 minutes.
-5. A never-seen face creator on `/`, end to end in under 2 minutes. That closes milestone 4.
-6. Batch, rate card, quote check, print and About on real data. That closes milestone 5.
+All six milestones are done on real data (2026-10-10). What's left is judging day: the checklist and script in `.claude/plan/truerate/DEMO.md`.
 
-The free key has about 50 requests left, kept for checks. Screens are built against `truerate_dev` and `data/models_dev` (`api/scripts/seed_dev.py`).
+Real-data results, for the pitch and the About page:
+- Collection: 149 of 150 deal creators (one account deleted), 148 with 12+ reels.
+- Price: holdout median error 56% against 65% (band median) and 62% (Modash-style); range covers 77%. By band: under 20K 29%, 20K to 100K 75%, 100K+ 63%.
+- Fakes: flat views, flat views with noise, bot likers and pod comments caught 100%, bought followers 99%, smart fake 74%. 18% of WLDD's own creators are flagged, mostly for low likes per view.
+- Live analysis of an unseen creator: 90 to 111 s with fresh Instagram data, about 45 s when it's already saved.
 
-Milestone 6's code is done too. What is left needs the 150:
-7. `uv run python scripts/make_deck.py` on the real reports, plus the report screenshot (`node web/scripts/report-shot.mjs <id>`).
-8. The demo dry run in `.claude/plan/truerate/DEMO.md`, timed.
-
-### In flight: live runs
-Steps 1 to 8 above, in order, as soon as the paid HikerAPI key is in `.env`. Check `/sys/balance` first.
+### In flight
+Nothing. Ideas for after the hackathon: a refresh option for saved HikerAPI responses; reuse stored signals in the red-team (it takes about 30 minutes); a faster model for the labelling call.
 
 ## Done
 - 2026-10-10 Scaffold: FastAPI `api/` (Python 3.12, uv) with `/api/health`, Next.js 16 `web/`, `DESIGN.md` on Solo's palette, agent memory.
@@ -47,3 +41,14 @@ Steps 1 to 8 above, in order, as soon as the paid HikerAPI key is in `.env`. Che
   - `api/scripts/make_deck.py`: 12 slides answering judging 1 to 6, with native tables and a log-scale predicted-vs-actual chart. Arial, `DESIGN.md` colours. Writes the git-ignored `data/pitch/`; checked by rendering through Keynote
   - `web/scripts/report-shot.mjs`: captures the decision block only
   - `DEMO.md`: the 3-minute script and its fallback
+- 2026-10-10 M1 to M6 on real data:
+  - collection with `--workers 12`; build-metrics with labels saved per creator
+  - validate passes after bounding the sponsored-performance factor; red-team passes
+  - live analysis under 2 minutes (parallel fetches, warmed models, 8 tagged posts in the prompt)
+  - the deck rebuilt from the real reports
+  - Added on the way:
+    - repost labels and brand tags
+    - a note when a creator is bigger than any WLDD deal
+    - a rate card that needs 3+ deals per category
+    - Negotiate (not Avoid) for a possible competitor
+    - plain sentences for unknown handles, and Indian grouping in all money text
