@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 
-import { PriceChart, ReachChart, Recommendation, Scorecard, ValueChart } from "@/components/batch/compare";
+import { PriceChart, ReachChart, Recommendation, Scorecard } from "@/components/batch/compare";
 import { api, type Batch } from "@/lib/api";
 import { inr } from "@/lib/format";
 
@@ -80,9 +80,6 @@ export default function BatchView({ params }: { params: Promise<{ id: string }> 
       </section>
       <div className="grid gap-x-16 gap-y-12 pt-16 xl:grid-cols-2">
         <PriceChart rows={batch.rows} budget={budget} />
-        <ValueChart rows={batch.rows} />
-      </div>
-      <div className="pt-12 xl:w-1/2 xl:pr-8">
         <ReachChart rows={batch.rows} />
       </div>
     </main>

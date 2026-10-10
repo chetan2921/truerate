@@ -100,6 +100,9 @@ def test_a_brand_run_profiles_ranks_plans_and_lists_who_to_price_next(world):
     picks = out["picks"]
     assert len(picks) == 5 and [p["score"] for p in picks] == sorted((p["score"] for p in picks), reverse=True) and all(p["reasons"] for p in picks)
     assert out["plan"]["cost"] <= 1_00_000 and set(out["plan"]["handles"]) <= {p["handle"] for p in picks}
+    # The plan books no one with a clear problem: a weak fit, a fake audience or reels that mostly flop.
+    by = {p["handle"]: p for p in picks}
+    assert not any(a["status"] == "bad" and a["key"] in ("fit", "audience", "consistency") for h in out["plan"]["handles"] for a in by[h]["answers"])
     assert out["to_price"] == ["fan.creator", "newcreator"]  # seen with the brand, not analysed yet
     deal_prices = {f"{round(row['price'])}" for row in synthetic_rows()}
     assert not any(p in prompt for prompt in llm.prompts for p in deal_prices)
@@ -114,3 +117,14 @@ def test_a_brand_on_instagram_costs_three_requests(tmp_path):
     data = instagram_brand(fake_hiker(tmp_path, calls), "komalpandeyofficial")
     assert data["profile"]["username"] == "komalpandeyofficial" and data["reels"] and isinstance(data["tagged"], list)
     assert len(calls) == 3  # profile, one page of reels, posts that tag the brand
+
+
+def test_the_plan_never_books_a_creator_with_a_clear_problem():
+    from truerate.brand import bookable
+
+    ok = {"handle": "ok", "answers": [{"key": "consistency", "status": "warn"}]}
+    flops = {"handle": "flops", "answers": [{"key": "consistency", "status": "bad"}]}
+    fake = {"handle": "fake", "answers": [{"key": "audience", "status": "bad"}]}
+    misfit = {"handle": "misfit", "answers": [{"key": "fit", "status": "bad"}]}
+    pricey = {"handle": "pricey", "answers": [{"key": "budget", "status": "bad"}]}  # the plan's own price check handles this one
+    assert [c["handle"] for c in bookable([ok, flops, fake, misfit, pricey])] == ["ok", "pricey"]

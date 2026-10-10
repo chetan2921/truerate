@@ -191,6 +191,14 @@ def score(c: dict, brand: dict, budget: int | None) -> dict:
     return {"score": total, "answers": answers, "reasons": [a["title"] for a in answers if a["status"] == "good"]}
 
 
+PLAN_BLOCKERS = ("fit", "audience", "consistency")
+
+
+def bookable(picks: list[dict]) -> list[dict]:
+    """The picks a budget plan may book: none with a clear problem in fit, audience or reliability."""
+    return [c for c in picks if not any(a["key"] in PLAN_BLOCKERS and a["status"] == "bad" for a in c["answers"])]
+
+
 def budget_plan(cands: list[dict], budget: int, unit: int = 500) -> dict:
     """The set of creators with the most expected views whose prices to aim for fit the budget (0/1 knapsack in ₹500 steps)."""
     cap = budget // unit
@@ -245,11 +253,10 @@ def run_brand(deps: BrandDeps, req: dict, step: Callable[[int], None] = lambda i
     budget = req.get("budget")
     scored = sorted((c | score(c, profile, budget) for c in pool if c["fair"] is not None), key=lambda c: (-c["score"], c["cost_per_1k"] or math.inf))
     picks = scored[: req.get("count") or 10]
-    bookable = [c for c in picks if not any(a["key"] in ("audience", "fit") and a["status"] == "bad" for a in c["answers"])]
     return {
         "brand": profile | {"source": src["kind"], "handle": handle, "url": src["value"] if src["kind"] == "website" else None},
         "picks": picks,
-        "plan": budget_plan(bookable, budget) if budget else None,
+        "plan": budget_plan(bookable(picks), budget) if budget else None,
         "to_price": [c["handle"] for c in pool if c["fair"] is None][:20],
         "pool_size": len(scored),
     }

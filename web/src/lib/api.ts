@@ -14,6 +14,9 @@ export type RateCard = Schemas["RateCard"];
 export type ModelReport = Schemas["ModelReport"];
 export type Product = Schemas["Product"];
 export type Output = Schemas["Output"];
+export type BrandRun = Schemas["BrandRun"];
+export type BrandSummary = Schemas["BrandSummary"];
+export type BrandRequest = Schemas["BrandRequest"];
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -38,6 +41,9 @@ export const api = {
   checkQuote: (id: string, quote: number) => call<QuoteCheck>(`/api/analyses/${id}/quote`, { method: "POST", body: JSON.stringify({ quote }) }),
   createBatch: (req: BatchRequest) => call<Schemas["Created"]>("/api/batches", { method: "POST", body: JSON.stringify(req) }),
   listBatches: () => call<BatchSummary[]>("/api/batches"),
+  createBrandRun: (req: BrandRequest) => call<Schemas["Created"]>("/api/brands", { method: "POST", body: JSON.stringify(req) }),
+  getBrandRun: (id: string) => call<BrandRun>(`/api/brands/${id}`),
+  listBrandRuns: () => call<BrandSummary[]>("/api/brands"),
   getBatch: (id: string) => call<Batch>(`/api/batches/${id}`),
   rateCard: () => call<RateCard>("/api/rate-card"),
   modelReport: () => call<ModelReport>("/api/model-report"),

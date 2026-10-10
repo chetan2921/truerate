@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Cell, LabelList, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from "recharts";
 
 import { CallChip } from "@/components/chips";
+import ValueBars from "@/components/value-bars";
 import { StatusIcon } from "@/components/verdicts";
 import type { Batch, Output } from "@/lib/api";
 import { compact, inr } from "@/lib/format";
@@ -44,70 +44,6 @@ function Answer({ o }: { o: Output | undefined }) {
   );
 }
 
-const CALL_COLOR: Record<string, string> = { Go: "var(--go)", Negotiate: "var(--negotiate)", Avoid: "var(--avoid)" };
-const axis = { tick: { fill: "var(--text-muted)", fontSize: 12 }, axisLine: { stroke: "var(--line)" }, tickLine: false } as const;
-
-// Price against expected views, one dot per creator: up and to the left is more views for less money.
-function ValueMap({ rows, best }: { rows: Row[]; best?: Row }) {
-  // Numbered in the scorecard's order: numbers can't collide the way handles do when two creators sit close together.
-  const data = done(rows)
-    .filter((r) => r.expected_views)
-    .map((r, i) => ({ n: i + 1, handle: `@${r.handle}`, fair: r.fair!, views: r.expected_views!, call: r.call ?? "", size: r === best ? 520 : 300 }));
-  if (data.length < 2) return null;
-  // Padded so no dot sits on an edge.
-  const xs = data.map((d) => d.fair), ys = data.map((d) => d.views);
-  const xDomain = [Math.min(...xs) / 1.8, Math.max(...xs) * 1.8], yDomain = [Math.min(...ys) / 2.5, Math.max(...ys) * 2.5];
-  return (
-    <figure>
-      <div className="h-64" role="img" aria-label="What each creator costs against the views they should bring">
-        <ResponsiveContainer width="100%" height="100%">
-          <ScatterChart margin={{ top: 12, right: 16, bottom: 4, left: 4 }}>
-            <XAxis type="number" dataKey="fair" name="Pay about" scale="log" domain={xDomain} tickFormatter={(v) => `₹${compact(Number(v))}`} {...axis} />
-            <YAxis type="number" dataKey="views" name="Expected views" scale="log" domain={yDomain} tickFormatter={(v) => compact(Number(v))} width={44} {...axis} />
-            <ZAxis dataKey="size" range={[300, 520]} />
-            <Tooltip
-              cursor={false}
-              content={({ payload }) => {
-                const d = payload?.[0]?.payload as (typeof data)[number] | undefined;
-                return d ? (
-                  <div className="rounded-lg bg-surface px-3 py-2 text-sm">
-                    <b>{d.handle}</b> · {d.call}
-                    <span className="figure block">
-                      Pay about {inr(d.fair)} · {compact(d.views)} views
-                    </span>
-                  </div>
-                ) : null;
-              }}
-            />
-            <Scatter data={data} isAnimationActive={false}>
-              {data.map((d) => (
-                <Cell key={d.handle} fill={CALL_COLOR[d.call] ?? "var(--info)"} stroke={d.size > 300 ? "var(--text)" : "var(--surface)"} strokeWidth={d.size > 300 ? 3 : 2} />
-              ))}
-              <LabelList dataKey="n" position="center" fill="var(--bg)" fontSize={11} fontWeight={700} />
-            </Scatter>
-          </ScatterChart>
-        </ResponsiveContainer>
-      </div>
-      <figcaption className="basis mt-2">
-        <span className="flex flex-wrap gap-x-3 text-text">
-          {data.map((d) => (
-            <span key={d.handle} className="whitespace-nowrap">
-              <b className="figure">{d.n}</b> {d.handle}
-            </span>
-          ))}
-        </span>
-        Left costs less, higher brings more views: up and to the left is the best value. The ringed dot is the pick.{" "}
-        {Object.entries(CALL_COLOR).map(([call, color]) => (
-          <span key={call} className="ml-3 inline-flex items-center gap-1.5 whitespace-nowrap">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} aria-hidden />
-            {call}
-          </span>
-        ))}
-      </figcaption>
-    </figure>
-  );
-}
-
 // Who to book first: the cheapest views among the creators worth booking, and why, in plain words.
 export function Recommendation({ rows }: { rows: Row[] }) {
   const ready = done(rows);
@@ -147,7 +83,12 @@ export function Recommendation({ rows }: { rows: Row[] }) {
         </p>
       )}
       </div>
-      <ValueMap rows={rows} best={best} />
+      <ValueBars
+        rows={done(rows)
+          .filter((r) => r.expected_views)
+          .map((r) => ({ handle: `@${r.handle}`, fair: r.fair!, views: r.expected_views!, highlight: r === best, usualPerK: r.category_cost_per_1k }))}
+        caption="Green is the pick; the white tick is what ₹10,000 buys at WLDD's usual rate for that category."
+      />
     </section>
   );
 }
@@ -244,39 +185,6 @@ export function PriceChart({ rows, budget }: { rows: Row[]; budget: number | nul
             </div>
           </div>
         ))}
-      </div>
-    </figure>
-  );
-}
-
-export function ValueChart({ rows }: { rows: Row[] }) {
-  const ready = done(rows).filter((r) => r.cost_per_1k);
-  if (!ready.length) return null;
-  // Views that ₹10,000 buys at the price to aim for, and at what WLDD usually pays in the creator's category.
-  const buys = (perK: number) => (10_000 / perK) * 1000;
-  const most = Math.max(...ready.flatMap((r) => [buys(r.cost_per_1k!), r.category_cost_per_1k ? buys(r.category_cost_per_1k) : 0]));
-  const COLOR = { good: "bg-go", warn: "bg-negotiate", bad: "bg-avoid", info: "bg-info" } as const;
-  return (
-    <figure>
-      <figcaption className="section-title">What ₹10,000 buys</figcaption>
-      <p className="basis mt-1">Views on the sponsored reel for every ₹10,000 at the price to aim for. Longer is better value; the tick is what ₹10,000 buys at WLDD&apos;s usual rate for that category.</p>
-      <div className="mt-5 space-y-4">
-        {ready.map((r) => {
-          const value = find(r, "value");
-          return (
-            <div key={r.analysis_id} className="flex items-center gap-4" title={value ? `${value.title}. ${value.detail}` : undefined}>
-              <span className="w-36 shrink-0 truncate text-sm">@{r.handle}</span>
-              <div className="relative h-6 flex-1">
-                <span className={`absolute top-1 h-4 rounded ${COLOR[value?.status ?? "info"]}`} style={{ width: `${(100 * buys(r.cost_per_1k!)) / most}%` }} />
-                {r.category_cost_per_1k ? (
-                  <span className="absolute top-0 h-6 w-0.5 bg-text" style={{ left: `${(100 * buys(r.category_cost_per_1k)) / most}%` }} />
-                ) : null}
-              </div>
-              <span className="figure w-28 shrink-0 text-right text-sm">{compact(buys(r.cost_per_1k!))} views</span>
-              <span className="w-28 shrink-0 text-sm">{value && <Answer o={value} />}</span>
-            </div>
-          );
-        })}
       </div>
     </figure>
   );
