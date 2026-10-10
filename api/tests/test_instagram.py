@@ -255,3 +255,60 @@ def test_comments_start_while_older_reel_pages_are_still_loading(tmp_path):
     assert comments_before_last_page == [True]
     recent = [r for r in snap["data"]["reels"] if not r["pinned"]]
     assert list(snap["data"]["comments"]) == [r["id"] for r in recent[:10]] and list(snap["data"]["likers"]) == [r["id"] for r in recent[:3]]
+
+
+def _paged_hiker(store, pages: int, step_days: int = 30, calls=None):
+    """A HikerAPI whose reel pages go back `step_days` per page, `pages` pages in all, under fresh ids each page."""
+    clips = fixture("clips")[0]
+
+    def page(k):
+        shift = timedelta(days=step_days * k)
+        def older(t):
+            return (datetime.fromisoformat(t.replace("Z", "+00:00")) - shift).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return [c | {"pk": f"{c['pk']}{k}", "id": f"{c['id']}{k}", "code": f"{c['code']}{k}", "taken_at": older(c["taken_at"])} for c in clips]
+
+    def handler(request):
+        path, cursor = request.url.path, request.url.params.get("end_cursor")
+        if path == "/v1/user/clips/chunk":
+            k = int(cursor[1:]) if cursor else 0
+            if calls is not None:
+                calls.append(k)
+            return httpx.Response(200, json=[page(k), f"p{k + 1}" if k + 1 < pages else None])
+        return httpx.Response(200, json=fixture(ROUTES[path]))
+
+    return Hiker("test-key", store, httpx.Client(base_url=BASE_URL, transport=httpx.MockTransport(handler))), page
+
+
+def test_reels_page_back_past_a_date(tmp_path):
+    calls = []
+    hiker, page = _paged_hiker(tmp_path, pages=10, calls=calls)
+    oldest_first = min(datetime.fromisoformat(r["taken_at"].replace("Z", "+00:00")) for r in page(0))
+    back_to = oldest_first - timedelta(days=75)
+    reels = hiker.reels("1", pages=1, back_to=back_to)
+    oldest = min(datetime.fromisoformat(r["taken_at"].replace("Z", "+00:00")) for r in reels)
+    assert oldest < back_to  # reached past the date
+    assert calls == [0, 1, 2, 3]  # and stopped on the first page that did
+
+
+def test_reels_without_a_date_keep_the_page_limit(tmp_path):
+    calls = []
+    hiker, _ = _paged_hiker(tmp_path, pages=10, calls=calls)
+    hiker.reels("1", pages=2)
+    assert calls == [0, 1]
+
+
+def test_reels_back_to_a_date_stop_at_the_page_cap(tmp_path):
+    from truerate.instagram import MAX_REEL_PAGES
+
+    calls = []
+    hiker, _ = _paged_hiker(tmp_path, pages=500, step_days=1, calls=calls)
+    hiker.reels("1", pages=1, back_to=datetime(2000, 1, 1, tzinfo=timezone.utc))
+    assert len(calls) == MAX_REEL_PAGES
+
+
+def test_collect_passes_the_date_to_the_reel_pages(tmp_path):
+    hiker, page = _paged_hiker(tmp_path, pages=10)
+    back_to = min(datetime.fromisoformat(r["taken_at"].replace("Z", "+00:00")) for r in page(0)) - timedelta(days=75)
+    snap = collect(hiker, "komalpandeyofficial", back_to=back_to)
+    assert len(snap["data"]["reels"]) == 4 * len(page(0))
+    assert len(snap["data"]["comments"]) == 10  # the per-reel lists still cover the newest reels only
