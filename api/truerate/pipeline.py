@@ -72,8 +72,9 @@ def _flag_text(f: dict, s: dict) -> str:
     }[f["signal"]]()
 
 
-def _brand(reel: dict) -> str | None:
-    names = reel["sponsors"] + reel["coauthors"] + re.findall(r"@([\w.]+)", reel["caption"])
+def _brand(reel: dict, handle: str) -> str | None:
+    """The first sponsor, co-author or mention that isn't the creator."""
+    names = [n for n in reel["sponsors"] + reel["coauthors"] + re.findall(r"@([\w.]+)", reel["caption"]) if n.lower() != handle.lower()]
     return names[0] if names else None
 
 
@@ -138,7 +139,7 @@ def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] =
             return "paid"
         return "collab" if r["coauthors"] else "repost" if r.get("repost_of") else "own"
 
-    ads = [{"code": r["code"], "taken_at": r["taken_at"], "disclosed": is_paid(r), "brand": _brand(r) or spoken.get(r["code"], {}).get("brand") or None,
+    ads = [{"code": r["code"], "taken_at": r["taken_at"], "disclosed": is_paid(r), "brand": _brand(r, handle) or spoken.get(r["code"], {}).get("brand") or None,
             "topic": labels["topics"].get(r["code"]), "spoken": spoken.get(r["code"], {}).get("quote")}
            for r in reels if kind(r) == "paid"]
 

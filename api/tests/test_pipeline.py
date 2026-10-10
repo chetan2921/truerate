@@ -166,3 +166,12 @@ def test_a_spoken_ad_makes_the_reel_paid_and_shows_the_quote(world):
     assert next(x for x in r["placement"]["reels"] if x["code"] == first)["kind"] == "paid"
     ad = next(a for a in r["placement"]["ads"] if a["code"] == first)
     assert (ad["brand"], ad["spoken"], ad["disclosed"]) == ("spokenbrand", "use my code SPOKEN", False)
+
+
+def test_the_creators_own_handle_is_never_the_brand(world):
+    # Live: "Promoted dollysingh in Fashion and beauty" because her caption tagged her own handle first.
+    snap = target_snapshot()
+    reel = sorted(snap["data"]["reels"], key=lambda r: r["taken_at"], reverse=True)[0]
+    reel["caption"] = "new drop with @newcreator x @realbrand #ad"
+    r = analyze("newcreator", {}, deps(world, snap))["result"]
+    assert next(a for a in r["placement"]["ads"] if a["code"] == reel["code"])["brand"] == "realbrand"
