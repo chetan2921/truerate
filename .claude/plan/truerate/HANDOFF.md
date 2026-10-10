@@ -18,6 +18,7 @@ This file is safe to commit: no WLDD prices. Prices live only in git-ignored `da
 - **Charts**: every hand-drawn chart shows its numbers on hover or focus (`web/src/components/chart-tip.tsx`).
 - **Bug fixed**: forms stuck on "Starting…" after navigating back (Next 16 keeps pages alive with `<Activity>`).
 - Deck: `data/pitch/TruRate.pptx`, 12 slides, rebuilt by `cd api && uv run python scripts/make_deck.py`, numbers only from `data/models/`. Demo script and run IDs: `DEMO.md`.
+- Judges' deck: `data/pitch/TruRate-judges.pptx` (and `.pdf`), 20 slides, built with pptxgenjs following Anthropic's pptx skill. Rebuild: `cd data/pitch/judges-deck && npm install pptxgenjs@3 && node build.js` (numbers from `data/models/`, cropped screenshots in `shots/`). Charts are drawn shapes: pptxgenjs charts don't render in Keynote.
 
 ## Model, honestly (`data/models/model_report.json`, `data/models/experiments*/`)
 - 30 held-out deals: median error 57%, **70% within 2× of the price paid**, R² 0.15 on log price, rank order 0.57. Both baselines lose on every score (band median 65%, 50% within 2×; Modash-style 73%, 50%). The 80% range holds 83%.
