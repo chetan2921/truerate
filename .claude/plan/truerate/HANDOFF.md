@@ -19,7 +19,7 @@ This file is safe to commit: no WLDD prices. Prices live only in git-ignored `da
 - **Bug fixed**: forms stuck on "Starting…" after navigating back (Next 16 keeps pages alive with `<Activity>`).
 - Deck: `data/pitch/TruRate.pptx`, 12 slides, rebuilt by `cd api && uv run python scripts/make_deck.py`, numbers only from `data/models/`. Demo script and run IDs: `DEMO.md`.
 - Judges' deck: `data/pitch/TruRate-judges.pptx` (and `.pdf`), 20 slides, built with pptxgenjs following Anthropic's pptx skill. Rebuild: `cd data/pitch/judges-deck && npm install pptxgenjs@3 && node build.js` (numbers from `data/models/`, cropped screenshots in `shots/`). Charts are drawn shapes: pptxgenjs charts don't render in Keynote.
-- Leadership deck (the one to present): `data/pitch/TruRate-leadership.pptx` and `.pdf`, 10 slides for the CTO and CXOs in DESIGN.md's look with Urbanist (installed in `~/Library/Fonts`; present from the PDF, which embeds it). Rebuild: `cd data/pitch/leadership-deck && npm install pptxgenjs@3 && node build2.js`. Per creator: about 45 s (median of 22 runs), about 25 HikerAPI requests (about 1.5¢ at $0.60 per 1,000), Gemini about 3¢ (rough estimate).
+- Leadership deck (the one to present): `data/pitch/TruRate-leadership.pptx` and `.pdf` (updated 2026-10-11 for the 1,253-deal model; slide 9 is the before/after and learning curve, read from `data/models/before_after.json`; the earlier version is `TruRate-leadership-v1`), 10 slides for the CTO and CXOs in DESIGN.md's look with Urbanist (installed in `~/Library/Fonts`; present from the PDF, which embeds it). Rebuild: `cd data/pitch/leadership-deck && npm install pptxgenjs@3 && node build2.js`. Per creator: about 45 s (median of 22 runs), about 25 HikerAPI requests (about 1.5¢ at $0.60 per 1,000), Gemini about 3¢ (rough estimate).
 
 ## Model, honestly (`data/models/model_report.json`, `data/models/before_after.json`, `data/models/experiments_1253_*/`)
 - **Served since 2026-10-11: gradient boosting** (`pricing.Boosted`, monotone in views and followers, on `features_v2`) **with global split-conformal 80% ranges**, trained on 1,230 of WLDD's 1,253 deals (`data/creators2.csv`; 20 accounts no longer exist, 3 private or under 12 reels).
@@ -49,7 +49,7 @@ This file is safe to commit: no WLDD prices. Prices live only in git-ignored `da
 
 ## Left
 - **Gemini credit is depleted**: every new live analysis and brand run needs Gemini, so they fail until the AI Studio prepay is topped up. Then relabel the 632 offline creators (above).
-- The leadership and judges decks predate the retraining (Ridge, 148 deals, old screenshots): the user asked to leave the PPT for now. Retake the screenshots (ranges now read ₹a – ₹b, the testing line is gone, the rate card has 1,230 deals) and rebuild from `data/pitch/leadership-deck/build2.js` when picked up again.
+- The judges' deck (`TruRate-judges.pptx`) still predates the retraining (Ridge, 148 deals). The leadership deck is current.
 - Optional: the api and web AGENTS.md notes are stamped at an old commit; re-map them (`/repo-setup` or by hand) before trusting their details.
 - Optional: the organisers' explainer (https://claude.ai/artifact/QzWtvix98TwVhjqsPbAsMN) predates today's changes.
 
