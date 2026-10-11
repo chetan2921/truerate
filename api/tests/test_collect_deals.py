@@ -41,3 +41,27 @@ def test_run_stops_when_credit_runs_out(tmp_path):
     when = datetime(2026, 1, 1, tzinfo=timezone.utc)
     out = collect_deals.run(None, [(f"c{i}", when) for i in range(5)], workers=1, log=tmp_path / "done.txt", collect=broke)
     assert out["stopped"] and not out["done"]
+
+
+def test_paced_transport_waits_out_rate_limits_and_slows_down():
+    import httpx
+
+    replies = iter([429, 429, 200])
+
+    def inner(request):
+        status = next(replies)
+        return httpx.Response(status, headers={"retry-after": "0"}, json={})
+
+    paced = collect_deals.Paced(httpx.MockTransport(inner), rate=50)
+    response = paced.handle_request(httpx.Request("GET", "https://api.hikerapi.com/v1/user/by/username"))
+    assert response.status_code == 200
+    assert paced.rate < 50 and paced.limited == 2  # each 429 slows every worker down
+
+
+def test_paced_transport_speeds_back_up_on_success():
+    import httpx
+
+    paced = collect_deals.Paced(httpx.MockTransport(lambda r: httpx.Response(200, json={})), rate=500, ceiling=501)
+    for _ in range(40):
+        paced.handle_request(httpx.Request("GET", "https://api.hikerapi.com/x"))
+    assert paced.rate == 501
