@@ -3,14 +3,12 @@ the training deals only, then scored once on the 30 held-out deals and on the fr
 handle; actual prices appear only in `points`, which stay in the git-ignored data/models/experiments/."""
 
 import math
-import re
 from importlib.util import find_spec
 from datetime import datetime, timezone
 from functools import partial
 from statistics import mean, median
 
 import numpy as np
-from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.impute import SimpleImputer
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import ElasticNetCV, RidgeCV
@@ -19,43 +17,17 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 from truerate.db import training_rows
-from truerate.pricing import FACTOR_FLOOR, SHRINK, collab_factor, features, fit, price, round500
-from truerate.signals import CATEGORIES, band, recent_reels, reel_metrics
+from truerate.pricing import (FACTOR_FLOOR, FEATURE_NAMES, SHRINK, boosting_regressor, collab_factor, features, features_v2, fit,
+                              local_spread, price, round500, split_offsets)
+from truerate.signals import CATEGORIES, band, english_share, extra_features, recent_reels, reel_metrics
 
-EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
 LEVELS = (0.8, 0.5)
 POINTS = ("today", "today_uncapped", "ridge_v2", "elasticnet_v2", "boosting_v2") + (("tabpfn_v2",) if find_spec("tabpfn") else ())
 RANGES = ("global", "band", "local")
-K_LOCAL = 15  # "local" ranges scale with the typical error among this many nearest training deals
 BEFORE = "today_served"
 BANDS = ("small", "medium", "big")
 PERMUTATION = ("boosting_v2", "tabpfn_v2")  # not linear: importance is the drop in R² when a feature is shuffled, not SHAP
 MIN_BAND = 15  # fewer deals than this in a follower band: its range comes from all deals
-FEATURE_NAMES = (["log views", "log followers", "engagement", "comments per 1,000 views"] + list(CATEGORIES)
-                 + ["account age", "log reel seconds", "log reels per month", "ads share", "YouTube link", "contact email", "verified",
-                    "English comments", "views spread", "log trend", "likes per view"])
-
-
-def extra_features(snap: dict) -> dict:
-    """What today's model leaves out: account age, reel length, posting rate, a YouTube link, a contact email, the tick."""
-    d, reels = snap["data"], recent_reels(snap)
-    try:
-        joined = datetime.strptime(d.get("about", {}).get("joined") or "", "%B %Y").replace(tzinfo=timezone.utc)
-        age = (_utc(snap["fetched_at"]) - joined).days / 365.25
-    except ValueError:
-        age = None
-    times = [datetime.fromisoformat(r["taken_at"].replace("Z", "+00:00")) for r in reels]
-    days = (max(times) - min(times)).total_seconds() / 86400 if times else 0
-    seconds = [r["duration"] for r in reels if r.get("duration")]
-    p = d["profile"]
-    return {
-        "age_years": age,
-        "reel_seconds": median(seconds) if seconds else None,
-        "reels_per_month": len(reels) / days * 30 if days else None,
-        "youtube": "youtu" in (p.get("external_url") or "").lower(),
-        "email": bool(EMAIL.search(p.get("bio") or "")),
-        "verified": bool(p.get("is_verified")),
-    }
 
 
 def _utc(t: datetime) -> datetime:
@@ -63,9 +35,7 @@ def _utc(t: datetime) -> datetime:
 
 
 def _with_extras(row: dict, snap: dict, mix: dict | None) -> dict:
-    langs = (mix or {}).get("languages") or []
-    english = next((x["share"] for x in langs if x["language"] == "English"), 0.0) if langs else None
-    return row | extra_features(snap) | {"english": english}
+    return row | extra_features(snap) | {"english": english_share(mix)}
 
 
 def deal_rows(db) -> list[dict]:
@@ -111,21 +81,6 @@ def dated(rows: list[dict]) -> list[dict]:
     return out
 
 
-def _num(x) -> float:
-    return math.nan if x is None else float(x)
-
-
-def _log(x) -> float:
-    return math.log(x) if x else math.nan
-
-
-def features_v2(m: dict) -> list[float]:
-    n = m.get("n_reels")
-    return features(m) + [_num(m.get("age_years")), _log(m.get("reel_seconds")), _log(m.get("reels_per_month")),
-                          m["paid_n"] / n if n else math.nan, _num(m.get("youtube")), _num(m.get("email")), _num(m.get("verified")),
-                          _num(m.get("english")), _num(m.get("views_cv")), _log(m.get("trend")), _num(m.get("likes_per_view"))]
-
-
 def _paid_typical(rows: list[dict]) -> float:
     ratios = [r["paid_ratio"] for r in rows if r["paid_n"]]
     return median(ratios) if ratios else 1.0
@@ -139,8 +94,7 @@ ESTIMATORS = {
     "ridge_v2": lambda: _linear(RidgeCV(alphas=np.logspace(-2, 3, 20))),
     "elasticnet_v2": lambda: _linear(ElasticNetCV(l1_ratio=[0.2, 0.5, 0.8, 1.0], cv=5, max_iter=20_000)),
     # Small and slow-learning, and never cheaper for more views or followers.
-    "boosting_v2": lambda: HistGradientBoostingRegressor(max_iter=200, learning_rate=0.05, max_depth=2, min_samples_leaf=10, l2_regularization=1.0,
-                                                         monotonic_cst=[1, 1] + [0] * (len(FEATURE_NAMES) - 2), random_state=0),
+    "boosting_v2": boosting_regressor,  # the same estimator `pricing.Boosted` serves
     "tabpfn_v2": lambda: _tabpfn(),
 }
 
@@ -203,13 +157,7 @@ def _oof(rows: list[dict], point: str, folds: int = 10, seed: int = 0) -> np.nda
 
 
 def _offsets(resid: np.ndarray) -> dict:
-    """Signed split-conformal offsets per level: the ⌊(n+1)α/2⌋-th smallest residual and the ⌈(n+1)(1−α/2)⌉-th."""
-    r, n = np.sort(resid), len(resid)
-    out = {}
-    for level in LEVELS:
-        a = (1 - level) / 2
-        out[level] = (float(r[max(math.floor((n + 1) * a), 1) - 1]), float(r[min(math.ceil((n + 1) * (1 - a)), n) - 1]))
-    return out
+    return {level: split_offsets(resid, level) for level in LEVELS}
 
 
 def _band_offsets(rows: list[dict], resid: np.ndarray, by_band: bool) -> dict:
@@ -226,18 +174,11 @@ def conformal_offsets(rows: list[dict], point: str, by_band: bool = False, folds
 
 
 def _local_spread(train: list[dict], resid: np.ndarray, targets: list[dict], leave_out_self: bool = False) -> np.ndarray:
-    """Typical size of the out-of-fold error among the K_LOCAL training deals nearest each target in views and
-    followers: small where similar deals were priced alike, large where they weren't."""
+    """`pricing.local_spread` on these deals' log views and followers."""
     def pos(rows):
         return np.log([[r["views"], r["followers"]] for r in rows])
 
-    A = pos(train)
-    mu, sd = A.mean(axis=0), A.std(axis=0) + 1e-9
-    d = np.linalg.norm(((pos(targets) - mu) / sd)[:, None, :] - ((A - mu) / sd)[None, :, :], axis=2)
-    if leave_out_self:
-        np.fill_diagonal(d, np.inf)
-    nearest = np.argsort(d, axis=1)[:, :K_LOCAL]
-    return np.maximum(np.abs(resid)[nearest].mean(axis=1), 0.05)
+    return local_spread(pos(train), np.abs(resid), pos(targets), leave_out_self)
 
 
 def _widen(rows: list[dict], m: dict) -> tuple[float, float]:

@@ -11,6 +11,8 @@ from truerate.audio import fetch_audio
 from truerate.instagram import HikerError, fetch_covers
 from truerate.pricing import PriceModel, _group, inr, per_1k, price
 from truerate.signals import (
+    english_share,
+    extra_features,
     CATEGORIES,
     FACE_SHARE,
     PRODUCT_CATEGORY,
@@ -145,7 +147,9 @@ def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] =
 
     step(3)
     model = deps.price_model
-    p = price(model, metrics | {"category": category}, share)
+    mix = commenter_mix(snap, deps.fake_model, labels)
+    # Everything either price model reads: the reel metrics, and for boosting the account's extras and comment languages.
+    p = price(model, metrics | {"category": category, "views_cv": signals["views_cv"], "english": english_share(mix)} | extra_features(snap), share)
     same_band = [m["engagement"] for m in wldd if band(m["followers"]) == band(snap["followers"])]
     kinds = labels.get("kinds", {})
 
@@ -198,7 +202,7 @@ def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] =
             "signals": signals,
             "medians": v["medians"],
             "warnings": audience_warnings(signals, fit_anomaly(wldd)),
-            "mix": commenter_mix(snap, deps.fake_model, labels),
+            "mix": mix,
         },
         "engagement": {
             "rate": metrics["engagement"],

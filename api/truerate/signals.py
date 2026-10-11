@@ -155,6 +155,38 @@ def fit_niche_model(X: np.ndarray, y: list[str]):
     return LogisticRegression(max_iter=2000, C=2.0, class_weight="balanced").fit(X, y)
 
 
+EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
+
+
+def extra_features(snap: dict) -> dict:
+    """What today's model leaves out: account age, reel length, posting rate, a YouTube link, a contact email, the tick."""
+    d, reels = snap["data"], recent_reels(snap)
+    try:
+        joined = datetime.strptime(d.get("about", {}).get("joined") or "", "%B %Y").replace(tzinfo=timezone.utc)
+        fetched = snap["fetched_at"]
+        age = ((fetched if fetched.tzinfo else fetched.replace(tzinfo=timezone.utc)) - joined).days / 365.25
+    except ValueError:
+        age = None
+    times = [datetime.fromisoformat(r["taken_at"].replace("Z", "+00:00")) for r in reels]
+    days = (max(times) - min(times)).total_seconds() / 86400 if times else 0
+    seconds = [r["duration"] for r in reels if r.get("duration")]
+    p = d["profile"]
+    return {
+        "age_years": age,
+        "reel_seconds": median(seconds) if seconds else None,
+        "reels_per_month": len(reels) / days * 30 if days else None,
+        "youtube": "youtu" in (p.get("external_url") or "").lower(),
+        "email": bool(EMAIL.search(p.get("bio") or "")),
+        "verified": bool(p.get("is_verified")),
+    }
+
+
+def english_share(mix: dict | None) -> float | None:
+    """The share of comments in English, from the commenter mix (None when the languages are unknown)."""
+    langs = (mix or {}).get("languages") or []
+    return next((x["share"] for x in langs if x["language"] == "English"), 0.0) if langs else None
+
+
 WINDOW_DAYS = 90  # the reels in the 90 days before a payout show what the creator was delivering when booked
 MIN_WINDOW_REELS = 3
 
