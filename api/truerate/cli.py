@@ -15,7 +15,10 @@ from truerate.instagram import Hiker, HikerError, collect, fetch_covers
 from truerate.llm import Gemini
 from truerate.pricing import fit, validate
 from truerate.signals import (
+    RULES_ONLY_LABELS,
     ambiguous,
+    fit_niche_model,
+    niche_vector,
     audience_signals,
     category_from_niche,
     commenter_mix,
@@ -161,7 +164,7 @@ def build_metrics_cmd(workers: int = 1) -> None:
             labels = label_creator(llm, snap, fetch_covers([r for r in recent_reels(snap) if ambiguous(r)]))
         if category := category_from_niche(deal["niche"]):
             return labels, category, "wldd"
-        if stored.get("category_source") == "gemini":
+        if stored.get("category_source") in ("gemini", "minilm"):
             return labels, stored["category"], "gemini"
         captions = [r["caption"] for r in sorted(snap["data"]["reels"], key=lambda r: r["taken_at"], reverse=True)]
         return labels, label_niche(llm, snap["data"]["profile"].get("bio", ""), captions), "gemini"
@@ -205,6 +208,37 @@ def build_metrics_cmd(workers: int = 1) -> None:
     for handle, size in rings.items():
         db.metrics.update_one({"_id": handle}, {"$set": {"ring_size": size}})
     typer.echo(f"Built metrics for {built} creators; skipped {skipped} without a snapshot of 12+ reels" + (f"; failed {failed}" if failed else ""))
+
+
+@app.command("label-offline")
+def label_offline_cmd() -> None:
+    """Labels for deal creators Gemini hasn't labelled, for when it's unavailable: the niche from a classifier trained on the
+    creators it did label (bio and captions through MiniLM), and ads by the rules alone (no hidden ads, account kinds or
+    comment languages). Marked `category_source: minilm` and `labels_source: rules`, so the results can tell them apart."""
+    import numpy as np
+
+    db = get_db()
+
+    def latest(handle):
+        return db.snapshots.find_one({"handle": handle}, sort=[("fetched_at", -1)])
+
+    X, y = [], []
+    for stored in db.labels.find({"category_source": {"$in": ["gemini", "wldd"]}}):
+        snap = latest(stored["_id"])
+        if snap and "reels" in snap["data"] and recent_reels(snap):
+            X.append(niche_vector(snap, minilm_embed))
+            y.append(stored["category"])
+    model = fit_niche_model(np.array(X), y)
+    done = 0
+    for deal in db.deals.find().sort("handle"):
+        snap = latest(deal["handle"])
+        if db.labels.find_one({"_id": deal["handle"]}) or not snap or "reels" not in snap["data"] or len(recent_reels(snap)) < 12:
+            continue
+        category, source = (category_from_niche(deal["niche"]), "wldd") if category_from_niche(deal["niche"]) else (str(model.predict([niche_vector(snap, minilm_embed)])[0]), "minilm")
+        db.labels.replace_one({"_id": deal["handle"]}, {"labels": RULES_ONLY_LABELS, "labels_for": snap["_id"], "category": category,
+                                                      "category_source": source, "labels_source": "rules"}, upsert=True)
+        done += 1
+    typer.echo(f"Labelled {done} creators offline (niche classifier trained on {len(y)} labelled creators)")
 
 
 @app.command("validate")

@@ -336,3 +336,46 @@ def test_build_metrics_reuses_labels_for_a_rebuilt_snapshot_of_the_same_reels(db
     db.snapshots.insert_one({k: v for k, v in snap.items() if k != "_id"} | {"data": snap["data"] | {"reels": snap["data"]["reels"] + [make_reel("10-05", 9000, code="new")]}})
     CliRunner().invoke(cli.app, ["build-metrics"])
     assert len(llm.label_prompts) == 1
+
+
+def test_label_offline_reads_niche_from_captions_and_never_asks_gemini(db, monkeypatch):
+    def snap_with(handle, word):
+        s = snapshot(handle)
+        for r in s["data"]["reels"]:
+            r["caption"] = f"{word} {r['caption']}"
+        return s
+
+    for i in range(4):
+        db.deals.insert_many([{"handle": f"cook{i}", "tier": "small", "niche": [], "price": 5000, "holdout": False},
+                              {"handle": f"geek{i}", "tier": "small", "niche": [], "price": 5000, "holdout": False}])
+        db.snapshots.insert_many([snap_with(f"cook{i}", "recipe"), snap_with(f"geek{i}", "smartphone")])
+        if i < 3:  # three of each labelled by Gemini earlier; the fourth of each is new
+            db.labels.insert_many([{"_id": f"cook{i}", "category": "Food", "category_source": "gemini", "labels": {}, "labels_for": "x"},
+                                   {"_id": f"geek{i}", "category": "Tech and gadgets", "category_source": "gemini", "labels": {}, "labels_for": "x"}])
+
+    def embed(texts):
+        # the helper's captions all say "recipe", so the smartphone creators are told apart by their own word first
+        return np.array([[0.0, 1.0] if "smartphone" in t else [1.0, 0.0] if "recipe" in t else [0.5, 0.5] for t in texts])
+
+    class NoLLM:
+        def json(self, *a, **k):
+            raise AssertionError("Gemini must not be called")
+
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    monkeypatch.setattr(cli, "minilm_embed", embed)
+    result = CliRunner().invoke(cli.app, ["label-offline"])
+    assert result.exit_code == 0, result.output
+    assert "Labelled 2 creators offline" in result.output
+    cook, geek = db.labels.find_one({"_id": "cook3"}), db.labels.find_one({"_id": "geek3"})
+    assert (cook["category"], cook["category_source"], geek["category"]) == ("Food", "minilm", "Tech and gadgets")
+    assert cook["labels"] == {"ads": [], "topics": {}, "kinds": {}, "languages": []} and cook["labels_source"] == "rules"
+    assert cook["labels_for"] == db.snapshots.find_one({"handle": "cook3"})["_id"]
+    # build-metrics then runs on them without Gemini
+    monkeypatch.setattr(cli, "make_llm", lambda: NoLLM())
+    monkeypatch.setattr(cli, "fetch_covers", lambda reels: {})
+    monkeypatch.setattr(cli, "load_fake_model", lambda: train_fake_model([[1, 0, 2, 0, 0, 0]] * 5 + [[0, 0.6, 0, 0, 0, 0]] * 5, [0] * 5 + [1] * 5))
+    db.labels.delete_many({"category_source": "gemini"})  # the Gemini-labelled ones would be relabelled; only the offline ones are built here
+    db.deals.delete_many({"handle": {"$nin": ["cook3", "geek3"]}})
+    result = CliRunner().invoke(cli.app, ["build-metrics"])
+    assert result.exit_code == 0, result.output
+    assert db.metrics.find_one({"_id": "cook3"})["category"] == "Food"
