@@ -1,10 +1,26 @@
 import json
+import re
+import time
 
 import httpx
 from google import genai
 from google.genai import errors, types
 
 ATTEMPTS = 3
+BACKOFF = (5, 15)  # seconds before the 2nd and 3rd try after a dropped connection or a 5xx ("high demand" spikes pass)
+MAX_QUOTA_WAIT = 60  # seconds: a per-minute quota (the free tier allows 5 calls a minute) is worth waiting for; a daily one isn't
+
+
+def _quota_wait(e: errors.ClientError) -> float | None:
+    """How long to wait before retrying a 429, from the RetryInfo Gemini sends, plus a second. None when it isn't a 429,
+    gives no advice, or asks for more than MAX_QUOTA_WAIT: then waiting won't help and the error should surface."""
+    if e.code != 429 or not isinstance(e.details, dict):
+        return None
+    for d in e.details.get("error", {}).get("details", []):
+        m = re.fullmatch(r"([\d.]+)s", str(d.get("retryDelay", "")))
+        if d.get("@type", "").endswith("RetryInfo") and m and float(m.group(1)) <= MAX_QUOTA_WAIT:
+            return float(m.group(1)) + 1
+    return None
 
 
 class Gemini:
@@ -29,6 +45,12 @@ class Gemini:
                 # A dropped connection or a Gemini 5xx is usually gone on the next try; one live analysis failed on it.
                 if attempt == ATTEMPTS - 1:
                     raise
+                time.sleep(BACKOFF[attempt])
+            except errors.ClientError as e:
+                wait = _quota_wait(e)
+                if wait is None or attempt == ATTEMPTS - 1:
+                    raise
+                time.sleep(wait)
 
     def search(self, prompt: str) -> dict:
         """A Google-grounded answer and the pages behind it: {"text", "sources": [{"title", "url"}]}."""
@@ -40,6 +62,12 @@ class Gemini:
             except (httpx.TransportError, errors.ServerError):
                 if attempt == ATTEMPTS - 1:
                     raise
+                time.sleep(BACKOFF[attempt])
+            except errors.ClientError as e:
+                wait = _quota_wait(e)
+                if wait is None or attempt == ATTEMPTS - 1:
+                    raise
+                time.sleep(wait)
         meta = r.candidates[0].grounding_metadata if r.candidates else None
         sources = {}
         for chunk in (meta.grounding_chunks or []) if meta else []:
