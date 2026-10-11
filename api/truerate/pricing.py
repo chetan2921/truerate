@@ -191,6 +191,7 @@ class Boosted:
 
 BAND_EDGES = [1_000, 5_000, 10_000, 50_000, 1_00_000, 5_00_000, 10_00_000]  # follower bands: under 1K, 1K-5K ... 10L and up
 MIN_GROUP = 15  # a follower band x category with fewer deals borrows its nearest deals by followers (user decision, 2026-10-11)
+BAND_NAMES = ["under 1K", "1K to 5K", "5K to 10K", "10K to 50K", "50K to 1L", "1L to 5L", "5L to 10L", "10L and above"]
 OUTLIER_X = 4  # a deal priced more than this many times above or below its group's median is left out of training
 
 
@@ -228,18 +229,21 @@ class Banded:
         return cls(np.array([follower_band(r["followers"]) for r in rows]), np.array([r["followers"] for r in rows], dtype=float),
                    np.array([r["category"] for r in rows]), np.array([r["price"] for r in rows], dtype=float))
 
-    def median(self, m: dict, leave_out: int | None = None) -> float:
-        """The group's median price; `leave_out` drops that training deal, so a deal's own price never anchors itself."""
+    def group(self, m: dict, leave_out: int | None = None) -> tuple[np.ndarray, int]:
+        """The deals this creator is compared with, and how many sit in their own band x category (fewer than MIN_GROUP
+        means these are the nearest ones instead). `leave_out` drops that training deal, so a deal's own price never anchors itself."""
         keep = np.ones(len(self.prices), bool)
         if leave_out is not None:
             keep[leave_out] = False
         in_cat = keep & (self.categories == m["category"])
         same = in_cat & (self.bands == follower_band(m["followers"]))
         if same.sum() >= MIN_GROUP:
-            return float(np.median(self.prices[same]))
+            return np.flatnonzero(same), int(same.sum())
         pool = np.flatnonzero(in_cat if in_cat.sum() >= MIN_GROUP else keep)
-        near = pool[np.argsort(np.abs(np.log(self.followers[pool]) - math.log(max(m["followers"], 1))), kind="stable")[:MIN_GROUP]]
-        return float(np.median(self.prices[near]))
+        return pool[np.argsort(np.abs(np.log(self.followers[pool]) - math.log(max(m["followers"], 1))), kind="stable")[:MIN_GROUP]], int(same.sum())
+
+    def median(self, m: dict, leave_out: int | None = None) -> float:
+        return float(np.median(self.prices[self.group(m, leave_out)[0]]))
 
 
 def features_v3(m: dict) -> list[float]:
@@ -296,6 +300,17 @@ class BandBoosted:
 
     def log_price(self, m: dict) -> float:
         return float(self.est.predict(np.array([self.x(m, self.banded.median(m))]))[0])
+
+    def reason(self, m: dict, fair: float) -> str:
+        """Three plain lines on where the price and range come from, for the report."""
+        idx, own = self.banded.group(m)
+        mid = float(np.median(self.banded.prices[idx]))
+        where = f"{m['category']} creators with {BAND_NAMES[follower_band(m['followers'])]} followers"
+        basis = (f"Compared with {own} WLDD deals with {where}, paid a median of {inr(mid)}." if own >= MIN_GROUP else
+                 f"Only {own} WLDD deals have {where}, so the {len(idx)} nearest by followers are used: median {inr(mid)}.")
+        gap = round(abs(fair / mid - 1) * 100)
+        move = f"This creator's views, engagement and audience put the median at {inr(fair)}, " + (f"{gap}% {'above' if fair > mid else 'below'} that." if gap else "the same.")
+        return f"{basis} {move} The range is where about 6 in 10 comparable past deals landed."
 
 
 @dataclass
@@ -442,6 +457,7 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
         "genuine_share": genuine_share,
         "ridge_share": model.w,
         "note": note,
+        "reason": model.banded.reason(m, steps[3]) if model.banded else None,
         "market_reference": ref,
         "waterfall": [
             {"step": "Market price from WLDD's past deals", "amount": steps[0]},

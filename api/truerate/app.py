@@ -106,6 +106,7 @@ class Price(BaseModel):
     # Defaults keep reports stored before these fields existed readable.
     ridge_share: float = 1.0
     note: str | None = None
+    reason: str | None = None  # where the price and range come from, in plain words; the band model only
     market_reference: MarketReference | None = None
     waterfall: list[WaterfallStep]
     comparables: list[Comparable]

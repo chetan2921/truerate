@@ -335,6 +335,7 @@ api/tests/test_pricing.py:294:def test_outliers_are_dropped_against_their_own_ba
 api/tests/test_pricing.py:303:def test_a_thin_group_borrows_its_nearest_deals_in_followers_within_the_category():
 api/tests/test_pricing.py:316:def test_the_band_model_serves_a_narrower_range_inside_the_outer_one_and_discounts_fakes():
 api/tests/test_pricing.py:326:def test_validate_can_serve_the_band_model(db, tmp_path, monkeypatch):
+api/tests/test_pricing.py:337:def test_the_band_model_explains_its_price_in_plain_words():
 api/tests/test_signals.py:13:def write_kaggle(path, n=20):
 api/tests/test_signals.py:23:def test_account_features_follow_kaggle_definitions():
 api/tests/test_signals.py:32:def test_load_kaggle_keeps_the_six_list_fields(tmp_path):
@@ -614,32 +615,34 @@ api/truerate/pricing.py:155:class Boosted:
 api/truerate/pricing.py:171:    def fit(cls, rows: list[dict], ranges: bool = True, local: bool = False) -> "Boosted":
 api/truerate/pricing.py:185:    def log_price(self, m: dict) -> float:
 api/truerate/pricing.py:188:    def spread(self, m: dict) -> float:
-api/truerate/pricing.py:197:def follower_band(followers: float) -> int:
-api/truerate/pricing.py:201:def clean_outliers(rows: list[dict]) -> list[dict]:
-api/truerate/pricing.py:209:    def ref(r: dict) -> float:
-api/truerate/pricing.py:216:class Banded:
-api/truerate/pricing.py:227:    def fit(cls, rows: list[dict]) -> "Banded":
-api/truerate/pricing.py:231:    def median(self, m: dict, leave_out: int | None = None) -> float:
-api/truerate/pricing.py:245:def features_v3(m: dict) -> list[float]:
-api/truerate/pricing.py:258:class BandBoosted:
-api/truerate/pricing.py:271:    def x(m: dict, anchor: float) -> list[float]:
-api/truerate/pricing.py:275:    def regressor(n_features: int):
-api/truerate/pricing.py:283:    def fit(cls, rows: list[dict], ranges: bool = True) -> "BandBoosted":
-api/truerate/pricing.py:297:    def log_price(self, m: dict) -> float:
-api/truerate/pricing.py:302:class PriceModel:
-api/truerate/pricing.py:313:    def rows(self) -> list[dict]:
-api/truerate/pricing.py:317:def fit(rows: list[dict], blend: tuple[float, float, float] | None = None, method: str = "ridge", ranges: bool = True,
-api/truerate/pricing.py:358:def market_discount(rows: list[dict]) -> float:
-api/truerate/pricing.py:370:def market_reference(followers: int) -> dict:
-api/truerate/pricing.py:375:def collab_factor(n: int, ratio: float | None, typical: float, prior: float | None = None) -> tuple[float, float]:
-api/truerate/pricing.py:385:def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
-api/truerate/pricing.py:468:def band_median_price(rows: list[dict], followers: int) -> float:
-api/truerate/pricing.py:473:def modash_price(rows: list[dict], m: dict) -> float:
-api/truerate/pricing.py:481:def _summary(errors: list[dict], method: str) -> dict:
-api/truerate/pricing.py:499:def validate(rows: list[dict], method: str = "ridge") -> dict:
-api/truerate/pricing.py:504:    def errors(r: dict, m: PriceModel, others: list[dict]) -> dict:
-api/truerate/pricing.py:545:def rate_card(model: PriceModel) -> list[dict]:
-api/truerate/pricing.py:558:def thin_categories(model: PriceModel) -> list[dict]:
+api/truerate/pricing.py:198:def follower_band(followers: float) -> int:
+api/truerate/pricing.py:202:def clean_outliers(rows: list[dict]) -> list[dict]:
+api/truerate/pricing.py:210:    def ref(r: dict) -> float:
+api/truerate/pricing.py:217:class Banded:
+api/truerate/pricing.py:228:    def fit(cls, rows: list[dict]) -> "Banded":
+api/truerate/pricing.py:232:    def group(self, m: dict, leave_out: int | None = None) -> tuple[np.ndarray, int]:
+api/truerate/pricing.py:245:    def median(self, m: dict, leave_out: int | None = None) -> float:
+api/truerate/pricing.py:249:def features_v3(m: dict) -> list[float]:
+api/truerate/pricing.py:262:class BandBoosted:
+api/truerate/pricing.py:275:    def x(m: dict, anchor: float) -> list[float]:
+api/truerate/pricing.py:279:    def regressor(n_features: int):
+api/truerate/pricing.py:287:    def fit(cls, rows: list[dict], ranges: bool = True) -> "BandBoosted":
+api/truerate/pricing.py:301:    def log_price(self, m: dict) -> float:
+api/truerate/pricing.py:304:    def reason(self, m: dict, fair: float) -> str:
+api/truerate/pricing.py:317:class PriceModel:
+api/truerate/pricing.py:328:    def rows(self) -> list[dict]:
+api/truerate/pricing.py:332:def fit(rows: list[dict], blend: tuple[float, float, float] | None = None, method: str = "ridge", ranges: bool = True,
+api/truerate/pricing.py:373:def market_discount(rows: list[dict]) -> float:
+api/truerate/pricing.py:385:def market_reference(followers: int) -> dict:
+api/truerate/pricing.py:390:def collab_factor(n: int, ratio: float | None, typical: float, prior: float | None = None) -> tuple[float, float]:
+api/truerate/pricing.py:400:def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
+api/truerate/pricing.py:484:def band_median_price(rows: list[dict], followers: int) -> float:
+api/truerate/pricing.py:489:def modash_price(rows: list[dict], m: dict) -> float:
+api/truerate/pricing.py:497:def _summary(errors: list[dict], method: str) -> dict:
+api/truerate/pricing.py:515:def validate(rows: list[dict], method: str = "ridge") -> dict:
+api/truerate/pricing.py:520:    def errors(r: dict, m: PriceModel, others: list[dict]) -> dict:
+api/truerate/pricing.py:561:def rate_card(model: PriceModel) -> list[dict]:
+api/truerate/pricing.py:574:def thin_categories(model: PriceModel) -> list[dict]:
 api/truerate/signals.py:17:def _digit_ratio(text: str) -> float:
 api/truerate/signals.py:21:def account_features(acc: dict) -> list[float]:
 api/truerate/signals.py:34:def load_kaggle(path: Path) -> tuple[list[list[float]], list[int]]:

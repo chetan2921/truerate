@@ -871,6 +871,8 @@ export interface components {
             ridge_share: number;
             /** Note */
             note?: string | null;
+            /** Reason */
+            reason?: string | null;
             market_reference?: components["schemas"]["MarketReference"] | null;
             /** Waterfall */
             waterfall: components["schemas"]["WaterfallStep"][];

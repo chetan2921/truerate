@@ -332,3 +332,14 @@ def test_validate_can_serve_the_band_model(db, tmp_path, monkeypatch):
     assert result.exit_code == 0, result.output
     assert joblib.load(tmp_path / "price.joblib").banded is not None
     assert json.loads((tmp_path / "model_report.json").read_text())["method"] == "band"
+
+
+def test_the_band_model_explains_its_price_in_plain_words():
+    rows = with_v3_extras(synthetic_rows(240, 23), 6)
+    model = fit([r for r in rows if not r["holdout"]], method="band")
+    r = next(r for r in rows if r["holdout"])
+    reason = price(model, r)["reason"]
+    assert r["category"] in reason and "median" in reason and "6 in 10" in reason
+    thin = price(model, r | {"followers": 40_000_000})["reason"]
+    assert "nearest by followers" in thin
+    assert price(fit([x for x in rows if not x["holdout"]], method="boosting"), r)["reason"] is None

@@ -1,7 +1,7 @@
 import { CallChip, VERDICT_COLOR, VERDICTS } from "@/components/chips";
 import Verdicts from "@/components/verdicts";
 import type { Output, Report } from "@/lib/api";
-import { inrRange } from "@/lib/format";
+import { inr, inrRange } from "@/lib/format";
 
 export default function Decision({ r, outputs }: { r: Report; outputs: Output[] }) {
   const p = r.price;
@@ -13,6 +13,11 @@ export default function Decision({ r, outputs }: { r: Report; outputs: Output[] 
           <p className="figure font-bold leading-none" style={{ fontSize: "clamp(2.5rem, min(5vw, 11vh), 4.5rem)" }}>
             {inrRange(p.low, p.high)}
           </p>
+          <p className="figure mt-2 text-xl">
+            <span className="basis mr-2">Median</span>
+            {inr(p.fair)}
+          </p>
+          {p.reason && <p className="basis mt-3 max-w-xl">{p.reason}</p>}
           {/* Only for mega creators: below 10L followers the published rate cards are noise next to WLDD's own deals. */}
           {p.market_reference && r.profile.followers >= 1_000_000 && (
             <p className="basis mt-2 max-w-xl">
