@@ -5,7 +5,7 @@ import { CallChip } from "@/components/chips";
 import ValueBars from "@/components/value-bars";
 import { StatusIcon } from "@/components/verdicts";
 import type { Batch, Output } from "@/lib/api";
-import { compact, inr } from "@/lib/format";
+import { compact, inr, inrRange } from "@/lib/format";
 
 type Row = Batch["rows"][number];
 
@@ -62,7 +62,7 @@ export function Recommendation({ rows }: { rows: Row[] }) {
           <p className="text-2xl font-bold">
             {best.call === "Go" ? "Book " : "Best of these, after a negotiation: "}
             <Link href={`/analyses/${best.analysis_id}`}>@{best.handle}</Link>
-            {best.call === "Go" ? " first" : ""}, for <span className="figure whitespace-nowrap">{inr(best.low!)} to {inr(best.high!)}</span>
+            {best.call === "Go" ? " first" : ""}, for <span className="figure whitespace-nowrap">{inrRange(best.low!, best.high!)}</span>
           </p>
           <p className="mt-2">{why(best, "good").slice(0, 4).join(" · ")}</p>
           {why(best, "warn", "bad").length > 0 && <p className="mt-1 text-negotiate">Watch: {why(best, "bad", "warn").slice(0, 2).join(" · ")}</p>}
@@ -70,7 +70,7 @@ export function Recommendation({ rows }: { rows: Row[] }) {
             <p className="mt-4">
               Cheapest views: <Link href={`/analyses/${cheapest.analysis_id}`}>@{cheapest.handle}</Link> for{" "}
               <span className="figure whitespace-nowrap">
-                {inr(cheapest.low!)} to {inr(cheapest.high!)}
+                {inrRange(cheapest.low!, cheapest.high!)}
               </span>
               {why(cheapest, "bad", "warn").length > 0 && `, but ${why(cheapest, "bad", "warn")[0].toLowerCase()}: negotiate first`}.
             </p>
@@ -124,7 +124,7 @@ export function Scorecard({ rows }: { rows: Row[] }) {
                 <>
                   <td className="py-3 pr-4">{r.call && <CallChip call={r.call} />}</td>
                   <td className="figure whitespace-nowrap py-3 pr-4 text-right font-semibold">
-                    {inr(r.low!)} to {inr(r.high!)}
+                    {inrRange(r.low!, r.high!)}
                   </td>
                   <td className="figure py-3 pr-4 text-right">{r.expected_views != null && compact(r.expected_views)}</td>
                   {cols.map(([key]) => (
@@ -163,7 +163,7 @@ export function PriceChart({ rows, budget }: { rows: Row[]; budget: number | nul
       <p className="basis mt-1">Each bar is a creator&apos;s fair range; the tick is its middle. Hover a bar for its numbers.</p>
       <div className="relative mt-5 space-y-4">
         {budget && (
-          <div className="pointer-events-none absolute inset-y-0 z-10 ml-40 w-[calc(100%-10rem)]" aria-hidden>
+          <div className="pointer-events-none absolute inset-y-0 z-10 ml-40 w-[calc(100%-21rem)]" aria-hidden>
             <div className="absolute inset-y-0 border-l-2 border-dashed border-negotiate" style={{ left: `${x(budget)}%` }}>
               <span className="absolute -top-5 left-1 whitespace-nowrap text-xs text-negotiate">budget {inr(budget)}</span>
             </div>
@@ -176,7 +176,7 @@ export function PriceChart({ rows, budget }: { rows: Row[]; budget: number | nul
               className="flex-1"
               lines={[
                 `@${r.handle}`,
-                `Fair range ${inr(r.low!)} to ${inr(r.high!)}`,
+                `Fair range ${inrRange(r.low!, r.high!)}`,
                 `Middle ${inr(r.fair!)}`,
                 ...(budget ? [`Your budget ${inr(budget)}`] : []),
               ]}
@@ -184,11 +184,10 @@ export function PriceChart({ rows, budget }: { rows: Row[]; budget: number | nul
             <div className="relative h-6">
               <span className="absolute top-1.5 h-3 rounded bg-info" style={{ left: `${x(r.low!)}%`, width: `${x(r.high!) - x(r.low!)}%` }} />
               <span className="absolute top-0 h-6 w-0.5 bg-accent" style={{ left: `${x(r.fair!)}%` }} />
-              <span className="figure absolute top-0.5 whitespace-nowrap pl-2 text-xs" style={{ left: `${x(r.high!)}%` }}>
-                {inr(r.low!)} to {inr(r.high!)}
-              </span>
             </div>
             </ChartTip>
+            {/* Its own column, like the views beside the reach bars: placed at the bar's end, it ran into the next chart. */}
+            <span className="figure w-40 shrink-0 whitespace-nowrap text-right text-sm">{inrRange(r.low!, r.high!)}</span>
           </div>
         ))}
       </div>

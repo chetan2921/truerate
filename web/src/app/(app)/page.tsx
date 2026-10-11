@@ -7,7 +7,7 @@ import { CallChip } from "@/components/chips";
 import ProductOptions from "@/components/product-options";
 import RecentTable, { NameHandle } from "@/components/recent-table";
 import { api, type AnalysisSummary, type Meta } from "@/lib/api";
-import { daysAgo, inr } from "@/lib/format";
+import { daysAgo, inrRange } from "@/lib/format";
 
 export default function AnalyzePage() {
   const router = useRouter();
@@ -124,7 +124,7 @@ export default function AnalyzePage() {
         columns={[
           { label: "Creator", className: "w-[34%]", cell: (a) => <NameHandle name={a.name} handle={a.handle} /> },
           { label: "Audience", cell: (a) => <span className="basis">{a.verdict ?? (a.status === "running" ? "Running" : a.status === "failed" ? "Failed" : "Out of scope")}</span> },
-          { label: "Fair range", className: "w-48 text-right", cell: (a) => <span className="figure">{a.low != null && a.high != null ? `${inr(a.low)} to ${inr(a.high)}` : ""}</span> },
+          { label: "Fair range", className: "w-48 text-right", cell: (a) => <span className="figure">{a.low != null && a.high != null ? `${inrRange(a.low, a.high)}` : ""}</span> },
           { label: "Call", className: "w-28 text-right", cell: (a) => a.call && <CallChip call={a.call} /> },
           { label: "When", className: "w-28 text-right", cell: (a) => <span className="basis">{daysAgo(a.created_at)}</span> },
         ]}

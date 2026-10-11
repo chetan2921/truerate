@@ -4,6 +4,11 @@ export function inr(n: number): string {
   return "₹" + Math.round(n).toLocaleString("en-IN");
 }
 
+// A price range, written the same way on every screen: "₹7,500 – ₹50,000".
+export function inrRange(low: number, high: number): string {
+  return `${inr(low)} – ${inr(high)}`;
+}
+
 function trim(x: number): string {
   return x >= 100 ? Math.round(x).toString() : x.toFixed(1).replace(/\.0$/, "");
 }

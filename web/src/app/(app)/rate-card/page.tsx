@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import ChartTip from "@/components/chart-tip";
 import ProductOptions from "@/components/product-options";
 import { api, type Meta, type RateCard } from "@/lib/api";
-import { compact, inr } from "@/lib/format";
+import { compact, inr, inrRange } from "@/lib/format";
 
 // The specific categories priced with this WLDD category.
 function Includes({ products, category }: { products: Meta["products"]; category: string }) {
@@ -60,7 +60,7 @@ export default function RateCardPage() {
             {rate ? (
               <>
                 <p className="figure mt-6 font-bold leading-none" style={{ fontSize: "clamp(2rem, min(4.5vw, 9vh), 3.5rem)" }}>
-                  {inr((wanted / 1000) * rate.per_1k.p25)} to {inr((wanted / 1000) * rate.per_1k.p75)}
+                  {inrRange((wanted / 1000) * rate.per_1k.p25, (wanted / 1000) * rate.per_1k.p75)}
                 </p>
                 <p className="mt-3">
                   About {inr((wanted / 1000) * rate.per_1k.median)} at the {category} median of {inr(rate.per_1k.median)} per 1,000 views. Based on {rate.n} WLDD deals; the range is
@@ -98,7 +98,7 @@ export default function RateCardPage() {
                         <div className="flex items-center gap-3">
                           <ChartTip
                             className="w-40 shrink-0"
-                            lines={[c.category, `Middle half of ${c.n} deals: ${inr(c.per_1k.p25)} to ${inr(c.per_1k.p75)} per 1,000 views`, `Lime tick: the median, ${inr(c.per_1k.median)}`]}
+                            lines={[c.category, `Middle half of ${c.n} deals: ${inrRange(c.per_1k.p25, c.per_1k.p75)} per 1,000 views`, `Lime tick: the median, ${inr(c.per_1k.median)}`]}
                           >
                             <span className="relative block h-2 rounded bg-line">
                               <span className="absolute top-0 h-2 rounded bg-info" style={{ left: `${(100 * c.per_1k.p25) / max}%`, width: `${(100 * (c.per_1k.p75 - c.per_1k.p25)) / max}%` }} />
@@ -106,7 +106,7 @@ export default function RateCardPage() {
                             </span>
                           </ChartTip>
                           <span className="figure whitespace-nowrap">
-                            {inr(c.per_1k.p25)} to {inr(c.per_1k.p75)}
+                            {inrRange(c.per_1k.p25, c.per_1k.p75)}
                           </span>
                         </div>
                       </td>

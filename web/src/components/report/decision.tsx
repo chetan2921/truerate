@@ -1,7 +1,7 @@
 import { CallChip, VERDICT_COLOR, VERDICTS } from "@/components/chips";
 import Verdicts from "@/components/verdicts";
 import type { Output, Report } from "@/lib/api";
-import { inr } from "@/lib/format";
+import { inrRange } from "@/lib/format";
 
 export default function Decision({ r, outputs }: { r: Report; outputs: Output[] }) {
   const p = r.price;
@@ -11,17 +11,16 @@ export default function Decision({ r, outputs }: { r: Report; outputs: Output[] 
         <div>
           <p className="basis">Fair price range for one reel</p>
           <p className="figure font-bold leading-none" style={{ fontSize: "clamp(2.5rem, min(5vw, 11vh), 4.5rem)" }}>
-            {inr(p.low)} to {inr(p.high)}
+            {inrRange(p.low, p.high)}
           </p>
-          <p className="basis mt-2">Holds about 3 in 4 real prices in testing.</p>
           {/* Only for mega creators: below 10L followers the published rate cards are noise next to WLDD's own deals. */}
           {p.market_reference && r.profile.followers >= 1_000_000 && (
-            <p className="basis mt-1 max-w-xl">
-              Published asking price for {p.market_reference.tier.toLowerCase()}: {inr(p.market_reference.low)} to {inr(p.market_reference.high)}.
+            <p className="basis mt-2 max-w-xl">
+              Published asking price for {p.market_reference.tier.toLowerCase()}: {inrRange(p.market_reference.low, p.market_reference.high)}.
             </p>
           )}
           {r.web_rate && r.web_rate.sources.length > 0 && (
-            <p className="basis mt-1 max-w-xl">
+            <p className="basis mt-2 max-w-xl">
               Web check read:{" "}
               {r.web_rate.sources.slice(0, 3).map((s, i) => (
                 <span key={s.url}>

@@ -8,7 +8,7 @@ import Tabs from "@/components/tabs";
 import ValueBars from "@/components/value-bars";
 import { StatusIcon } from "@/components/verdicts";
 import { api, type BrandRun } from "@/lib/api";
-import { compact, inr } from "@/lib/format";
+import { compact, inr, inrRange } from "@/lib/format";
 
 type Result = NonNullable<BrandRun["result"]>;
 type Pick = Result["picks"][number];
@@ -95,7 +95,7 @@ export default function BrandResult({ run }: { run: BrandRun }) {
             <p className="text-2xl font-bold">None of the top creators fits {inr(budget)}; the closest are below.</p>
           ) : top ? (
             <p className="text-2xl font-bold">
-              Best match: <Handle p={top} /> for <span className="figure whitespace-nowrap">{inr(top.low ?? top.fair)} to {inr(top.high ?? top.fair)}</span>
+              Best match: <Handle p={top} /> for <span className="figure whitespace-nowrap">{inrRange(top.low ?? top.fair, top.high ?? top.fair)}</span>
             </p>
           ) : (
             <p className="text-2xl font-bold">No creator in the pool can be priced for this brand yet.</p>
@@ -154,7 +154,7 @@ export default function BrandResult({ run }: { run: BrandRun }) {
                     <span className="basis block text-xs">{p.sources.join(" · ")}</span>
                   </td>
                   <td className="figure whitespace-nowrap py-3 pr-4 text-right font-semibold">
-                    {inr(p.low ?? p.fair)} to {inr(p.high ?? p.fair)}
+                    {inrRange(p.low ?? p.fair, p.high ?? p.fair)}
                   </td>
                   <td className="figure py-3 pr-4 text-right">{p.expected_views != null && compact(p.expected_views)}</td>
                   {cols.map(([key]) => (

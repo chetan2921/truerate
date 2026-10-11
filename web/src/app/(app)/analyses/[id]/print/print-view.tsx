@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from "react";
 
 import { api, type Analysis } from "@/lib/api";
-import { compact, inr } from "@/lib/format";
+import { compact, inr, inrRange } from "@/lib/format";
 
 // The client one-pager: the decision block, the waterfall and the red flags on A4, black on white (DESIGN.md, Print).
 export default function PrintView({ params }: { params: Promise<{ id: string }> }) {
@@ -38,7 +38,7 @@ export default function PrintView({ params }: { params: Promise<{ id: string }> 
         <div>
           <p className="text-sm text-neutral-700">Fair price range for one reel</p>
           <p className="figure text-4xl font-bold">
-            {inr(p.low)} to {inr(p.high)}
+            {inrRange(p.low, p.high)}
           </p>
         </div>
         <div className="text-right">
