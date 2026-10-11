@@ -19,6 +19,7 @@ from truerate.signals import (
     audience_signals,
     category_from_niche,
     commenter_mix,
+    WINDOW_DAYS,
     commenter_rings,
     deal_window_metrics,
     label_creator,
@@ -93,11 +94,14 @@ def collect_benchmark_cmd(workers: int = 1, fresh_hours: int = 24) -> None:
     ensure_indexes(db)
     hiker = make_hiker()
     since = datetime.now(timezone.utc) - timedelta(hours=fresh_hours)
-    handles = [d["handle"] for d in db.deals.find({}, {"handle": 1}).sort("handle")]
+    deals = list(db.deals.find({}, {"handle": 1, "payout_date": 1}).sort("handle"))
+    handles = [d["handle"] for d in deals]
+    # A dated deal's reels reach back WINDOW_DAYS before its payout, as `scripts/collect_deals.py` saved them.
+    back_to = {d["handle"]: d["payout_date"].replace(tzinfo=timezone.utc) - timedelta(days=WINDOW_DAYS) if d.get("payout_date") else None for d in deals}
     todo = [h for h in handles if not db.snapshots.find_one({"handle": h, "fetched_at": {"$gt": since}})]
     done = failed = 0
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(collect, hiker, h): h for h in todo}
+        futures = {pool.submit(collect, hiker, h, back_to=back_to[h]): h for h in todo}
         for future in as_completed(futures):
             handle = futures[future]
             try:

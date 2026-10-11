@@ -312,3 +312,19 @@ def test_collect_passes_the_date_to_the_reel_pages(tmp_path):
     snap = collect(hiker, "komalpandeyofficial", back_to=back_to)
     assert len(snap["data"]["reels"]) == 4 * len(page(0))
     assert len(snap["data"]["comments"]) == 10  # the per-reel lists still cover the newest reels only
+
+
+def test_collect_benchmark_reaches_back_before_each_deals_payout(db, tmp_path, monkeypatch):
+    db.deals.insert_many([{"handle": "dated", "payout_date": datetime(2026, 9, 4)}, {"handle": "undated"}])
+    seen = {}
+
+    def fake_collect(hiker, handle, back_to=None):
+        seen[handle] = back_to
+        return {"handle": handle, "fetched_at": datetime.now(timezone.utc), "followers": 1, "data": {"reels": []}}
+
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    monkeypatch.setattr(cli, "make_hiker", lambda: None)
+    monkeypatch.setattr(cli, "collect", fake_collect)
+    result = CliRunner().invoke(cli.app, ["collect-benchmark"])
+    assert result.exit_code == 0, result.output
+    assert seen == {"dated": datetime(2026, 6, 6, tzinfo=timezone.utc), "undated": None}  # 90 days before, as collect_deals.py fetched
