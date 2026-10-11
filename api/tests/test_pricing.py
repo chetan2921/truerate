@@ -234,7 +234,7 @@ def test_boosted_model_serves_exactly_what_the_experiment_scored(ranges):
     served = [price(model, r) for r in test]
     expected = predict("boosting_v2", ranges, train, test)
     assert [p["fair"] for p in served] == [e["fair"] for e in expected]
-    assert [(p["low"], p["high"]) for p in served] == [(e["low80"], e["high80"]) for e in expected]
+    assert [(p["outer_low"], p["outer_high"]) for p in served] == [(e["low80"], e["high80"]) for e in expected]  # the outer range is the experiment's 80%
     assert len(served[0]["comparables"]) == 6 and served[0]["waterfall"][0]["step"] == "Market price from WLDD's past deals"
 
 
@@ -257,3 +257,26 @@ def test_validate_can_serve_the_boosted_model(db, tmp_path, monkeypatch):
     assert served.boosted is not None and len(served.rows) == 90
     report = json.loads((tmp_path / "model_report.json").read_text())
     assert report["method"] == "boosting" and report["holdout"]["n"] == 15
+    assert report["holdout"]["coverage"] <= report["holdout"]["coverage_outer"]  # the headline range sits inside the outer one
+    assert "60%" in report["range_method"] and "80%" in report["range_method"]
+
+
+def test_the_boosted_headline_range_is_the_tighter_6_in_10_one():
+    rows = with_extras(synthetic_rows(600, 21), 5)
+    train, test = [r for r in rows if not r["holdout"]], [r for r in rows if r["holdout"]]
+    model = fit(train, method="boosting")
+    ps = [price(model, r) for r in test]
+    inside = np.mean([p["low"] <= r["price"] <= p["high"] for r, p in zip(test, ps)])
+    outer = np.mean([p["outer_low"] <= r["price"] <= p["outer_high"] for r, p in zip(test, ps)])
+    assert 0.45 <= inside <= 0.78 and outer >= 0.72  # about 6 in 10 and 8 in 10 of unseen prices
+    assert all(p["outer_low"] <= p["low"] < p["high"] <= p["outer_high"] for p in ps)
+    assert all((p["likely_low"], p["likely_high"]) == (p["low"], p["high"]) for p in ps)  # the headline is the "most deals" band
+
+
+def test_a_boosted_model_saved_before_the_headline_range_serves_its_outer_range():
+    rows = with_extras(synthetic_rows(), 7)
+    model = fit(rows, method="boosting")
+    for k in ("lo_head", "hi_head"):
+        del model.boosted.__dict__[k]  # as unpickled from a file saved before the fields existed
+    p = price(model, rows[0])
+    assert (p["low"], p["high"]) == (p["outer_low"], p["outer_high"]) and p["low"] < p["high"]

@@ -14,6 +14,9 @@ from truerate.signals import CATEGORIES, band
 
 K = 6  # past deals compared against
 CONFIDENCE = 0.8  # the price range is an 80% conformal interval (MAPIE)
+# The boosted model's headline range holds about 6 in 10 unseen WLDD prices (user decision, 2026-10-11): on the 124 held-out
+# deals it is about 3x wide where the 8-in-10 range needs 5-6x. The 8-in-10 range stays as the outer limit ("too high", walk-away).
+HEADLINE = 0.6
 RANGE_METHOD = f"MAPIE cross-conformal (CV+), {CONFIDENCE:.0%} confidence"
 SHRINK = 3  # the population's paid-reel drop counts as this many ads of the creator's own
 
@@ -160,6 +163,8 @@ class Boosted:
     pos: np.ndarray  # the training deals' log views and followers
     abs_resid: np.ndarray  # their absolute out-of-fold log errors
     local: bool = False
+    lo_head: float | None = None  # the HEADLINE level's offsets; lo and hi are the outer CONFIDENCE ones. None in models saved
+    hi_head: float | None = None  # before the headline range, which then serve the outer range as before
 
     @classmethod
     def fit(cls, rows: list[dict], ranges: bool = True, local: bool = False) -> "Boosted":
@@ -173,7 +178,8 @@ class Boosted:
         resid = np.log([r["price"] for r in rows]) - oof
         scaled = resid / local_spread(pos, np.abs(resid), pos, leave_out_self=True) if local else resid
         lo, hi = split_offsets(scaled, CONFIDENCE)
-        return cls(est, lo, hi, pos, np.abs(resid), local)
+        lo_head, hi_head = split_offsets(scaled, HEADLINE)
+        return cls(est, lo, hi, pos, np.abs(resid), local, lo_head, hi_head)
 
     def log_price(self, m: dict) -> float:
         return float(self.est.predict(np.array([features_v2(m)]))[0])
@@ -284,16 +290,19 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
     # up for a bigger creator (who will likely ask more), down for a smaller one. The published asking price for the
     # creator's size is returned beside the range, never merged into it (user decision, 2026-10-10).
     below = max(least_followers / m["followers"], 1.0)
+    head = None
     if model.boosted is not None:
         s = model.boosted.spread(m)
         lo_off, hi_off = model.boosted.lo * s, model.boosted.hi * s
+        head = (model.boosted.lo_head * s, model.boosted.hi_head * s) if model.boosted.lo_head is not None else None
     elif model.conformal is not None:
         pred, pis = model.conformal.predict_interval(np.array([features(m)]))
         lo_off, hi_off = pis[0, 0, 0] - pred[0], pis[0, 1, 0] - pred[0]
     else:  # a model pickled before MAPIE
         lo_off, hi_off = model.lo, model.hi
-    low = fair * math.exp(lo_off) / math.sqrt(2) ** math.log2(below)
-    high = fair * math.exp(hi_off) * math.sqrt(2) ** math.log2(above)
+    widen_low, widen_high = math.sqrt(2) ** math.log2(below), math.sqrt(2) ** math.log2(above)
+    outer_low, outer_high = round500(fair * math.exp(lo_off) / widen_low), round500(fair * math.exp(hi_off) * widen_high)
+    low, high = (fair * math.exp(head[0]) / widen_low, fair * math.exp(head[1]) * widen_high) if head else (outer_low, outer_high)
     note = None
     if m["followers"] > top_followers or m["views"] > top_views:
         note = (f"Bigger than any creator WLDD has booked (largest: {_group(top_followers)} followers, {_group(top_views)} typical views). "
@@ -302,12 +311,15 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
                 "middle in its biggest tier with enough deals). The published asking price is shown separately.")
     elif m["followers"] < least_followers:
         note = f"Smaller than any creator WLDD has booked (smallest: {_group(least_followers)} followers), so the range is wider."
-    likely_low, likely_high = likely_band(steps[3], low, high)
+    # The boosted headline already is the "most deals land here" band; the Ridge path keeps its 3x band inside the range.
+    likely_low, likely_high = (round500(low), round500(high)) if head else likely_band(steps[3], low, high)
     return {
         "market": steps[0],
         "fair": steps[3],
         "low": round500(low),
         "high": round500(high),
+        "outer_low": outer_low,
+        "outer_high": outer_high,
         "likely_low": likely_low,
         "likely_high": likely_high,
         "collab_factor": factor,
@@ -362,7 +374,7 @@ def _summary(errors: list[dict], method: str) -> dict:
             "spearman": float(spearmanr(actual, predicted).statistic)}
 
 
-BOOSTED_RANGE_METHOD = f"Gradient boosting, split-conformal {CONFIDENCE:.0%} ranges from 10-fold out-of-fold errors"
+BOOSTED_RANGE_METHOD = f"Gradient boosting, split-conformal {HEADLINE:.0%} range (outer limit {CONFIDENCE:.0%}) from 10-fold out-of-fold errors"
 
 
 def validate(rows: list[dict], method: str = "ridge") -> dict:
@@ -380,6 +392,7 @@ def validate(rows: list[dict], method: str = "ridge") -> dict:
             **{method: abs(v - r["price"]) / r["price"] for method, v in prices.items()},
             **{f"{method}_price": v for method, v in prices.items()},
             "covered": p["low"] <= r["price"] <= p["high"],
+            "covered_outer": p["outer_low"] <= r["price"] <= p["outer_high"],
         }
 
     held = [errors(r, model, train) for r in rows if r["holdout"]]
@@ -390,6 +403,7 @@ def validate(rows: list[dict], method: str = "ridge") -> dict:
         "holdout": {
             "n": len(held),
             "coverage": sum(e["covered"] for e in held) / len(held),
+            "coverage_outer": sum(e["covered_outer"] for e in held) / len(held),
             "points": [{"actual": round(e["actual"]), "predicted": e["predicted"], "band": e["band"]} for e in held],
             **{method: _summary(held, method) for method in ("model", "band_median", "modash")},
         },

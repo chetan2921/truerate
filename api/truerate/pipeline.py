@@ -250,8 +250,9 @@ def _decide(v, flags, p, inputs, metrics, typical, fit, fit_share, competitor) -
         negotiate.append(f"Promoted {competitor['brand'] or 'a brand'} in {competitor['category']} {when(competitor['days'])}: check exclusivity before booking")
     quote, budget = inputs.get("quote"), inputs.get("budget")
     if quote:
-        if quote > p["high"]:
-            negotiate.append(f"Quoted {inr(quote)} is {inr(quote - p['high'])} above the fair range ({inr(p['low'])} to {inr(p['high'])})")
+        top = outer(p)[1]  # "too high" means past the outer range; above the headline is "on the high side"
+        if quote > top:
+            negotiate.append(f"Quoted {inr(quote)} is {inr(quote - top)} above the fair range ({inr(p['low'])} to {inr(p['high'])})")
         elif p.get("likely_high") and quote > p["likely_high"]:
             negotiate.append(f"Quoted {inr(quote)} is above where most deals like this land ({inr(p['likely_low'])} to {inr(p['likely_high'])}): counter at {inr(p['fair'])}")
         else:
@@ -270,14 +271,19 @@ def _negotiation(p: dict, flags: list[dict], metrics: dict, category: str) -> di
              f"Your typical reel gets {_group(metrics['views'])} views and a weaker one {_group(metrics['views_p25'])}; we price on what a sponsored reel delivers, about {_group(d['views'][1])}.",
              *[f["text"] + "." for f in flags[:2]],
              f"We can do {inr(p['low'])} now and go up to {inr(p['fair'])} for a usage-rights or story add-on."]
-    return {"start": p["low"], "target": p["fair"], "walk_away": p["high"], "lines": [x for x in lines if x]}
+    return {"start": p["low"], "target": p["fair"], "walk_away": outer(p)[1], "lines": [x for x in lines if x]}
+
+
+def outer(p: dict) -> tuple[int, int]:
+    """The outer (8 in 10) range: its own fields for the boosted model, the range itself for reports priced before it."""
+    return p.get("outer_low") or p["low"], p.get("outer_high") or p["high"]
 
 
 def check_quote(r: dict, quote: int) -> dict:
     """A creator's quote against a finished report: where it sits, what to counter with, and 3 data-backed points."""
     p, d = r["price"], r["price"]["delivery"]
     above_likely = bool(p.get("likely_high")) and quote > p["likely_high"]
-    position = "below" if quote < p["low"] else "above" if quote > p["high"] else "high" if above_likely else "within"
+    position = "below" if quote < p["low"] else "above" if quote > outer(p)[1] else "high" if above_likely else "within"
     per_1k = round(quote / (r["placement"]["typical_views"] / 1000))
     points = [
         f"At {inr(quote)}, a reel costs {inr(per_1k)} per 1,000 typical views"

@@ -90,3 +90,15 @@ def test_the_web_check_reads_as_a_plain_answer():
     assert o["status"] == "info" and "₹2,50,000 to ₹4,00,000" in o["title"] and o["detail"] == found["summary"]
     assert "No published rate" in by_key(result(web_rate=found | {"found": False, "low": None, "high": None}))["web"]["title"]
     assert "web" not in by_key(result())  # small creators get no web check
+
+
+def test_a_quote_is_judged_against_the_headline_range_then_the_outer_one():
+    # A report priced by the boosted model: the headline (about 6 in 10 real prices) is ₹25,000 to ₹45,000, and the
+    # outer range (8 in 10) ₹15,000 to ₹70,000 only decides "too high" and "bargain".
+    r = result(price__low=25_000, price__high=45_000, price__likely_low=25_000, price__likely_high=45_000)
+    r["price"] |= {"outer_low": 15_000, "outer_high": 70_000}
+    assert by_key(r, {"quote": 40_000})["quote"]["title"].endswith("is fair")
+    assert "high side" in by_key(r, {"quote": 60_000})["quote"]["title"]  # above the headline, inside the outer range
+    assert "too high" in by_key(r, {"quote": 90_000})["quote"]["title"]
+    assert by_key(r, {"quote": 20_000})["quote"]["status"] == "good" and "bargain" not in by_key(r, {"quote": 20_000})["quote"]["title"]
+    assert "bargain" in by_key(r, {"quote": 10_000})["quote"]["title"]

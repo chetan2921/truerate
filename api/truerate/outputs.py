@@ -42,11 +42,12 @@ def outputs(r: dict, inputs: dict) -> list[dict]:
 
     if quote := inputs.get("quote"):
         likely_low, likely_high = (p["likely_low"], p["likely_high"]) if p.get("likely_low") else likely_band(p["fair"], p["low"], p["high"])
-        if quote > p["high"]:
-            add("quote", "bad", f"Their {inr(quote)} quote is too high", f"Counter at {inr(p['fair'])} and walk away above {inr(p['high'])}.")
+        outer_low, outer_high = p.get("outer_low") or p["low"], p.get("outer_high") or p["high"]
+        if quote > outer_high:
+            add("quote", "bad", f"Their {inr(quote)} quote is too high", f"Counter at {inr(p['fair'])} and walk away above {inr(outer_high)}.")
         elif quote > likely_high:
             add("quote", "warn", f"Their {inr(quote)} quote is on the high side", f"Most deals like this land lower: counter at {inr(p['fair'])}.")
-        elif quote < p["low"]:
+        elif quote < outer_low:
             add("quote", "good", f"Their {inr(quote)} quote is a bargain", "It is below the fair range.")
         elif quote < likely_low:
             add("quote", "good", f"Their {inr(quote)} quote is a good price", "It is below where most deals like this land.")

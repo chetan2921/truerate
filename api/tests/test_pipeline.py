@@ -125,7 +125,7 @@ def test_quote_check_places_the_quote_and_counters(world):
     below = check_quote(r, max(p["low"] - 1_000, 500))
     assert below["position"] == "below" and below["counter_offer"] == below["quote"]
     # Inside the wide full range but above where most deals land: "high", with a counter at the middle.
-    r["price"] |= {"likely_low": p["fair"] - 1_000, "likely_high": p["fair"] + 1_000, "high": p["fair"] + 20_000}
+    r["price"] |= {"likely_low": p["fair"] - 1_000, "likely_high": p["fair"] + 1_000, "high": p["fair"] + 20_000, "outer_high": p["fair"] + 20_000}
     pricey = check_quote(r, p["fair"] + 5_000)
     assert pricey["position"] == "high" and pricey["counter_offer"] == p["fair"]
 
@@ -235,3 +235,21 @@ def test_the_price_model_gets_the_extra_features_boosting_reads(world, monkeypat
     for key in ("age_years", "reel_seconds", "reels_per_month", "youtube", "email", "verified", "english", "views_cv", "trend", "likes_per_view", "n_reels"):
         assert key in seen, key
     assert seen["reel_seconds"] == 30 and seen["verified"] is False  # from the snapshot the analysis read
+
+
+def test_the_outer_range_decides_too_high_and_the_walk_away_price():
+    from truerate.pipeline import _decide, _negotiation, check_quote
+
+    p = {"low": 25_000, "fair": 35_000, "high": 45_000, "likely_low": 25_000, "likely_high": 45_000, "outer_low": 15_000, "outer_high": 70_000,
+         "collab_factor": 1.0, "delivery": {"views": [60_000, 1_00_000, 1_80_000], "category_cost_per_1k": 500, "cost_per_1k": 350, "likes": 1, "comments": 1},
+         "comparables": [{"price": 30_000}, {"price": 40_000}]}
+
+    def call(quote):
+        return _decide({"verdict": "Real audience"}, [], p, {"quote": quote}, {"paid_ratio": 1.0}, 1.0, None, None, None)
+
+    high_side = call(60_000)
+    assert high_side["call"] == "Negotiate" and any("most deals" in x for x in high_side["reasons"]) and not any("above the fair range" in x for x in high_side["reasons"])
+    assert any("above the fair range" in x for x in call(90_000)["reasons"])
+    assert _negotiation(p, [], {"views": 1_00_000, "views_p25": 60_000}, "Food")["walk_away"] == 70_000
+    report = {"price": p, "category": "Food", "placement": {"typical_views": 1_00_000}, "audience": {"flags": []}}
+    assert check_quote(report, 60_000)["position"] == "high" and check_quote(report, 90_000)["position"] == "above"

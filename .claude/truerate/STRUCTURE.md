@@ -262,8 +262,12 @@ api/tests/test_llm.py:7:class Reply:
 api/tests/test_llm.py:11:def flaky(failures):
 api/tests/test_llm.py:15:    def generate_content(**kwargs):
 api/tests/test_llm.py:24:def test_a_dropped_gemini_connection_is_retried(monkeypatch):
-api/tests/test_llm.py:31:def test_gemini_gives_up_after_three_dropped_connections(monkeypatch):
-api/tests/test_llm.py:40:def test_gemini_asks_for_low_thinking(monkeypatch):
+api/tests/test_llm.py:36:def test_gemini_gives_up_after_three_dropped_connections(monkeypatch):
+api/tests/test_llm.py:48:def test_gemini_asks_for_low_thinking(monkeypatch):
+api/tests/test_llm.py:56:def quota(delay_s: str | None):
+api/tests/test_llm.py:64:def test_a_per_minute_quota_is_waited_out_then_retried(monkeypatch):
+api/tests/test_llm.py:69:    def generate_content(**kwargs):
+api/tests/test_llm.py:82:def test_a_long_or_unstated_quota_wait_fails_at_once(monkeypatch):
 api/tests/test_outputs.py:7:def result(**changes) -> dict:
 api/tests/test_outputs.py:29:def by_key(r: dict, inputs: dict | None = None) -> dict:
 api/tests/test_outputs.py:33:def test_a_genuine_good_value_creator_reads_as_plain_answers():
@@ -274,6 +278,7 @@ api/tests/test_outputs.py:65:def test_value_reliability_and_ads_have_three_grade
 api/tests/test_outputs.py:75:def test_product_fit_and_a_rival_ad_are_answers_too():
 api/tests/test_outputs.py:81:def test_every_finished_analysis_gets_verdicts(world):
 api/tests/test_outputs.py:87:def test_the_web_check_reads_as_a_plain_answer():
+api/tests/test_outputs.py:95:def test_a_quote_is_judged_against_the_headline_range_then_the_outer_one():
 api/tests/test_pipeline.py:17:class TopicLLM:
 api/tests/test_pipeline.py:23:    def json(self, prompt, schema, images=(), audio=()):
 api/tests/test_pipeline.py:37:def target_snapshot(handle="newcreator", seed=99):
@@ -299,6 +304,8 @@ api/tests/test_pipeline.py:209:def test_a_quote_above_where_most_deals_land_mean
 api/tests/test_pipeline.py:213:    def call(quote):
 api/tests/test_pipeline.py:222:def test_the_price_model_gets_the_extra_features_boosting_reads(world, monkeypatch):
 api/tests/test_pipeline.py:228:    def spy(model, m, genuine_share=1.0):
+api/tests/test_pipeline.py:240:def test_the_outer_range_decides_too_high_and_the_walk_away_price():
+api/tests/test_pipeline.py:247:    def call(quote):
 api/tests/test_pricing.py:17:def synthetic_rows(n=90, seed=1):
 api/tests/test_pricing.py:35:def test_bands_and_rounding():
 api/tests/test_pricing.py:40:def test_collab_factor_shrinks_few_ads_toward_the_typical_drop():
@@ -321,6 +328,8 @@ api/tests/test_pricing.py:219:def with_extras(rows, seed):
 api/tests/test_pricing.py:228:def test_boosted_model_serves_exactly_what_the_experiment_scored(ranges):
 api/tests/test_pricing.py:241:def test_boosted_model_still_discounts_fake_engagement_and_weak_sponsored_reach():
 api/tests/test_pricing.py:249:def test_validate_can_serve_the_boosted_model(db, tmp_path, monkeypatch):
+api/tests/test_pricing.py:264:def test_the_boosted_headline_range_is_the_tighter_6_in_10_one():
+api/tests/test_pricing.py:276:def test_a_boosted_model_saved_before_the_headline_range_serves_its_outer_range():
 api/tests/test_signals.py:13:def write_kaggle(path, n=20):
 api/tests/test_signals.py:23:def test_account_features_follow_kaggle_definitions():
 api/tests/test_signals.py:32:def test_load_kaggle_keeps_the_six_list_fields(tmp_path):
@@ -558,9 +567,10 @@ api/truerate/instagram.py:205:def collect(hiker: Hiker, handle: str, comment_ree
 api/truerate/instagram.py:246:def _or_empty(fetch, key: str, empty=None):
 api/truerate/instagram.py:257:def fetch_covers(reels: list[dict], limit: int = 6) -> dict[str, bytes]:
 api/truerate/instagram.py:259:    def one(http, r):
-api/truerate/llm.py:10:class Gemini:
-api/truerate/llm.py:18:    def json(self, prompt: str, schema: dict, images: list[bytes] = (), audio: list[bytes] = ()) -> dict:
-api/truerate/llm.py:33:    def search(self, prompt: str) -> dict:
+api/truerate/llm.py:14:def _quota_wait(e: errors.ClientError) -> float | None:
+api/truerate/llm.py:26:class Gemini:
+api/truerate/llm.py:34:    def json(self, prompt: str, schema: dict, images: list[bytes] = (), audio: list[bytes] = ()) -> dict:
+api/truerate/llm.py:55:    def search(self, prompt: str) -> dict:
 api/truerate/outputs.py:21:def _views(n: float) -> str:
 api/truerate/outputs.py:29:def _sentence(parts: list[str]) -> str:
 api/truerate/outputs.py:34:def outputs(r: dict, inputs: dict) -> list[dict]:
@@ -574,44 +584,45 @@ api/truerate/pipeline.py:89:def _safe_web_rate(llm, handle: str, full_name: str,
 api/truerate/pipeline.py:97:def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] = lambda i: None) -> dict:
 api/truerate/pipeline.py:156:    def kind(r):
 api/truerate/pipeline.py:237:def _decide(v, flags, p, inputs, metrics, typical, fit, fit_share, competitor) -> dict:
-api/truerate/pipeline.py:267:def _negotiation(p: dict, flags: list[dict], metrics: dict, category: str) -> dict:
-api/truerate/pipeline.py:276:def check_quote(r: dict, quote: int) -> dict:
-api/truerate/pricing.py:21:def _group(n: float) -> str:
-api/truerate/pricing.py:30:def inr(n: float) -> str:
-api/truerate/pricing.py:34:def round500(x: float) -> int:
-api/truerate/pricing.py:38:def features(m: dict) -> list[float]:
-api/truerate/pricing.py:47:def _num(x) -> float:
-api/truerate/pricing.py:51:def _log(x) -> float:
-api/truerate/pricing.py:55:def features_v2(m: dict) -> list[float]:
-api/truerate/pricing.py:69:def likely_band(fair: float, low: float, high: float) -> tuple[int, int]:
-api/truerate/pricing.py:75:def per_1k(row: dict) -> float:
-api/truerate/pricing.py:80:class Core:
-api/truerate/pricing.py:89:    def fit(cls, rows: list[dict]) -> "Core":
-api/truerate/pricing.py:96:    def predict_logs(self, m: dict) -> tuple[float, float, list[dict]]:
-api/truerate/pricing.py:109:def boosting_regressor():
-api/truerate/pricing.py:117:def paid_typical_of(rows: list[dict]) -> float:
-api/truerate/pricing.py:122:def boosted_logs(train: list[dict], test: list[dict]) -> np.ndarray:
-api/truerate/pricing.py:129:def split_offsets(resid: np.ndarray, level: float) -> tuple[float, float]:
-api/truerate/pricing.py:135:def _positions(rows: list[dict]) -> np.ndarray:
-api/truerate/pricing.py:139:def local_spread(train_pos: np.ndarray, abs_resid: np.ndarray, target_pos: np.ndarray, leave_out_self: bool = False) -> np.ndarray:
-api/truerate/pricing.py:151:class Boosted:
-api/truerate/pricing.py:165:    def fit(cls, rows: list[dict], ranges: bool = True, local: bool = False) -> "Boosted":
-api/truerate/pricing.py:178:    def log_price(self, m: dict) -> float:
-api/truerate/pricing.py:181:    def spread(self, m: dict) -> float:
-api/truerate/pricing.py:186:class PriceModel:
-api/truerate/pricing.py:196:    def rows(self) -> list[dict]:
-api/truerate/pricing.py:200:def fit(rows: list[dict], blend: tuple[float, float, float] | None = None, method: str = "ridge", ranges: bool = True,
-api/truerate/pricing.py:238:def market_discount(rows: list[dict]) -> float:
-api/truerate/pricing.py:250:def market_reference(followers: int) -> dict:
-api/truerate/pricing.py:255:def collab_factor(n: int, ratio: float | None, typical: float, prior: float | None = None) -> tuple[float, float]:
-api/truerate/pricing.py:265:def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
-api/truerate/pricing.py:340:def band_median_price(rows: list[dict], followers: int) -> float:
-api/truerate/pricing.py:345:def modash_price(rows: list[dict], m: dict) -> float:
-api/truerate/pricing.py:353:def _summary(errors: list[dict], method: str) -> dict:
-api/truerate/pricing.py:368:def validate(rows: list[dict], method: str = "ridge") -> dict:
-api/truerate/pricing.py:373:    def errors(r: dict, m: PriceModel, others: list[dict]) -> dict:
-api/truerate/pricing.py:412:def rate_card(model: PriceModel) -> list[dict]:
-api/truerate/pricing.py:425:def thin_categories(model: PriceModel) -> list[dict]:
+api/truerate/pipeline.py:268:def _negotiation(p: dict, flags: list[dict], metrics: dict, category: str) -> dict:
+api/truerate/pipeline.py:277:def outer(p: dict) -> tuple[int, int]:
+api/truerate/pipeline.py:282:def check_quote(r: dict, quote: int) -> dict:
+api/truerate/pricing.py:24:def _group(n: float) -> str:
+api/truerate/pricing.py:33:def inr(n: float) -> str:
+api/truerate/pricing.py:37:def round500(x: float) -> int:
+api/truerate/pricing.py:41:def features(m: dict) -> list[float]:
+api/truerate/pricing.py:50:def _num(x) -> float:
+api/truerate/pricing.py:54:def _log(x) -> float:
+api/truerate/pricing.py:58:def features_v2(m: dict) -> list[float]:
+api/truerate/pricing.py:72:def likely_band(fair: float, low: float, high: float) -> tuple[int, int]:
+api/truerate/pricing.py:78:def per_1k(row: dict) -> float:
+api/truerate/pricing.py:83:class Core:
+api/truerate/pricing.py:92:    def fit(cls, rows: list[dict]) -> "Core":
+api/truerate/pricing.py:99:    def predict_logs(self, m: dict) -> tuple[float, float, list[dict]]:
+api/truerate/pricing.py:112:def boosting_regressor():
+api/truerate/pricing.py:120:def paid_typical_of(rows: list[dict]) -> float:
+api/truerate/pricing.py:125:def boosted_logs(train: list[dict], test: list[dict]) -> np.ndarray:
+api/truerate/pricing.py:132:def split_offsets(resid: np.ndarray, level: float) -> tuple[float, float]:
+api/truerate/pricing.py:138:def _positions(rows: list[dict]) -> np.ndarray:
+api/truerate/pricing.py:142:def local_spread(train_pos: np.ndarray, abs_resid: np.ndarray, target_pos: np.ndarray, leave_out_self: bool = False) -> np.ndarray:
+api/truerate/pricing.py:154:class Boosted:
+api/truerate/pricing.py:170:    def fit(cls, rows: list[dict], ranges: bool = True, local: bool = False) -> "Boosted":
+api/truerate/pricing.py:184:    def log_price(self, m: dict) -> float:
+api/truerate/pricing.py:187:    def spread(self, m: dict) -> float:
+api/truerate/pricing.py:192:class PriceModel:
+api/truerate/pricing.py:202:    def rows(self) -> list[dict]:
+api/truerate/pricing.py:206:def fit(rows: list[dict], blend: tuple[float, float, float] | None = None, method: str = "ridge", ranges: bool = True,
+api/truerate/pricing.py:244:def market_discount(rows: list[dict]) -> float:
+api/truerate/pricing.py:256:def market_reference(followers: int) -> dict:
+api/truerate/pricing.py:261:def collab_factor(n: int, ratio: float | None, typical: float, prior: float | None = None) -> tuple[float, float]:
+api/truerate/pricing.py:271:def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
+api/truerate/pricing.py:352:def band_median_price(rows: list[dict], followers: int) -> float:
+api/truerate/pricing.py:357:def modash_price(rows: list[dict], m: dict) -> float:
+api/truerate/pricing.py:365:def _summary(errors: list[dict], method: str) -> dict:
+api/truerate/pricing.py:380:def validate(rows: list[dict], method: str = "ridge") -> dict:
+api/truerate/pricing.py:385:    def errors(r: dict, m: PriceModel, others: list[dict]) -> dict:
+api/truerate/pricing.py:426:def rate_card(model: PriceModel) -> list[dict]:
+api/truerate/pricing.py:439:def thin_categories(model: PriceModel) -> list[dict]:
 api/truerate/signals.py:17:def _digit_ratio(text: str) -> float:
 api/truerate/signals.py:21:def account_features(acc: dict) -> list[float]:
 api/truerate/signals.py:34:def load_kaggle(path: Path) -> tuple[list[list[float]], list[int]]:

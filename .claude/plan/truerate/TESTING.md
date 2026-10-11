@@ -29,6 +29,9 @@
 - Verdicts (`test_outputs.py`) are tested on a small hand-made result plus one real `analyze()` run; the web check (`test_webcheck.py`) uses a `SearchLLM` stand-in and checks that no deal price reaches the search prompt.
 - A test that passes on its first run gets a mutation check: break the code it guards, watch it fail, restore.
 - Served model against experiment: `test_boosted_model_serves_exactly_what_the_experiment_scored` (global and local ranges) fits `pricing.fit(method="boosting")` and requires the same fair, low and high as `experiment.predict` on the same deals. Live, `validate --method boosting` reproduced the experiment's held-out 38% and 85% exactly. Score a served model only on creators it never trained on: the staged copy learns from every deal, so its held-out score is in-sample.
+- Headline and outer ranges: `test_the_boosted_headline_range_is_the_tighter_6_in_10_one` (synthetic coverage of both, nesting), `test_the_outer_range_decides_too_high_and_the_walk_away_price`, `test_a_quote_is_judged_against_the_headline_range_then_the_outer_one`.
+- A dataclass field added with a default reads that default from older pickles: `test_a_boosted_model_saved_before_the_headline_range_serves_its_outer_range` deletes the fields the way an old file lacks them. A 0.0 default collapsed every range to one price.
+- Score a served model on held-out deals only with a train-only fit (`validate`, or `fit` on the non-holdout rows): `price.joblib` is fitted on every deal, held-out ones included.
 - Range quality is more than the median width: check the tail (90th percentile, widest, share over 15×) before serving a range method. "Local" ranges won the median and lost the tail.
 - Overflow checks on charts must skip invisible elements (`checkVisibility({opacityProperty, visibilityProperty})`): hidden `ChartTip` cards sit outside their chart by design.
 - Mongo returns dates without a timezone: compare with `.replace(tzinfo=timezone.utc)`.
