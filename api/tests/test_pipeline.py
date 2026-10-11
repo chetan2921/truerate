@@ -217,3 +217,21 @@ def test_a_quote_above_where_most_deals_land_means_negotiate():
     # Inside the wide full range but above where most deals land: worth a counter, not a yes.
     pricey = call(70_000)
     assert pricey["call"] == "Negotiate" and any("most deals" in reason for reason in pricey["reasons"])
+
+
+def test_the_price_model_gets_the_extra_features_boosting_reads(world, monkeypatch):
+    from truerate import pipeline
+
+    seen = {}
+    real = pipeline.price
+
+    def spy(model, m, genuine_share=1.0):
+        seen.update(m)
+        return real(model, m, genuine_share)
+
+    monkeypatch.setattr(pipeline, "price", spy)
+    out = analyze("newcreator", {}, deps(world, target_snapshot()))
+    assert out["status"] == "done"
+    for key in ("age_years", "reel_seconds", "reels_per_month", "youtube", "email", "verified", "english", "views_cv", "trend", "likes_per_view", "n_reels"):
+        assert key in seen, key
+    assert seen["reel_seconds"] == 30 and seen["verified"] is False  # from the snapshot the analysis read

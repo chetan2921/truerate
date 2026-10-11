@@ -200,3 +200,58 @@ def test_the_likely_band_is_about_3x_wide_around_the_middle_and_inside_the_full_
         assert 2.5 <= p["likely_high"] / p["likely_low"] <= 3.5 or p["likely_low"] == p["low"] or p["likely_high"] == p["high"]
     assert likely_band(30_000, 1_000, 10**7) == (17_500, 52_000)  # 30,000 ÷ √3 and × √3, to the nearest ₹500
     assert likely_band(30_000, 25_000, 40_000) == (25_000, 40_000)  # never outside the full range
+
+
+def test_validate_dated_trains_the_served_model_on_the_stats_around_each_payout(db, tmp_path, monkeypatch):
+    for r in synthetic_rows():
+        db.deals.insert_one({"handle": r["handle"], "tier": band(r["followers"]), "niche": [], "price": r["price"], "holdout": r["holdout"]})
+        then = {"views_then": r["views"] * 2, "engagement_then": r["engagement"], "comments_per_1k_then": r["comments_per_1k"], "likes_per_view_then": None, "n_then": 9}
+        db.metrics.insert_one({"_id": r["handle"], **{k: v for k, v in r.items() if k not in ("handle", "price", "holdout")}, **then})
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    result = CliRunner().invoke(cli.app, ["validate", "--out-dir", str(tmp_path), "--dated"])
+    assert result.exit_code == 0, result.output
+    served = joblib.load(tmp_path / "price.joblib")
+    row = next(r for r in served.rows if r["handle"] == "creator0")
+    assert row["views"] == row["views_today"] * 2  # learned from the views around the payout, today's kept beside them
+
+
+def with_extras(rows, seed):
+    """The extra features boosting reads (account age, reel length, posting rate and the rest), as WLDD's deals have them."""
+    rng = np.random.default_rng(seed)
+    return [r | {"age_years": rng.uniform(1, 9), "reel_seconds": rng.uniform(10, 90), "reels_per_month": rng.uniform(4, 30), "n_reels": 30,
+                 "youtube": bool(rng.integers(2)), "email": bool(rng.integers(2)), "verified": bool(rng.integers(2)), "english": rng.uniform(),
+                 "views_cv": rng.uniform(0.3, 2), "trend": rng.uniform(0.5, 1.5)} for r in rows]
+
+
+def test_boosted_model_serves_exactly_what_the_experiment_scored():
+    from truerate.experiment import predict
+
+    rows = with_extras(synthetic_rows(160, 11), 3)
+    train, test = [r for r in rows if not r["holdout"]], [r for r in rows if r["holdout"]]
+    model = fit(train, method="boosting")
+    served = [price(model, r) for r in test]
+    expected = predict("boosting_v2", "local", train, test)
+    assert [p["fair"] for p in served] == [e["fair"] for e in expected]
+    assert [(p["low"], p["high"]) for p in served] == [(e["low80"], e["high80"]) for e in expected]
+    assert len(served[0]["comparables"]) == 6 and served[0]["waterfall"][0]["step"] == "Market price from WLDD's past deals"
+
+
+def test_boosted_model_still_discounts_fake_engagement_and_weak_sponsored_reach():
+    rows = with_extras(synthetic_rows(160, 12), 4)
+    model = fit([r for r in rows if not r["holdout"]], method="boosting")
+    r = next(r for r in rows if r["holdout"])
+    full, faked = price(model, r), price(model, r, genuine_share=0.6)
+    assert faked["fair"] < full["fair"] and faked["waterfall"][-2]["amount"] < 0
+
+
+def test_validate_can_serve_the_boosted_model(db, tmp_path, monkeypatch):
+    for r in with_extras(synthetic_rows(), 7):
+        db.deals.insert_one({"handle": r["handle"], "tier": band(r["followers"]), "niche": [], "price": r["price"], "holdout": r["holdout"]})
+        db.metrics.insert_one({"_id": r["handle"], **{k: v for k, v in r.items() if k not in ("handle", "price", "holdout")}})
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    result = CliRunner().invoke(cli.app, ["validate", "--out-dir", str(tmp_path), "--method", "boosting"])
+    assert result.exit_code == 0, result.output
+    served = joblib.load(tmp_path / "price.joblib")
+    assert served.boosted is not None and len(served.rows) == 90
+    report = json.loads((tmp_path / "model_report.json").read_text())
+    assert report["method"] == "boosting" and report["holdout"]["n"] == 15

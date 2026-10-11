@@ -6,6 +6,7 @@ import numpy as np
 from mapie.regression import CrossConformalRegressor
 from scipy.stats import spearmanr
 from sklearn.linear_model import RidgeCV
+from sklearn.model_selection import KFold
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -36,6 +37,28 @@ def round500(x: float) -> int:
 
 def features(m: dict) -> list[float]:
     return [math.log(m["views"]), math.log(m["followers"]), m["engagement"], m["comments_per_1k"]] + [float(m["category"] == c) for c in CATEGORIES]
+
+
+FEATURE_NAMES = (["log views", "log followers", "engagement", "comments per 1,000 views"] + list(CATEGORIES)
+                 + ["account age", "log reel seconds", "log reels per month", "ads share", "YouTube link", "contact email", "verified",
+                    "English comments", "views spread", "log trend", "likes per view"])
+
+
+def _num(x) -> float:
+    return math.nan if x is None else float(x)
+
+
+def _log(x) -> float:
+    return math.log(x) if x else math.nan
+
+
+def features_v2(m: dict) -> list[float]:
+    """`features` plus what it leaves out: account age, reel length, posting rate, share of ads, a YouTube link, a contact
+    email, the tick, English comments, how much views vary, the trend and likes per view. Missing ones stay NaN."""
+    n = m.get("n_reels")
+    return features(m) + [_num(m.get("age_years")), _log(m.get("reel_seconds")), _log(m.get("reels_per_month")),
+                          m["paid_n"] / n if n else math.nan, _num(m.get("youtube")), _num(m.get("email")), _num(m.get("verified")),
+                          _num(m.get("english")), _num(m.get("views_cv")), _log(m.get("trend")), _num(m.get("likes_per_view"))]
 
 
 # On deals the model never saw, a range this wide around the middle held about half of real prices (57% of the 30 held
@@ -80,6 +103,81 @@ class Core:
         return float(self.ridge.predict(x)[0]), math.log(median(map(per_1k, near)) * m["views"] / 1000), near
 
 
+LOCAL_K = 15  # a creator's range scales with the typical error among this many nearest WLDD deals
+
+
+def boosting_regressor():
+    """Small and slow-learning, and never cheaper for more views or followers (the experiment's `boosting_v2`)."""
+    from sklearn.ensemble import HistGradientBoostingRegressor
+
+    return HistGradientBoostingRegressor(max_iter=200, learning_rate=0.05, max_depth=2, min_samples_leaf=10, l2_regularization=1.0,
+                                         monotonic_cst=[1, 1] + [0] * (len(FEATURE_NAMES) - 2), random_state=0)
+
+
+def paid_typical_of(rows: list[dict]) -> float:
+    ratios = [r["paid_ratio"] for r in rows if r["paid_n"]]
+    return median(ratios) if ratios else 1.0
+
+
+def boosted_logs(train: list[dict], test: list[dict]) -> np.ndarray:
+    """Log price from boosting fitted on `train`, with the same sponsored-performance factor the Ridge path applies."""
+    est = boosting_regressor().fit(np.array([features_v2(r) for r in train]), np.log([r["price"] for r in train]))
+    typical = paid_typical_of(train)
+    return est.predict(np.array([features_v2(r) for r in test])) + np.log([collab_factor(r["paid_n"], r["paid_ratio"], typical)[1] for r in test])
+
+
+def split_offsets(resid: np.ndarray, level: float) -> tuple[float, float]:
+    """Signed split-conformal offsets: the ⌊(n+1)α/2⌋-th smallest residual and the ⌈(n+1)(1−α/2)⌉-th."""
+    r, n, a = np.sort(resid), len(resid), (1 - level) / 2
+    return float(r[max(math.floor((n + 1) * a), 1) - 1]), float(r[min(math.ceil((n + 1) * (1 - a)), n) - 1])
+
+
+def _positions(rows: list[dict]) -> np.ndarray:
+    return np.log([[r["views"], r["followers"]] for r in rows])
+
+
+def local_spread(train_pos: np.ndarray, abs_resid: np.ndarray, target_pos: np.ndarray, leave_out_self: bool = False) -> np.ndarray:
+    """Typical size of the out-of-fold error among the LOCAL_K training deals nearest each target in views and followers:
+    small where similar deals were priced alike, large where they weren't."""
+    mu, sd = train_pos.mean(axis=0), train_pos.std(axis=0) + 1e-9
+    d = np.linalg.norm(((target_pos - mu) / sd)[:, None, :] - ((train_pos - mu) / sd)[None, :, :], axis=2)
+    if leave_out_self:
+        np.fill_diagonal(d, np.inf)
+    nearest = np.argsort(d, axis=1)[:, :LOCAL_K]
+    return np.maximum(abs_resid[nearest].mean(axis=1), 0.05)
+
+
+@dataclass
+class Boosted:
+    """Gradient boosting on `features_v2` for the price, and a "local" 80% range: conformal offsets on out-of-fold errors,
+    each scaled by how alike WLDD priced the creator's nearest deals."""
+
+    est: object
+    lo: float
+    hi: float
+    pos: np.ndarray  # the training deals' log views and followers
+    abs_resid: np.ndarray  # their absolute out-of-fold log errors
+
+    @classmethod
+    def fit(cls, rows: list[dict], ranges: bool = True) -> "Boosted":
+        est = boosting_regressor().fit(np.array([features_v2(r) for r in rows]), np.log([r["price"] for r in rows]))
+        pos = _positions(rows)
+        if not ranges:  # point prices only (leave-one-out checks): skip the 10 out-of-fold refits
+            return cls(est, 0.0, 0.0, pos, np.zeros(len(rows)))
+        oof = np.empty(len(rows))
+        for tr, te in KFold(10, shuffle=True, random_state=0).split(rows):
+            oof[te] = boosted_logs([rows[i] for i in tr], [rows[i] for i in te])
+        resid = np.log([r["price"] for r in rows]) - oof
+        lo, hi = split_offsets(resid / local_spread(pos, np.abs(resid), pos, leave_out_self=True), CONFIDENCE)
+        return cls(est, lo, hi, pos, np.abs(resid))
+
+    def log_price(self, m: dict) -> float:
+        return float(self.est.predict(np.array([features_v2(m)]))[0])
+
+    def spread(self, m: dict) -> float:
+        return float(local_spread(self.pos, self.abs_resid, _positions([m]))[0])
+
+
 @dataclass
 class PriceModel:
     core: Core
@@ -88,14 +186,18 @@ class PriceModel:
     hi: float
     paid_typical: float  # median share of views a paid reel keeps, across WLDD's creators
     conformal: CrossConformalRegressor | None = None  # gives each creator's 80% price interval
+    boosted: Boosted | None = None  # when set, the price and range come from gradient boosting instead of Ridge
 
     @property
     def rows(self) -> list[dict]:
         return self.core.rows
 
 
-def fit(rows: list[dict], blend: tuple[float, float, float] | None = None) -> PriceModel:
-    """Fit on these deals. Without `blend`, the weight and range come from leave-one-out over the same deals."""
+def fit(rows: list[dict], blend: tuple[float, float, float] | None = None, method: str = "ridge", ranges: bool = True) -> PriceModel:
+    """Fit on these deals. Without `blend`, the weight and range come from leave-one-out over the same deals. With
+    `method="boosting"` the price and range come from `Boosted`; Ridge's core still gives the comparables and the rate card."""
+    if method == "boosting":
+        return PriceModel(Core.fit(rows), 1.0, 0.0, 0.0, paid_typical=paid_typical_of(rows), boosted=Boosted.fit(rows, ranges))
     if blend is None:
         loo = np.array([Core.fit(rows[:i] + rows[i + 1 :]).predict_logs(r)[:2] for i, r in enumerate(rows)])
         y = np.log([r["price"] for r in rows])
@@ -157,7 +259,7 @@ def collab_factor(n: int, ratio: float | None, typical: float, prior: float | No
 
 def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
     ridge_log, knn_log, near = model.core.predict_logs(m)
-    market = math.exp(model.w * ridge_log + (1 - model.w) * knn_log)
+    market = math.exp(model.boosted.log_price(m) if model.boosted else model.w * ridge_log + (1 - model.w) * knn_log)
     top_followers, top_views = max(r["followers"] for r in model.rows), max(r["views"] for r in model.rows)
     least_followers = min(r["followers"] for r in model.rows)
     above = max(m["followers"] / top_followers, m["views"] / top_views, 1.0)
@@ -177,7 +279,10 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
     # up for a bigger creator (who will likely ask more), down for a smaller one. The published asking price for the
     # creator's size is returned beside the range, never merged into it (user decision, 2026-10-10).
     below = max(least_followers / m["followers"], 1.0)
-    if model.conformal is not None:
+    if model.boosted is not None:
+        s = model.boosted.spread(m)
+        lo_off, hi_off = model.boosted.lo * s, model.boosted.hi * s
+    elif model.conformal is not None:
         pred, pis = model.conformal.predict_interval(np.array([features(m)]))
         lo_off, hi_off = pis[0, 0, 0] - pred[0], pis[0, 1, 0] - pred[0]
     else:  # a model pickled before MAPIE
@@ -252,10 +357,13 @@ def _summary(errors: list[dict], method: str) -> dict:
             "spearman": float(spearmanr(actual, predicted).statistic)}
 
 
-def validate(rows: list[dict]) -> dict:
+BOOSTED_RANGE_METHOD = f"Gradient boosting, conformal {CONFIDENCE:.0%} ranges scaled by the nearest {LOCAL_K} deals' errors"
+
+
+def validate(rows: list[dict], method: str = "ridge") -> dict:
     """Holdout error by follower band and leave-one-out error by category, against both baselines. Holds no handles or prices."""
     train = [r for r in rows if not r["holdout"]]
-    model = fit(train)
+    model = fit(train, method=method)
 
     def errors(r: dict, m: PriceModel, others: list[dict]) -> dict:
         p = price(m, r)
@@ -270,7 +378,9 @@ def validate(rows: list[dict]) -> dict:
         }
 
     held = [errors(r, model, train) for r in rows if r["holdout"]]
-    loo = [(r["category"], errors(r, fit(rows[:i] + rows[i + 1 :], (model.w, model.lo, model.hi)), rows[:i] + rows[i + 1 :])) for i, r in enumerate(rows)]
+    # Point prices only: the ranges' out-of-fold refits would cost ten more fits per deal and aren't scored here.
+    loo = [(r["category"], errors(r, fit(rows[:i] + rows[i + 1 :], (model.w, model.lo, model.hi), method=method, ranges=False), rows[:i] + rows[i + 1 :]))
+           for i, r in enumerate(rows)]
     return {
         "holdout": {
             "n": len(held),
@@ -284,8 +394,9 @@ def validate(rows: list[dict]) -> dict:
             if (es := [e for cat, e in loo if cat == c])
         },
         "n_deals": len(rows),
+        "method": method,
         "blend_weight": model.w,
-        "range_method": RANGE_METHOD,
+        "range_method": BOOSTED_RANGE_METHOD if method == "boosting" else RANGE_METHOD,
         "range": [math.exp(model.lo), math.exp(model.hi)],
     }
 

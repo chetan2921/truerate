@@ -1,3 +1,4 @@
+import csv
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -14,11 +15,18 @@ from truerate.instagram import Hiker, HikerError, collect, fetch_covers
 from truerate.llm import Gemini
 from truerate.pricing import fit, validate
 from truerate.signals import (
+    RULES_ONLY_LABELS,
+    english_share,
+    extra_features,
     ambiguous,
+    fit_niche_model,
+    niche_vector,
     audience_signals,
     category_from_niche,
     commenter_mix,
+    WINDOW_DAYS,
     commenter_rings,
+    deal_window_metrics,
     label_creator,
     label_niche,
     load_kaggle,
@@ -38,10 +46,13 @@ def main() -> None:
 
 
 @app.command("import-deals")
-def import_deals_cmd(csv_path: Annotated[Path, typer.Argument()] = REPO_ROOT / "data" / "creators.csv") -> None:
+def import_deals_cmd(csv_path: Annotated[Path, typer.Argument()] = REPO_ROOT / "data" / "creators.csv",
+                     holdout_share: float | None = None, exclude: Path | None = None) -> None:
+    """`--holdout-share 0.1 --exclude data/creators.csv`: hold out 10% of each tier, never a creator in `--exclude`."""
     db = get_db()
     ensure_indexes(db)
-    counts = import_deals(db, csv_path)
+    skip = {r["handle"].strip().lower() for r in csv.DictReader(exclude.open(newline=""))} if exclude else set()
+    counts = import_deals(db, csv_path, holdout_share, skip)
     typer.echo(f"Imported {counts['deals']} deals ({counts['holdout']} held out)")
 
 
@@ -80,19 +91,24 @@ def collect_cmd(handle: str) -> None:
 
 
 @app.command("collect-benchmark")
-def collect_benchmark_cmd(workers: int = 1, fresh_hours: int = 24) -> None:
+def collect_benchmark_cmd(workers: int = 1, fresh_hours: int = 24, only: Path | None = None) -> None:
     """Snapshot every deal creator, skipping any fetched in the last `fresh_hours`, `workers` at a time. With
     `--fresh-hours 0` every creator is snapshotted again; saved HikerAPI responses make that nearly free.
-    A failed creator is reported and skipped; running out of HikerAPI credit (402) stops the run."""
+    A failed creator is reported and skipped; running out of HikerAPI credit (402) stops the run. `--only done.txt` limits the run
+    to the handles listed (one a line), such as the creators `scripts/collect_deals.py` has finished."""
     db = get_db()
     ensure_indexes(db)
     hiker = make_hiker()
     since = datetime.now(timezone.utc) - timedelta(hours=fresh_hours)
-    handles = [d["handle"] for d in db.deals.find({}, {"handle": 1}).sort("handle")]
-    todo = [h for h in handles if not db.snapshots.find_one({"handle": h, "fetched_at": {"$gt": since}})]
+    deals = list(db.deals.find({}, {"handle": 1, "payout_date": 1}).sort("handle"))
+    handles = [d["handle"] for d in deals]
+    # A dated deal's reels reach back WINDOW_DAYS before its payout, as `scripts/collect_deals.py` saved them.
+    back_to = {d["handle"]: d["payout_date"].replace(tzinfo=timezone.utc) - timedelta(days=WINDOW_DAYS) if d.get("payout_date") else None for d in deals}
+    listed = set(only.read_text().split()) if only else None
+    todo = [h for h in handles if (listed is None or h in listed) and not db.snapshots.find_one({"handle": h, "fetched_at": {"$gt": since}})]
     done = failed = 0
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {pool.submit(collect, hiker, h): h for h in todo}
+        futures = {pool.submit(collect, hiker, h, back_to=back_to[h]): h for h in todo}
         for future in as_completed(futures):
             handle = futures[future]
             try:
@@ -142,13 +158,15 @@ def build_metrics_cmd(workers: int = 1) -> None:
     def label(item):
         """Gemini labels and the category; stored ones are reused while the snapshot is the same."""
         deal, snap, stored = item
-        if stored.get("labels_for") == snap["_id"]:
+        # Reused for the same snapshot, or for a snapshot rebuilt from the saved responses: the same reels, all labelled.
+        codes = {r["code"] for r in recent_reels(snap)}
+        if stored.get("labels_for") == snap["_id"] or (codes and codes <= set((stored.get("labels") or {}).get("topics") or {})):
             labels = stored["labels"]
         else:
             labels = label_creator(llm, snap, fetch_covers([r for r in recent_reels(snap) if ambiguous(r)]))
         if category := category_from_niche(deal["niche"]):
             return labels, category, "wldd"
-        if stored.get("category_source") == "gemini":
+        if stored.get("category_source") in ("gemini", "minilm"):
             return labels, stored["category"], "gemini"
         captions = [r["caption"] for r in sorted(snap["data"]["reels"], key=lambda r: r["taken_at"], reverse=True)]
         return labels, label_niche(llm, snap["data"]["profile"].get("bio", ""), captions), "gemini"
@@ -183,7 +201,11 @@ def build_metrics_cmd(workers: int = 1) -> None:
             continue
         commenters = sorted({c["user"]["username"] for cs in snap["data"]["comments"].values() for c in cs})
         doc = {**metrics, **audience, "mix": mix, "labels": labels, "labels_for": snap["_id"], "commenters": commenters,
-               "category": category, "category_source": source, "computed_at": datetime.now(timezone.utc)}
+               "category": category, "category_source": source, "computed_at": datetime.now(timezone.utc),
+               # what the boosted model reads beyond the reel metrics, kept here so training needs no snapshot
+               **extra_features(snap), "english": english_share(mix)}
+        if deal.get("payout_date"):  # what the creator was delivering when WLDD paid them, beside today's numbers
+            doc |= deal_window_metrics(snap, deal["payout_date"])
         db.metrics.replace_one({"_id": handle}, doc, upsert=True)
         built += 1
     rings = commenter_rings({m["_id"]: set(m["commenters"]) for m in db.metrics.find({}, {"commenters": 1})})
@@ -192,15 +214,51 @@ def build_metrics_cmd(workers: int = 1) -> None:
     typer.echo(f"Built metrics for {built} creators; skipped {skipped} without a snapshot of 12+ reels" + (f"; failed {failed}" if failed else ""))
 
 
+@app.command("label-offline")
+def label_offline_cmd() -> None:
+    """Labels for deal creators Gemini hasn't labelled, for when it's unavailable: the niche from a classifier trained on the
+    creators it did label (bio and captions through MiniLM), and ads by the rules alone (no hidden ads, account kinds or
+    comment languages). Marked `category_source: minilm` and `labels_source: rules`, so the results can tell them apart."""
+    import numpy as np
+
+    db = get_db()
+
+    def latest(handle):
+        return db.snapshots.find_one({"handle": handle}, sort=[("fetched_at", -1)])
+
+    X, y = [], []
+    for stored in db.labels.find({"category_source": {"$in": ["gemini", "wldd"]}}):
+        snap = latest(stored["_id"])
+        if snap and "reels" in snap["data"] and recent_reels(snap):
+            X.append(niche_vector(snap, minilm_embed))
+            y.append(stored["category"])
+    model = fit_niche_model(np.array(X), y)
+    done = 0
+    for deal in db.deals.find().sort("handle"):
+        snap = latest(deal["handle"])
+        if db.labels.find_one({"_id": deal["handle"]}) or not snap or "reels" not in snap["data"] or len(recent_reels(snap)) < 12:
+            continue
+        category, source = (category_from_niche(deal["niche"]), "wldd") if category_from_niche(deal["niche"]) else (str(model.predict([niche_vector(snap, minilm_embed)])[0]), "minilm")
+        db.labels.replace_one({"_id": deal["handle"]}, {"labels": RULES_ONLY_LABELS, "labels_for": snap["_id"], "category": category,
+                                                      "category_source": source, "labels_source": "rules"}, upsert=True)
+        done += 1
+    typer.echo(f"Labelled {done} creators offline (niche classifier trained on {len(y)} labelled creators)")
+
+
 @app.command("validate")
-def validate_cmd(out_dir: Path = REPO_ROOT / "data" / "models") -> None:
-    """Holdout and per-category accuracy against both baselines, then the served price model."""
+def validate_cmd(out_dir: Path = REPO_ROOT / "data" / "models", dated: bool = False, method: str = "ridge") -> None:
+    """Holdout and per-category accuracy against both baselines, then the served price model. `--dated` learns from each
+    deal's stats in the 90 days before its payout (what WLDD saw when it booked) instead of today's. `--method boosting` serves
+    gradient boosting with local ranges (`pricing.Boosted`) instead of Ridge."""
+    from truerate.experiment import dated as at_payout
+
     rows = training_rows(get_db())
-    report = validate(rows)
+    rows = at_payout(rows) if dated else rows
+    report = validate(rows, method)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "model_report.json").write_text(json.dumps(report, indent=1))
     # The holdout numbers come from a model that never saw those 30; the served model learns from every deal.
-    joblib.dump(fit(rows), out_dir / "price.joblib")
+    joblib.dump(fit(rows, method=method), out_dir / "price.joblib")
     h = report["holdout"]
     typer.echo(
         f"Holdout ({h['n']} creators) median error: model {h['model']['median_error']:.0%}, "
@@ -215,10 +273,13 @@ def validate_cmd(out_dir: Path = REPO_ROOT / "data" / "models") -> None:
 
 @app.command("experiment")
 def experiment_cmd(out_dir: Path = REPO_ROOT / "data" / "models" / "experiments", fresh_csv: Path = REPO_ROOT / "data" / "fresh_test_20.csv",
-                   repeats: int = 5, points: str = "") -> None:
+                   repeats: int = 5, points: str = "", no_fresh: bool = False, dated: bool = False, live_model: Path | None = None,
+                   workers: int = 1) -> None:
     """Model v2 experiments: candidates picked by repeated CV on the training deals, then scored once on the held-out and
     fresh deals. Writes the before/after table, results.json and the graphs; the served model is left alone.
-    `--points today,ridge_v2` limits the candidates (default: all; today's model is always one)."""
+    `--points today,ridge_v2` limits the candidates (default: all; today's model is always one). `--no-fresh` scores the held-out
+    deals only; `--dated` uses each deal's stats from the 90 days before its payout; `--live-model data/models/price.joblib` also
+    scores the model the app serves now on the held-out deals, as the app prices them (today's stats)."""
     import csv
 
     from truerate import experiment as ex
@@ -226,29 +287,53 @@ def experiment_cmd(out_dir: Path = REPO_ROOT / "data" / "models" / "experiments"
     from truerate.app import parse_handle
 
     db = get_db()
-    rows = ex.deal_rows(db)
-    with fresh_csv.open(newline="") as f:
-        prices = {h: float(r["price"].replace(",", "")) for r in csv.DictReader(f) if (h := parse_handle(r["handle"]))}
-    fresh = ex.fresh_rows(db, prices)
-    typer.echo(f"{len(rows)} deals; {len(fresh)} of {len(prices)} fresh deals have a finished analysis")
+    today = ex.deal_rows(db)
+    rows = ex.dated(today) if dated else today
+    if no_fresh:
+        fresh = []
+        typer.echo(f"{len(rows)} deals; no fresh deals" + (f"; {sum(r.get('views_then') is not None for r in rows)} with stats around the payout" if dated else ""))
+    else:
+        with fresh_csv.open(newline="") as f:
+            prices = {h: float(r["price"].replace(",", "")) for r in csv.DictReader(f) if (h := parse_handle(r["handle"]))}
+        fresh = ex.fresh_rows(db, prices)
+        typer.echo(f"{len(rows)} deals; {len(fresh)} of {len(prices)} fresh deals have a finished analysis")
     train, holdout = [r for r in rows if not r["holdout"]], [r for r in rows if r["holdout"]]
     chosen = tuple(dict.fromkeys(("today", *points.split(",")))) if points else ex.POINTS
-    result = ex.run(train, holdout, fresh, repeats=repeats, points=chosen)
+    result = ex.run(train, holdout, fresh, repeats=repeats, points=chosen, workers=workers)
     picked, test = result["picked"]["price"], holdout + fresh
-    curves = {n: ex.learning_curve(n, train, test, (30, 50, 70, 90, len(train))) for n in dict.fromkeys(("today", picked))}
+    if live_model:
+        result["live"] = ex.live_scores(joblib.load(live_model), [r for r in today if r["holdout"]])
+    sizes = tuple(sorted({s for s in (30, 60, 120, 250, 500, 800) if s < len(train)} | {len(train)}))
+    curves = {n: ex.learning_curve(n, train, test, sizes) for n in dict.fromkeys(("today", picked))}
     # The ensemble mixes models whose importances are in different units (SHAP in log price, a drop in R²), so it has none.
     imp = {n: ex.importance(n, rows) for n in dict.fromkeys((picked, "ridge_v2")) if n != "ensemble"}
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "results.json").write_text(json.dumps(result | {"learning_curve": curves, "importance": imp}, indent=1))
     (out_dir / "table.md").write_text(ex.report_table(result))
+    _draw_experiment(result | {"learning_curve": curves, "importance": imp}, out_dir)
+    typer.echo(ex.report_table(result))
+
+
+def _draw_experiment(result: dict, out_dir: Path) -> None:
+    from truerate import experiment as ex
+    from truerate import experiment_plots as plots
+
     names = ("Today, as served", f"{result['picked']['range']}, {'adopted' if result['adopt'] else 'not adopted'}")
     plots.predicted_vs_actual(result, names, out_dir / "predicted_vs_actual.png")
     plots.ranges(result, names, out_dir / "ranges.png")
-    for n, values in imp.items():
-        plots.importance(values, f"What moves the price in {n}, fitted on all {len(rows)} deals", out_dir / f"importance_{n}.png",
-                         permutation=n in ex.PERMUTATION)
-    plots.learning(curves, {n: n for n in curves}, len(test), out_dir / "learning_curve.png")
-    typer.echo(ex.report_table(result))
+    n = result["n"]["train"] + result["n"]["holdout"]
+    for name, values in result["importance"].items():
+        plots.importance(values, f"What moves the price in {name}, fitted on all {n} deals", out_dir / f"importance_{name}.png",
+                         permutation=name in ex.PERMUTATION)
+    curves = result["learning_curve"]
+    plots.learning(curves, {name: name for name in curves}, result["n"]["holdout"] + result["n"]["fresh"], out_dir / "learning_curve.png")
+
+
+@app.command("experiment-plots")
+def experiment_plots_cmd(out_dir: Path) -> None:
+    """Draws an experiment's graphs again from its saved results.json, without refitting anything."""
+    _draw_experiment(json.loads((out_dir / "results.json").read_text()), out_dir)
+    typer.echo(f"Drew the graphs in {out_dir}")
 
 
 @app.command("redteam")

@@ -278,3 +278,119 @@ def test_hidden_like_counts_are_not_zero_likes():
     assert m["likes_per_view"] is None
     mixed = [make_reel(f"09-{30 - i:02d}", 10_000) | ({"likes": 0, "counts_hidden": True} if i % 2 else {}) for i in range(14)]
     assert reel_metrics({"followers": 50_000, "data": {"reels": mixed}})["likes_per_view"] == 0.1  # only reels that show likes
+
+
+def test_deal_window_metrics_use_own_reels_in_the_90_days_before_the_payout():
+    from truerate.signals import deal_window_metrics
+
+    reels = [make_reel("04-01", 1), make_reel("06-10", 2000), make_reel("07-01", 4000), make_reel("08-01", 6000),
+             make_reel("07-15", 100_000, paid=True), make_reel("07-20", 50_000, repost_of="someone"), make_reel("09-01", 90_000)]
+    snap = {"handle": "x", "followers": 10_000, "data": {"reels": reels}}
+    m = deal_window_metrics(snap, datetime(2026, 8, 15))  # Mongo hands the date back without a zone
+    assert (m["views_then"], m["n_then"]) == (4000, 3)
+    assert (m["engagement_then"], m["comments_per_1k_then"], m["likes_per_view_then"]) == (0.11, 10.0, 0.1)
+
+
+def test_deal_window_metrics_need_three_own_reels():
+    from truerate.signals import deal_window_metrics
+
+    snap = {"handle": "x", "followers": 10_000, "data": {"reels": [make_reel("08-01", 6000), make_reel("08-02", 7000)]}}
+    m = deal_window_metrics(snap, datetime(2026, 8, 15, tzinfo=timezone.utc))
+    assert m["views_then"] is None and m["n_then"] == 2
+
+
+def test_build_metrics_adds_the_stats_around_the_payout_date(db, monkeypatch):
+    db.deals.insert_one({"handle": "dated", "tier": "medium", "niche": ["Gadgets"], "price": 41_000, "holdout": False, "payout_date": datetime(2026, 10, 1)})
+    db.snapshots.insert_one(snapshot("dated"))
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    monkeypatch.setattr(cli, "make_llm", lambda: SchemaLLM())
+    monkeypatch.setattr(cli, "fetch_covers", lambda reels: {})
+    monkeypatch.setattr(cli, "load_fake_model", lambda: train_fake_model([[1, 0, 2, 0, 0, 0]] * 5 + [[0, 0.6, 0, 0, 0, 0]] * 5, [0] * 5 + [1] * 5))
+    monkeypatch.setattr(cli, "minilm_embed", lambda texts: np.eye(len(texts), 8))
+    result = CliRunner().invoke(cli.app, ["build-metrics"])
+    assert result.exit_code == 0, result.output
+    m = db.metrics.find_one({"_id": "dated"})
+    assert m["n_then"] == 15 and m["views_then"] == 17_000  # the 15 reels of 16 to 30 Sept, all within 90 days of 1 Oct
+
+
+def test_build_metrics_reuses_labels_for_a_rebuilt_snapshot_of_the_same_reels(db, monkeypatch):
+    from truerate.signals import recent_reels
+
+    db.deals.insert_one({"handle": "known", "tier": "medium", "niche": ["Gadgets"], "price": 41_000, "holdout": False})
+    snap = snapshot("known")
+    db.snapshots.insert_one(snap)  # a new id: rebuilt from the saved HikerAPI responses
+    codes = [r["code"] for r in recent_reels(snap)]
+    db.labels.insert_one({"_id": "known", "labels_for": "an-older-snapshot", "category": "Tech and gadgets", "category_source": "wldd",
+                          "labels": {"ads": [], "topics": {c: "Gadgets" for c in codes}, "kinds": {"fan": "person"}, "languages": [{"language": "English", "share": 1.0}]}})
+    llm = SchemaLLM()
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    monkeypatch.setattr(cli, "make_llm", lambda: llm)
+    monkeypatch.setattr(cli, "fetch_covers", lambda reels: {})
+    monkeypatch.setattr(cli, "load_fake_model", lambda: train_fake_model([[1, 0, 2, 0, 0, 0]] * 5 + [[0, 0.6, 0, 0, 0, 0]] * 5, [0] * 5 + [1] * 5))
+    monkeypatch.setattr(cli, "minilm_embed", lambda texts: np.eye(len(texts), 8))
+    result = CliRunner().invoke(cli.app, ["build-metrics"])
+    assert result.exit_code == 0, result.output
+    assert llm.label_prompts == [] and db.metrics.find_one({"_id": "known"})["labels"]["topics"][codes[0]] == "Gadgets"
+    # a snapshot with a reel the labels never saw is labelled again
+    db.snapshots.delete_one({"_id": snap["_id"]})
+    db.snapshots.insert_one({k: v for k, v in snap.items() if k != "_id"} | {"data": snap["data"] | {"reels": snap["data"]["reels"] + [make_reel("10-05", 9000, code="new")]}})
+    CliRunner().invoke(cli.app, ["build-metrics"])
+    assert len(llm.label_prompts) == 1
+
+
+def test_label_offline_reads_niche_from_captions_and_never_asks_gemini(db, monkeypatch):
+    def snap_with(handle, word):
+        s = snapshot(handle)
+        for r in s["data"]["reels"]:
+            r["caption"] = f"{word} {r['caption']}"
+        return s
+
+    for i in range(4):
+        db.deals.insert_many([{"handle": f"cook{i}", "tier": "small", "niche": [], "price": 5000, "holdout": False},
+                              {"handle": f"geek{i}", "tier": "small", "niche": [], "price": 5000, "holdout": False}])
+        db.snapshots.insert_many([snap_with(f"cook{i}", "recipe"), snap_with(f"geek{i}", "smartphone")])
+        if i < 3:  # three of each labelled by Gemini earlier; the fourth of each is new
+            db.labels.insert_many([{"_id": f"cook{i}", "category": "Food", "category_source": "gemini", "labels": {}, "labels_for": "x"},
+                                   {"_id": f"geek{i}", "category": "Tech and gadgets", "category_source": "gemini", "labels": {}, "labels_for": "x"}])
+
+    def embed(texts):
+        # the helper's captions all say "recipe", so the smartphone creators are told apart by their own word first
+        return np.array([[0.0, 1.0] if "smartphone" in t else [1.0, 0.0] if "recipe" in t else [0.5, 0.5] for t in texts])
+
+    class NoLLM:
+        def json(self, *a, **k):
+            raise AssertionError("Gemini must not be called")
+
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    monkeypatch.setattr(cli, "minilm_embed", embed)
+    result = CliRunner().invoke(cli.app, ["label-offline"])
+    assert result.exit_code == 0, result.output
+    assert "Labelled 2 creators offline" in result.output
+    cook, geek = db.labels.find_one({"_id": "cook3"}), db.labels.find_one({"_id": "geek3"})
+    assert (cook["category"], cook["category_source"], geek["category"]) == ("Food", "minilm", "Tech and gadgets")
+    assert cook["labels"] == {"ads": [], "topics": {}, "kinds": {}, "languages": []} and cook["labels_source"] == "rules"
+    assert cook["labels_for"] == db.snapshots.find_one({"handle": "cook3"})["_id"]
+    # build-metrics then runs on them without Gemini
+    monkeypatch.setattr(cli, "make_llm", lambda: NoLLM())
+    monkeypatch.setattr(cli, "fetch_covers", lambda reels: {})
+    monkeypatch.setattr(cli, "load_fake_model", lambda: train_fake_model([[1, 0, 2, 0, 0, 0]] * 5 + [[0, 0.6, 0, 0, 0, 0]] * 5, [0] * 5 + [1] * 5))
+    db.labels.delete_many({"category_source": "gemini"})  # the Gemini-labelled ones would be relabelled; only the offline ones are built here
+    db.deals.delete_many({"handle": {"$nin": ["cook3", "geek3"]}})
+    result = CliRunner().invoke(cli.app, ["build-metrics"])
+    assert result.exit_code == 0, result.output
+    assert db.metrics.find_one({"_id": "cook3"})["category"] == "Food"
+
+
+def test_build_metrics_stores_the_extra_features_the_boosted_model_reads(db, monkeypatch):
+    db.deals.insert_one({"handle": "known", "tier": "medium", "niche": ["Gadgets"], "price": 41_000, "holdout": False})
+    db.snapshots.insert_one(snapshot("known"))
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    monkeypatch.setattr(cli, "make_llm", lambda: SchemaLLM())
+    monkeypatch.setattr(cli, "fetch_covers", lambda reels: {})
+    monkeypatch.setattr(cli, "load_fake_model", lambda: train_fake_model([[1, 0, 2, 0, 0, 0]] * 5 + [[0, 0.6, 0, 0, 0, 0]] * 5, [0] * 5 + [1] * 5))
+    monkeypatch.setattr(cli, "minilm_embed", lambda texts: np.eye(len(texts), 8))
+    assert CliRunner().invoke(cli.app, ["build-metrics"]).exit_code == 0
+    m = db.metrics.find_one({"_id": "known"})
+    for key in ("age_years", "reel_seconds", "reels_per_month", "youtube", "email", "verified", "english"):
+        assert key in m, key  # training_rows then carries them, so `validate --method boosting` sees what the experiment saw
+    assert m["english"] == 1.0

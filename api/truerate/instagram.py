@@ -117,6 +117,13 @@ def parse_comments(items: list[dict]) -> list[dict]:
     ]
 
 
+MAX_REEL_PAGES = 60  # about 720 reels: enough to reach a deal from early 2025 for a creator posting daily
+
+
+def _when(taken_at: str) -> datetime:
+    return datetime.fromisoformat(taken_at.replace("Z", "+00:00"))
+
+
 class Hiker:
     """HikerAPI client. Every raw response is saved once as a gzipped file under `store` and kept, so each call is
     paid for once. Raw, not parsed, so a parser change needs no new request."""
@@ -156,10 +163,12 @@ class Hiker:
     def about(self, pk: str) -> dict:
         return self._get("/gql/user/about", parse_about, id=pk)
 
-    def reels(self, pk: str, pages: int = 3, on_page=None) -> list[dict]:
-        """`on_page` gets the reels so far after each page, so work on the newest can start before the older pages arrive."""
+    def reels(self, pk: str, pages: int = 3, on_page=None, back_to: datetime | None = None) -> list[dict]:
+        """`on_page` gets the reels so far after each page, so work on the newest can start before the older pages arrive.
+        With `back_to`, paging goes on past `pages` until a reel older than that date shows up (a deal's date: the reels
+        around it show what the creator delivered then), never more than MAX_REEL_PAGES pages."""
         reels, cursor = [], None
-        for _ in range(pages):
+        for i in range(MAX_REEL_PAGES):
             params = {"user_id": pk} | ({"end_cursor": cursor} if cursor else {})
             page = self._get("/v1/user/clips/chunk", lambda raw: {"reels": parse_reels(raw[0]), "cursor": raw[1]}, **params)
             reels += page["reels"]
@@ -167,6 +176,8 @@ class Hiker:
                 on_page(reels)
             cursor = page["cursor"]
             if not cursor or not page["reels"]:
+                break
+            if i + 1 >= pages and (back_to is None or min(_when(r["taken_at"]) for r in reels) < back_to):
                 break
         return mark_pinned(reels)
 
@@ -191,7 +202,7 @@ class Hiker:
         return self._get("/v2/user/suggested/profiles", lambda raw: parse_accounts(raw["users"]), user_id=pk)
 
 
-def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int = 3, workers: int = 1) -> dict:
+def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int = 3, workers: int = 1, back_to: datetime | None = None) -> dict:
     """One snapshot of a creator: about 21 requests. A private account stops after the profile. After the profile and
     the reel pages, the per-reel lists are fetched `workers` at a time (8 for a live analysis; 1 inside the benchmark,
     which already runs creators in parallel)."""
@@ -218,7 +229,7 @@ def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int
                 likers.setdefault(r["id"], pool.submit(_or_empty, hiker.likers, r["id"]))
             return recent
 
-        reels = hiker.reels(pk, on_page=per_reel)
+        reels = hiker.reels(pk, on_page=per_reel, back_to=back_to)
         recent = per_reel(reels)  # the final newest reels: anything a later page changed is fetched now
         data |= {
             "about": about.result(),

@@ -1,6 +1,7 @@
 import csv
 import random
 from collections import defaultdict
+from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 
@@ -34,9 +35,13 @@ def ensure_indexes(db: Database) -> None:
     db.analyses.create_index("batch_id")
 
 
-def import_deals(db: Database, csv_path: Path) -> dict[str, int]:
+def import_deals(db: Database, csv_path: Path, holdout_share: float | None = None, exclude: set[str] | None = None) -> dict[str, int]:
+    """Replaces the deals with the CSV's. Held out: HOLDOUT_PER_TIER per tier, or, with `holdout_share`, that share of
+    each tier drawn only from creators not in `exclude` (the ones the served model was trained on, so it can be
+    scored fairly on the same held-out set). A `payout_date` column is kept as a date; `paid` is ignored."""
     with csv_path.open(newline="") as f:
         rows = list(csv.DictReader(f))
+    exclude = exclude or set()
     handles_by_tier: dict[str, list[str]] = defaultdict(list)
     for row in rows:
         handles_by_tier[row["tier"]].append(row["handle"].strip().lower())
@@ -44,17 +49,24 @@ def import_deals(db: Database, csv_path: Path) -> dict[str, int]:
     holdout: set[str] = set()
     for tier in sorted(handles_by_tier):
         handles = sorted(handles_by_tier[tier])
-        holdout.update(rng.sample(handles, min(HOLDOUT_PER_TIER, len(handles))))
+        if holdout_share is None:
+            holdout.update(rng.sample(handles, min(HOLDOUT_PER_TIER, len(handles))))
+        else:
+            eligible = [h for h in handles if h not in exclude]
+            holdout.update(rng.sample(eligible, min(round(holdout_share * len(handles)), len(eligible))))
     docs = []
     for row in rows:
         handle = row["handle"].strip().lower()
-        docs.append({
+        doc = {
             "handle": handle,
             "tier": row["tier"],
-            "niche": [g.strip() for g in row["niche"].split(",") if g.strip()],
-            "price": int(row["price"]),
+            "niche": [g.strip() for g in (row.get("niche") or "").split(",") if g.strip()],
+            "price": int(float(row["price"])),
             "holdout": handle in holdout,
-        })
+        }
+        if row.get("payout_date"):
+            doc["payout_date"] = datetime.strptime(row["payout_date"].strip(), "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        docs.append(doc)
     db.deals.delete_many({})
     db.deals.insert_many(docs)
     return {"deals": len(docs), "holdout": len(holdout)}

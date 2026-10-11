@@ -2,6 +2,7 @@ import copy
 import csv
 import math
 import re
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 from statistics import median
@@ -132,6 +133,83 @@ def reel_metrics(snapshot: dict, labels: dict | None = None) -> dict:
         "collab_n": len(collab),
         "collab_ratio": ratio(collab),
         "n_reposts": len(reposts),
+    }
+
+
+RULES_ONLY_LABELS = {"ads": [], "topics": {}, "kinds": {}, "languages": []}  # no Gemini: ads come from the rules alone
+
+
+def niche_vector(snapshot: dict, embed) -> np.ndarray:
+    """A creator's bio and the captions of their 12 newest reels (what Gemini reads for the niche) as one vector: the bio's
+    embedding beside the captions' mean."""
+    captions = [r["caption"] for r in recent_reels(snapshot)][:12]
+    e = np.asarray(embed([snapshot["data"]["profile"].get("bio", "") or ""] + [c for c in captions if c.strip()]))
+    return np.concatenate([e[0], e[1:].mean(axis=0) if len(e) > 1 else e[0]])
+
+
+def fit_niche_model(X: np.ndarray, y: list[str]):
+    """The niche from `niche_vector`, learned from the creators Gemini (or WLDD) already put in a category. On WLDD's deals it
+    agreed with Gemini on 71% of creators in 5-fold cross-validation (the most common niche alone: 33%)."""
+    from sklearn.linear_model import LogisticRegression
+
+    return LogisticRegression(max_iter=2000, C=2.0, class_weight="balanced").fit(X, y)
+
+
+EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
+
+
+def extra_features(snap: dict) -> dict:
+    """What today's model leaves out: account age, reel length, posting rate, a YouTube link, a contact email, the tick."""
+    d, reels = snap["data"], recent_reels(snap)
+    try:
+        joined = datetime.strptime(d.get("about", {}).get("joined") or "", "%B %Y").replace(tzinfo=timezone.utc)
+        fetched = snap["fetched_at"]
+        age = ((fetched if fetched.tzinfo else fetched.replace(tzinfo=timezone.utc)) - joined).days / 365.25
+    except ValueError:
+        age = None
+    times = [datetime.fromisoformat(r["taken_at"].replace("Z", "+00:00")) for r in reels]
+    days = (max(times) - min(times)).total_seconds() / 86400 if times else 0
+    seconds = [r["duration"] for r in reels if r.get("duration")]
+    p = d["profile"]
+    return {
+        "age_years": age,
+        "reel_seconds": median(seconds) if seconds else None,
+        "reels_per_month": len(reels) / days * 30 if days else None,
+        "youtube": "youtu" in (p.get("external_url") or "").lower(),
+        "email": bool(EMAIL.search(p.get("bio") or "")),
+        "verified": bool(p.get("is_verified")),
+    }
+
+
+def english_share(mix: dict | None) -> float | None:
+    """The share of comments in English, from the commenter mix (None when the languages are unknown)."""
+    langs = (mix or {}).get("languages") or []
+    return next((x["share"] for x in langs if x["language"] == "English"), 0.0) if langs else None
+
+
+WINDOW_DAYS = 90  # the reels in the 90 days before a payout show what the creator was delivering when booked
+MIN_WINDOW_REELS = 3
+
+
+def deal_window_metrics(snapshot: dict, paid_on: datetime) -> dict:
+    """Views and engagement of the creator's own reels in the WINDOW_DAYS before a deal's payout: the stats WLDD saw
+    when it booked them, not today's. Ads count by the rules only (Gemini labels cover the newest reels), and reposts
+    and collabs are left out. None when fewer than MIN_WINDOW_REELS reels qualify."""
+    paid_on = paid_on if paid_on.tzinfo else paid_on.replace(tzinfo=timezone.utc)
+    start = paid_on - timedelta(days=WINDOW_DAYS)
+    when = lambda r: datetime.fromisoformat(r["taken_at"].replace("Z", "+00:00"))  # noqa: E731
+    reels = [r for r in snapshot["data"]["reels"] if not r["pinned"] and r["views"] > 0 and start <= when(r) <= paid_on]
+    own = [r for r in reels if not r["coauthors"] and not is_paid(r) and not r.get("repost_of")]
+    base = own or [r for r in reels if not r.get("repost_of")]
+    if len(base) < MIN_WINDOW_REELS:
+        return {"views_then": None, "engagement_then": None, "comments_per_1k_then": None, "likes_per_view_then": None, "n_then": len(base)}
+    liked = [r for r in base if r["likes"] > 0 and not r.get("counts_hidden")]
+    return {
+        "views_then": median(r["views"] for r in base),
+        "engagement_then": round(median((r["likes"] + r["comments"]) / r["views"] for r in (liked or base)), 4),
+        "comments_per_1k_then": round(median(r["comments"] * 1000 / r["views"] for r in base), 4),
+        "likes_per_view_then": round(median(r["likes"] / r["views"] for r in liked), 4) if liked else None,
+        "n_then": len(base),
     }
 
 

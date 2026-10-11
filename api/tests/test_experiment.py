@@ -141,3 +141,75 @@ def test_the_ensemble_averages_its_members_in_log_price():
     train, test = with_extras(synthetic_rows(60, 3), 1), with_extras(synthetic_rows(10, 4), 2)
     members = np.mean([POINT_FNS[m](train, test) for m in ENSEMBLE], axis=0)
     assert np.allclose(POINT_FNS["ensemble"](train, test), members) and "tabpfn_v2" not in ENSEMBLE  # runs with the servers on
+
+
+def test_dated_rows_use_the_stats_around_the_payout_where_there_are_any():
+    from truerate.experiment import dated
+
+    then = {"views_then": 5000, "engagement_then": 0.07, "comments_per_1k_then": 3.0, "likes_per_view_then": 0.06, "n_then": 9}
+    rows = [{"handle": "a", "views": 9000, "engagement": 0.05, "comments_per_1k": 2.0, "likes_per_view": 0.04} | then,
+            {"handle": "b", "views": 8000, "engagement": 0.04, "comments_per_1k": 1.0, "likes_per_view": 0.03, "views_then": None, "n_then": 1}]
+    a, b = dated(rows)
+    assert (a["views"], a["engagement"], a["comments_per_1k"], a["likes_per_view"]) == (5000, 0.07, 3.0, 0.06)
+    assert (a["views_today"], b["views"]) == (9000, 8000)  # no reels around the payout: today's stats stand in
+    assert rows[0]["views"] == 9000  # the input is left alone
+
+
+def test_run_scores_one_held_out_set_when_there_are_no_fresh_deals():
+    train, holdout, _ = _sets()
+    out = run(train, holdout, [], repeats=1, folds=3, points=("today", "ridge_v2"))
+    assert out["n"]["fresh"] == 0 and out["fresh"] == {} and "fresh" not in out["coverage_by_width"]
+    assert out["holdout"]["today_served"]["n"] == len(holdout)
+    assert out["adopt"] == (out["picked"]["range"] != "today_served" and
+                            out["holdout"][out["picked"]["range"]]["error"] <= out["holdout"]["today_served"]["error"] and
+                            out["holdout"][out["picked"]["range"]]["width80"] <= out["holdout"]["today_served"]["width80"] and
+                            (out["holdout"][out["picked"]["range"]]["error"] < out["holdout"]["today_served"]["error"] or
+                             out["holdout"][out["picked"]["range"]]["width80"] < out["holdout"]["today_served"]["width80"]) and
+                            out["holdout"][out["picked"]["range"]]["coverage80"] >= 0.75)
+    assert report_table(out)
+
+
+def test_live_model_is_scored_on_the_held_out_deals_exactly_as_the_app_prices_them():
+    from truerate.experiment import live_scores
+
+    model = fit(synthetic_rows(60, 5))
+    test = synthetic_rows(12, 6)
+    out = live_scores(model, test)
+    expected = [price(model, r) for r in test]
+    assert out["n"] == 12 and out["error"] == pytest.approx(float(np.median([abs(p["fair"] - r["price"]) / r["price"] for r, p in zip(test, expected)])))
+    assert 0 <= out["coverage80"] <= 1 and out["width80"] > 1
+
+
+def test_repeated_cv_gives_the_same_scores_on_several_cores():
+    from truerate.experiment import repeated_cv
+
+    train, _, _ = _sets(9)
+    one = repeated_cv(train, ("today", "ridge_v2"), repeats=2, folds=3)
+    many = repeated_cv(train, ("today", "ridge_v2"), repeats=2, folds=3, workers=2)
+    assert one == many
+
+
+def test_charts_draw_a_run_without_fresh_deals(tmp_path):
+    from truerate import experiment_plots as plots
+
+    train, holdout, _ = _sets()
+    out = run(train, holdout, [], repeats=1, folds=3, points=("today", "ridge_v2"))
+    plots.predicted_vs_actual(out, ("Before", "After"), tmp_path / "p.png")
+    plots.ranges(out, ("Before", "After"), tmp_path / "r.png")
+    assert (tmp_path / "p.png").stat().st_size > 0 and (tmp_path / "r.png").stat().st_size > 0
+
+
+def test_experiment_plots_redraws_from_saved_results(tmp_path):
+    from typer.testing import CliRunner
+
+    from truerate import cli
+    from truerate.experiment import importance, learning_curve
+
+    train, holdout, _ = _sets()
+    out = run(train, holdout, [], repeats=1, folds=3, points=("today", "ridge_v2"))
+    out |= {"learning_curve": {"today": learning_curve("today", train, holdout, (20, len(train)), draws=2)},
+            "importance": {"ridge_v2": importance("ridge_v2", train + holdout)}}
+    (tmp_path / "results.json").write_text(json.dumps(out))
+    result = CliRunner().invoke(cli.app, ["experiment-plots", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert {p.name for p in tmp_path.glob("*.png")} == {"predicted_vs_actual.png", "ranges.png", "importance_ridge_v2.png", "learning_curve.png"}
