@@ -765,4 +765,4 @@ web/src/proxy.ts:4:export function proxy(request: NextRequest) {
 web/src/proxy.ts:12:export const config = {
 ```
 
-<!-- mapped: .@06d2adf | paths: api/, web/src/ -->
+<!-- mapped: .@8025bc9 | paths: api/, web/src/ -->
