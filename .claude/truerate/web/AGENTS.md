@@ -1,6 +1,6 @@
 # web
 
-The Next.js front end the WLDD team uses: login, analyze, report with a quote checker, client one-pager, batch shortlist, rate card and About.
+The Next.js front end the WLDD team uses: login, analyze, report, client one-pager, batch shortlist, rate card and About.
 
 ## Stack
 - Next.js 16 (App Router, `cacheComponents` on), React 19, TypeScript, Tailwind 4, ESLint. npm, not pnpm.
@@ -16,16 +16,18 @@ The Next.js front end the WLDD team uses: login, analyze, report with a quote ch
 - `src/proxy.ts`: sends any page without the `truerate_session` cookie to `/login` (Next 16 calls middleware "proxy")
 - `src/app/login/`: demo login button and the `@wldd.in` check; sets the cookie in the browser
 - `src/app/(app)/layout.tsx`: header with sign-out for every signed-in page
-- `src/app/(app)/page.tsx`: `/`, the analyze form and recent analyses
+- `src/app/(app)/page.tsx`: `/`, the analyze form and recent analyses with a search box that filters the loaded list by creator name or handle
 - `src/app/(app)/analyses/[id]/`: `page.tsx` (Suspense around params) and `analysis-view.tsx` (polls every 1.5 s; running, out of scope, failed with Retry, done)
 - `src/app/(app)/analyses/[id]/print/`: the A4 client one-pager, black on white; opens the print dialog
 - `src/app/(app)/batch/`: paste form; `batch/[id]/` polls the ranked table and exports CSV
 - `src/app/(app)/rate-card/`: calculator plus the category table
 - `src/app/(app)/about/`: `page.tsx` (accuracy chart and tables, fake test, flow, signals, other pages, limits) and `content.ts` (static text, condensed from SPEC)
 - `src/app/(app)/nav.tsx`: header nav; `layout.tsx` wraps it in Suspense because it reads the path
-- `src/components/report/`: `report.tsx` lays the report out in five tabs through `tabs.tsx` (ARIA tabs, `#tab` deep links, sticky bar, each panel mounted on first open): Summary (`decision`, `negotiation`), Price (`waterfall` with the 6 comparables, `quote`, `CheaperCreators` from `evidence`), Audience (`authenticity`, `engagement`, `audience`), Content (`placement`, Recharts), Similar (`Suggestions` from `evidence`). A heading id must never equal a tab key, or the hash would scroll to it.
+- `src/components/report/`: `report.tsx` lays the report out in five tabs through `tabs.tsx` (ARIA tabs, `#tab` deep links, sticky bar, each panel mounted on first open): Summary (`decision`, `negotiation`), Price (`waterfall`: the steps on the left and `CreatorFacts` on the right, the creator's followers, typical views, what WLDD paid and per 1,000 views; then `Comparables`, the 6 past deals; then `CheaperCreators` from `evidence`), Audience (`authenticity`, `engagement`, `audience`), Content (`placement`, Recharts), Similar (`Suggestions` from `evidence`: tick accounts, then "Compare creators" starts a batch of this creator plus the ticked ones). A heading id must never equal a tab key, or the hash would scroll to it.
 - `src/app/(app)/brand/`: the brand form with recent runs, and `[id]/brand-view.tsx` (polls the run); `src/components/brand/result.tsx` draws the result
 - `src/components/recent-table.tsx`: the recent list on the three entry pages (`NameHandle`, fit-to-screen rows, × to hide)
+- `src/components/run-progress.tsx`: the running screen of an analysis and a brand run: steps with their times (the current one live), the moving bar, and a small ring timer on the right
+- `src/components/compare-list.tsx`: the tick list with a Price button per account, Select all, and a Compare creators batch; used by the report's Similar tab and the brand result's "Not priced yet" tab
 - `src/components/tabs.tsx`: the tab bar shared by the report and the brand result (`#tab` links)
 - `src/components/chart-tip.tsx`: the hover/focus card every hand-drawn chart uses; `src/components/value-bars.tsx`: the ranked "What ₹10,000 buys" bars (batch and brand)
 - `src/components/verdicts.tsx`: the plain verdict list and `StatusIcon` (icon plus word, never colour alone)

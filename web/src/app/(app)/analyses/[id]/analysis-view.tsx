@@ -1,28 +1,12 @@
 "use client";
 
-import { Check } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 
 import ReportView from "@/components/report/report";
+import RunProgress from "@/components/run-progress";
 import { api, type Analysis } from "@/lib/api";
-
-// The API stores UTC without a zone marker; without the "Z" a browser in India would read it 5.5 hours off.
-function Elapsed({ since }: { since: string }) {
-  const start = new Date(/[zZ]$|[+-]\d\d:?\d\d$/.test(since) ? since : `${since}Z`).getTime();
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  const seconds = Math.max(0, Math.round((now - start) / 1000));
-  return (
-    <span className="figure text-text">
-      {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}
-    </span>
-  );
-}
 
 export default function AnalysisView({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -78,30 +62,8 @@ export default function AnalysisView({ params }: { params: Promise<{ id: string 
   if (analysis.status === "running") {
     return (
       <Shell title={`@${analysis.handle}`}>
-        <p className="basis mt-2">
-          Running for <Elapsed since={analysis.created_at} />. Usually about 35 seconds for a creator seen for the first time, about 25 for one seen before. Instagram
-          data, then the checks, then the price.
-        </p>
-        <ol className="mt-8 max-w-md space-y-4" aria-live="polite">
-          {analysis.steps.map((label, i) => {
-            const state = i < analysis.step ? "done" : i === analysis.step ? "current" : "next";
-            return (
-              <li key={label} className="flex items-center gap-3">
-                <span className="flex h-5 w-5 items-center justify-center">
-                  {state === "done" ? <Check size={18} className="text-go" aria-label="Done" /> : <span className={`h-2 w-2 rounded-full ${state === "current" ? "bg-accent" : "bg-line"}`} />}
-                </span>
-                <span className={`flex-1 ${state === "next" ? "text-muted" : ""}`}>
-                  {label}
-                  {state === "current" && (
-                    <span className="mt-2 block h-0.5 overflow-hidden rounded bg-line" aria-hidden>
-                      <span className="step-bar block h-full w-2/5 bg-accent" />
-                    </span>
-                  )}
-                </span>
-              </li>
-            );
-          })}
-        </ol>
+        <p className="basis mt-2">Usually about 45 seconds. Instagram data, then the checks, then the price.</p>
+        <RunProgress steps={analysis.steps} step={analysis.step} createdAt={analysis.created_at} stepAt={analysis.step_at} usual={45} />
       </Shell>
     );
   }
@@ -128,7 +90,7 @@ export default function AnalysisView({ params }: { params: Promise<{ id: string 
     );
   }
 
-  return <ReportView id={id} report={analysis.result} inputs={analysis.inputs} outputs={analysis.outputs ?? []} />;
+  return <ReportView id={id} report={analysis.result} inputs={analysis.inputs} outputs={analysis.outputs ?? []} paid={analysis.wldd_paid ?? null} />;
 }
 
 function Shell({ title, children }: { title: string; children?: React.ReactNode }) {

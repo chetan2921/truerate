@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 
+import CompareList from "@/components/compare-list";
 import Tabs from "@/components/tabs";
 import ValueBars from "@/components/value-bars";
 import { StatusIcon } from "@/components/verdicts";
-import { api, type BrandRun } from "@/lib/api";
+import type { BrandRun } from "@/lib/api";
 import { compact, inr, inrRange } from "@/lib/format";
 
 type Result = NonNullable<BrandRun["result"]>;
@@ -46,8 +45,6 @@ function Handle({ p }: { p: Pick }) {
 }
 
 export default function BrandResult({ run }: { run: BrandRun }) {
-  const router = useRouter();
-  const [starting, setStarting] = useState(false);
   const r = run.result!;
   const b = r.brand;
   const budget = run.request.budget;
@@ -55,16 +52,6 @@ export default function BrandResult({ run }: { run: BrandRun }) {
   const planned = r.picks.filter((p) => inPlan.has(p.handle));
   const top = r.picks[0];
   const cols = COLUMNS.filter(([key]) => key !== "budget" || budget);
-
-  async function priceThem() {
-    setStarting(true);
-    try {
-      const { id } = await api.createBatch({ handles: r.to_price.slice(0, 20), category: b.product, budget: budget ?? null });
-      router.push(`/batch/${id}`);
-    } catch {
-      setStarting(false);
-    }
-  }
 
   return (
     <main className="mx-auto max-w-6xl px-6 pb-24 pt-4">
@@ -172,26 +159,15 @@ export default function BrandResult({ run }: { run: BrandRun }) {
 
           ) },
           ...(r.to_price.length ? [{ key: "unpriced", label: `Not priced yet (${r.to_price.length})`, panel: (
-        <section aria-labelledby="to-price">
+        <section aria-labelledby="to-price" className="max-w-3xl">
           <h2 id="to-price" className="section-title">
             Seen with {b.name}, not priced yet
           </h2>
           <p className="basis mt-1 max-w-2xl">
-            Accounts that co-authored, appeared in or tagged the brand&apos;s posts. Some may be brands or fan pages. Pricing them runs a full analysis for each, about
-            20 Instagram requests apiece.
+            Accounts that co-authored, appeared in or tagged the brand&apos;s posts. Some may be brands or fan pages. Tick the ones to compare, or price one alone. Each gets a
+            full analysis, about 20 Instagram requests apiece.
           </p>
-          <ul className="mt-4 flex flex-wrap gap-2 text-sm">
-            {r.to_price.map((h) => (
-              <li key={h} className="rounded-lg px-3 py-1 ring-1 ring-line">
-                <a href={`https://www.instagram.com/${h}/`} target="_blank" rel="noreferrer">
-                  @{h}
-                </a>
-              </li>
-            ))}
-          </ul>
-          <button type="button" className="btn btn-quiet mt-4" onClick={priceThem} disabled={starting}>
-            {starting ? "Starting…" : `Price ${Math.min(r.to_price.length, 20)} of them as a batch`}
-          </button>
+          <CompareList handles={r.to_price} category={b.product} budget={budget} instagramLinks />
         </section>
           ) }] : []),
         ]}

@@ -1,5 +1,6 @@
 "use client";
 
+import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useState } from "react";
 
@@ -19,9 +20,16 @@ export default function AnalyzePage() {
   const [busy, setBusy] = useState(false);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [recent, setRecent] = useState<AnalysisSummary[] | null>(null);
+  const [search, setSearch] = useState("");
+  // The creator's name or handle, the two things a row shows, and nothing else. A leading @ is ignored.
+  const term = search.trim().replace(/^@/, "").toLowerCase();
+  const shown = term && recent ? recent.filter((a) => `${a.name ?? ""} ${a.handle}`.toLowerCase().includes(term)) : recent;
 
   useEffect(() => {
     api.meta().then(setMeta).catch(() => setMeta(null));
+  }, []);
+
+  useEffect(() => {
     api.listAnalyses().then(setRecent).catch(() => setRecent([]));
   }, []);
 
@@ -116,11 +124,22 @@ export default function AnalyzePage() {
       <RecentTable
         className="mx-auto mt-12 max-w-5xl"
         title="Recent analyses"
-        items={recent}
+        items={shown}
         href={(a) => `/analyses/${a.id}`}
         onRemove={remove}
         removeLabel={(a) => `Remove @${a.handle} from recent analyses`}
-        empty="No creators priced yet. Paste a handle above to start."
+        empty={term ? `No recent creator matches "${search.trim()}".` : "No creators priced yet. Paste a handle above to start."}
+        showAllRows={Boolean(term)}
+        action={
+          <div className="relative w-64 max-w-full">
+            <Search size={16} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+            <label htmlFor="search" className="sr-only">
+              Search recent creators by name or handle
+            </label>
+            <input id="search" type="search" className="field w-full py-2 pl-9 text-sm" placeholder="Search creators" value={search}
+              onChange={(e) => setSearch(e.target.value)} autoComplete="off" spellCheck={false} />
+          </div>
+        }
         columns={[
           { label: "Creator", className: "w-[34%]", cell: (a) => <NameHandle name={a.name} handle={a.handle} /> },
           { label: "Audience", cell: (a) => <span className="basis">{a.verdict ?? (a.status === "running" ? "Running" : a.status === "failed" ? "Failed" : "Out of scope")}</span> },

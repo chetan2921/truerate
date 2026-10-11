@@ -21,7 +21,7 @@ const ROW = 53; // one-line rows (52px plus the divider), so the rows that fit c
 
 // The recent list on the creator, compare and brand pages: a table that stops at the bottom of the first screen
 // (the rest behind "Show all"), each row opening its page, with an × that takes it off the list.
-export default function RecentTable<T extends { id: string }>({ title, items, href, columns, onRemove, removeLabel, empty, className = "" }: {
+export default function RecentTable<T extends { id: string }>({ title, items, href, columns, onRemove, removeLabel, empty, className = "", action, showAllRows = false }: {
   title: string;
   items: T[] | null;
   href: (item: T) => string;
@@ -30,6 +30,8 @@ export default function RecentTable<T extends { id: string }>({ title, items, hr
   removeLabel: (item: T) => string;
   empty: string;
   className?: string;
+  action?: React.ReactNode; // beside the title, e.g. a search box
+  showAllRows?: boolean; // skip the first-screen cut, e.g. while searching
 }) {
   const router = useRouter();
   const table = useRef<HTMLTableElement>(null);
@@ -57,12 +59,15 @@ export default function RecentTable<T extends { id: string }>({ title, items, hr
   }, [loaded, showAll]);
 
   const id = title.toLowerCase().replace(/\W+/g, "-");
-  const shown = items && !showAll ? items.slice(0, fit) : (items ?? []);
+  const shown = items && !showAll && !showAllRows ? items.slice(0, fit) : (items ?? []);
   return (
     <section aria-labelledby={id} className={className}>
-      <h2 id={id} className="section-title">
-        {title}
-      </h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id={id} className="section-title">
+          {title}
+        </h2>
+        {action}
+      </div>
       {items === null ? (
         <p className="basis mt-3">Loading…</p>
       ) : items.length === 0 ? (
@@ -117,7 +122,7 @@ export default function RecentTable<T extends { id: string }>({ title, items, hr
             </tbody>
           </table>
           </div>
-          {items.length > fit && (
+          {!showAllRows && items.length > fit && (
             <button type="button" className="btn btn-quiet mt-4 py-2 text-sm" aria-expanded={showAll} onClick={() => setShowAll((v) => !v)}>
               {showAll ? "Show fewer" : `Show all ${items.length}`}
               <ChevronDown size={16} aria-hidden className={`transition-transform duration-150 ${showAll ? "rotate-180" : ""}`} />

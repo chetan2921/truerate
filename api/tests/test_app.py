@@ -44,6 +44,7 @@ def test_analysis_runs_and_reports(client):
     a = client.get(f"/api/analyses/{res.json()['id']}").json()
     assert a["status"] == "done" and a["handle"] == "newcreator" and a["inputs"]["quote"] == 5000
     assert a["step"] == 3 and len(a["steps"]) == 4
+    assert len(a["step_at"]) == 4 and a["step_at"] == sorted(a["step_at"])  # when each step began, for the running page's per-step times
     assert a["result"]["decision"]["call"] in ("Go", "Negotiate") and a["result"]["price"]["fair"] > 0
     recent = client.get("/api/analyses").json()
     assert recent[0]["id"] == res.json()["id"] and recent[0]["call"] == a["result"]["decision"]["call"] and recent[0]["fair"] == a["result"]["price"]["fair"]
@@ -135,6 +136,13 @@ def test_batch_puts_avoid_after_everything_else(client, world, monkeypatch):
     assert [row["call"] for row in b["rows"]][-1] == "Avoid" and b["rows"][0]["handle"] == "realone"
 
 
+def test_analysis_carries_what_wldd_paid_the_creator_or_none(client, world):
+    first = client.post("/api/analyses", json={"handle": "newcreator"}).json()["id"]
+    assert client.get(f"/api/analyses/{first}").json()["wldd_paid"] is None
+    world.deals.insert_one({"handle": "newcreator", "price": 45000})
+    assert client.get(f"/api/analyses/{first}").json()["wldd_paid"] == 45000  # read time, so reports saved before the deal was added get it too
+
+
 def test_removing_an_analysis_hides_it_from_recent_but_keeps_its_report(client):
     first = client.post("/api/analyses", json={"handle": "newcreator"}).json()["id"]
     second = client.post("/api/analyses", json={"handle": "newcreator"}).json()["id"]
@@ -199,6 +207,7 @@ def test_a_brand_run_is_started_polled_and_listed(client, monkeypatch):
     assert res.status_code == 202
     b = client.get(f"/api/brands/{res.json()['id']}").json()
     assert b["status"] == "done" and b["result"]["brand"]["category"] == "Food" and len(b["result"]["picks"]) == 5 and len(b["steps"]) == 4
+    assert len(b["step_at"]) == 4 and b["step_at"] == sorted(b["step_at"])
     assert client.get("/api/brands").json()[0]["id"] == res.json()["id"]
     assert client.post("/api/brands", json={"brand": "  "}).status_code == 422
     assert client.get("/api/brands/nope").status_code == 404

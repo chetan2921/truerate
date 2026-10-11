@@ -1,10 +1,10 @@
 "use client";
 
-import { Check } from "lucide-react";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 
 import BrandResult from "@/components/brand/result";
+import RunProgress from "@/components/run-progress";
 import { api, type BrandRun } from "@/lib/api";
 
 export default function BrandView({ params }: { params: Promise<{ id: string }> }) {
@@ -39,26 +39,7 @@ export default function BrandView({ params }: { params: Promise<{ id: string }> 
     return (
       <Shell title={run.request.brand}>
         <p className="basis mt-2">Usually under a minute: the brand, then WLDD&apos;s creators and everyone analysed before.</p>
-        <ol className="mt-8 max-w-md space-y-4" aria-live="polite">
-          {run.steps.map((label, i) => {
-            const state = i < run.step ? "done" : i === run.step ? "current" : "next";
-            return (
-              <li key={label} className="flex items-center gap-3">
-                <span className="flex h-5 w-5 items-center justify-center">
-                  {state === "done" ? <Check size={18} className="text-go" aria-label="Done" /> : <span className={`h-2 w-2 rounded-full ${state === "current" ? "bg-accent" : "bg-line"}`} />}
-                </span>
-                <span className={`flex-1 ${state === "next" ? "text-muted" : ""}`}>
-                  {label}
-                  {state === "current" && (
-                    <span className="mt-2 block h-0.5 overflow-hidden rounded bg-line" aria-hidden>
-                      <span className="step-bar block h-full w-2/5 bg-accent" />
-                    </span>
-                  )}
-                </span>
-              </li>
-            );
-          })}
-        </ol>
+        <RunProgress steps={run.steps} step={run.step} createdAt={run.created_at} stepAt={run.step_at} usual={60} />
       </Shell>
     );
   }

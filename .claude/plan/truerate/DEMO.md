@@ -18,7 +18,7 @@ Open them with the API on the real database:
 | A 3-creator batch | `/batch/b4488b3a59fc` | Who to book first and why, the cheapest-views alternative, "What ₹10,000 buys", the scorecard |
 | boAt (@boat.nirvana) | `/brand/b546f14bfdc3` | Brand match: a ₹2,00,000 plan of 6 creators with about 23.4L views, best matches, the accounts seen with boAt |
 
-A fresh unseen creator takes about 35 s live, one seen before about 25 s, and one bigger than any WLDD deal about 56 s (the web check). A brand run takes about 12 s.
+A fresh unseen creator takes about 45 s live, one seen before about 25 s, and one bigger than any WLDD deal about 56 s (the web check). A brand run takes about 12 s.
 
 ## The three minutes
 | Time | Show | Say |

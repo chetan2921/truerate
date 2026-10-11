@@ -298,10 +298,12 @@ class Analysis(BaseModel):
     status: Literal["running", "done", "out_of_scope", "failed"]
     step: int
     steps: list[str]
+    step_at: list[datetime] = []  # when each step began, in order; older analyses have none
     reason: str | None = None
     error: str | None = None
     result: Report | None = None
     outputs: list[Output] = []  # plain answers, worked out from the result on every read
+    wldd_paid: int | None = None  # what WLDD paid this creator, looked up on every read; None when WLDD has not booked them
     created_at: datetime
     finished_at: datetime | None = None
 
@@ -446,6 +448,7 @@ class BrandRun(BaseModel):
     status: Literal["running", "done", "failed"]
     step: int
     steps: list[str]
+    step_at: list[datetime] = []  # when each step began, in order; older runs have none
     result: BrandResult | None = None
     error: str | None = None
     created_at: datetime
@@ -554,7 +557,7 @@ def _run_brand(run_id: str, req: dict) -> None:
     db = get_db()
 
     def step(i: int) -> None:
-        db.brands.update_one({"_id": run_id}, {"$set": {"step": i}})
+        db.brands.update_one({"_id": run_id}, {"$set": {"step": i}, "$push": {"step_at": datetime.now(timezone.utc)}})
 
     try:
         update = {"status": "done", "result": run_brand(make_brand_deps(db), req, step)}
@@ -571,7 +574,7 @@ def _run(analysis_id: str, handle: str, inputs: dict) -> None:
     db = get_db()
 
     def step(i: int) -> None:
-        db.analyses.update_one({"_id": analysis_id}, {"$set": {"step": i}})
+        db.analyses.update_one({"_id": analysis_id}, {"$set": {"step": i}, "$push": {"step_at": datetime.now(timezone.utc)}})
 
     try:
         out = analyze(handle, inputs, make_deps(db), step)
@@ -733,7 +736,8 @@ def get_analysis(analysis_id: str) -> Analysis:
         raise HTTPException(404, "No analysis with that id.")
     _with_likely(a.get("result"))
     done = outputs(a["result"], a.get("inputs") or {}) if a.get("status") == "done" and a.get("result") else []
-    return Analysis(id=a.pop("_id"), steps=STEPS, outputs=done, **a)
+    deal = get_db().deals.find_one({"handle": a["handle"]})
+    return Analysis(id=a.pop("_id"), steps=STEPS, outputs=done, wldd_paid=round(deal["price"]) if deal else None, **a)
 
 
 @app.delete("/api/analyses/{analysis_id}", status_code=204)

@@ -12,10 +12,9 @@ import Engagement from "./engagement";
 import { CheaperCreators, Suggestions } from "./evidence";
 import Negotiation from "./negotiation";
 import Placement from "./placement";
-import QuoteChecker from "./quote";
-import Waterfall from "./waterfall";
+import Waterfall, { Comparables } from "./waterfall";
 
-export default function ReportView({ id, report: r, inputs, outputs }: { id: string; report: Report; inputs: Analysis["inputs"]; outputs: Output[] }) {
+export default function ReportView({ id, report: r, inputs, outputs, paid }: { id: string; report: Report; inputs: Analysis["inputs"]; outputs: Output[]; paid: number | null }) {
   const asked = [inputs.category && `for ${inputs.category}`, inputs.quote && `quote ₹${inputs.quote.toLocaleString("en-IN")}`, inputs.budget && `budget ₹${inputs.budget.toLocaleString("en-IN")}`].filter(Boolean);
   return (
     <main className="mx-auto max-w-6xl px-6 pb-24 pt-4">
@@ -47,9 +46,9 @@ export default function ReportView({ id, report: r, inputs, outputs }: { id: str
           ) },
           { key: "price", label: "Price", panel: (
             <>
-              <Waterfall r={r} />
+              <Waterfall r={r} paid={paid} />
               <div className="[&>section]:pt-12">
-                <QuoteChecker id={id} initial={inputs.quote ?? null} />
+                <Comparables r={r} />
               </div>
               <div className="[&>section]:pt-16">
                 <CheaperCreators r={r} />
@@ -68,7 +67,7 @@ export default function ReportView({ id, report: r, inputs, outputs }: { id: str
             </>
           ) },
           { key: "content", label: "Content", panel: <Placement r={r} /> },
-          { key: "similar", label: "Similar", panel: <Suggestions r={r} /> },
+          { key: "similar", label: "Similar", panel: <Suggestions r={r} inputs={inputs} /> },
         ]}
       />
     </main>

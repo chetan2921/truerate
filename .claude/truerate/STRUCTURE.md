@@ -86,7 +86,6 @@ web/src/components/report/engagement.tsx
 web/src/components/report/evidence.tsx
 web/src/components/report/negotiation.tsx
 web/src/components/report/placement.tsx
-web/src/components/report/quote.tsx
 web/src/components/report/report.tsx
 web/src/components/report/waterfall.tsx
 web/src/components/tabs.tsx
@@ -740,12 +739,13 @@ web/src/components/report/authenticity.tsx:28:export default function Authentici
 web/src/components/report/decision.tsx:6:export default function Decision({ r, outputs }: { r: Report; outputs: Output[] }) {
 web/src/components/report/engagement.tsx:7:export default function Engagement({ r }: { r: Report }) {
 web/src/components/report/evidence.tsx:9:export function CheaperCreators({ r }: { r: Report }) {
-web/src/components/report/evidence.tsx:44:export function Suggestions({ r }: { r: Report }) {
+web/src/components/report/evidence.tsx:44:export function Suggestions({ r, inputs }: { r: Report; inputs: Analysis["inputs"] }) {
 web/src/components/report/negotiation.tsx:9:export default function Negotiation({ r }: { r: Report }) {
 web/src/components/report/placement.tsx:40:export default function Placement({ r }: { r: Report }) {
-web/src/components/report/quote.tsx:11:export default function QuoteChecker({ id, initial }: { id: string; initial: number | null }) {
-web/src/components/report/report.tsx:18:export default function ReportView({ id, report: r, inputs, outputs }: { id: string; report: Report; inputs: Analysis["inputs"]; outputs: Output[] }) {
-web/src/components/report/waterfall.tsx:24:export default function Waterfall({ r }: { r: Report }) {
+web/src/components/report/report.tsx:18:export default function ReportView({ id, report: r, inputs, outputs, paid }: { id: string; report: Report; inputs: Analysis["inputs"]; outputs: Output[]; paid: number | null }) {
+web/src/components/report/waterfall.tsx:24:export default function Waterfall({ r, paid }: { r: Report; paid: number | null }) {
+web/src/components/report/waterfall.tsx:111:export function Comparables({ r }: { r: Report }) {
+web/src/components/compare-list.tsx:10:export default function CompareList({ handles, include, category, budget, instagramLinks }: {
 web/src/components/tabs.tsx:5:export type Tab = { key: string; label: string; panel: React.ReactNode };
 web/src/components/tabs.tsx:15:export default function Tabs({ tabs, label }: { tabs: Tab[]; label: string }) {
 web/src/components/value-bars.tsx:4:export type ValueRow = { handle: string; fair: number; views: number; highlight?: boolean; usualPerK?: number | null };

@@ -1,9 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-
-import { api, type Report } from "@/lib/api";
+import CompareList from "@/components/compare-list";
+import type { Analysis, Report } from "@/lib/api";
 import { compact, inr } from "@/lib/format";
 
 export function CheaperCreators({ r }: { r: Report }) {
@@ -41,38 +39,20 @@ export function CheaperCreators({ r }: { r: Report }) {
   );
 }
 
-export function Suggestions({ r }: { r: Report }) {
-  const router = useRouter();
-  const [starting, setStarting] = useState("");
-
-  async function analyse(handle: string) {
-    setStarting(handle);
-    try {
-      const { id } = await api.createAnalysis({ handle });
-      router.push(`/analyses/${id}`);
-    } catch {
-      setStarting("");
-    }
-  }
-
+export function Suggestions({ r, inputs }: { r: Report; inputs: Analysis["inputs"] }) {
   return (
     <section aria-labelledby="similar-title" className="max-w-3xl">
       <h2 id="similar-title" className="section-title">
         Instagram suggests these accounts too
       </h2>
-      <p className="basis mt-2">The accounts Instagram shows beside @{r.handle}. Pricing one runs a full analysis, about 35 seconds for a creator seen for the first time.</p>
+      <p className="basis mt-2">
+        The accounts Instagram shows beside @{r.handle}. Tick the ones to compare with @{r.handle}; each gets a full analysis, about 45 seconds for a creator seen for the
+        first time.
+      </p>
       {r.suggested.length === 0 ? (
         <p className="mt-4">Instagram showed no suggestions for this account.</p>
       ) : (
-        <ul className="mt-4 flex flex-wrap gap-2">
-          {r.suggested.map((h) => (
-            <li key={h}>
-              <button type="button" className="btn btn-quiet px-3 py-1.5 text-sm font-normal" disabled={Boolean(starting)} onClick={() => analyse(h)}>
-                {starting === h ? "Starting…" : `Price @${h}`}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <CompareList handles={r.suggested} include={r.handle} category={inputs.category} budget={inputs.budget} />
       )}
     </section>
   );

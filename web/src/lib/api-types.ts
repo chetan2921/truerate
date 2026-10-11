@@ -244,6 +244,11 @@ export interface components {
             step: number;
             /** Steps */
             steps: string[];
+            /**
+             * Step At
+             * @default []
+             */
+            step_at: string[];
             /** Reason */
             reason?: string | null;
             /** Error */
@@ -254,6 +259,8 @@ export interface components {
              * @default []
              */
             outputs: components["schemas"]["Output"][];
+            /** Wldd Paid */
+            wldd_paid?: number | null;
             /**
              * Created At
              * Format: date-time
@@ -538,6 +545,11 @@ export interface components {
             step: number;
             /** Steps */
             steps: string[];
+            /**
+             * Step At
+             * @default []
+             */
+            step_at: string[];
             result?: components["schemas"]["BrandResult"] | null;
             /** Error */
             error?: string | null;

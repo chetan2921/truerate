@@ -1,6 +1,6 @@
 import ChartTip from "@/components/chart-tip";
 import type { Report } from "@/lib/api";
-import { compact, inr } from "@/lib/format";
+import { compact, inr, pct } from "@/lib/format";
 
 type Step = Report["price"]["waterfall"][number];
 
@@ -21,7 +21,7 @@ function layout(steps: Step[]) {
   return rows;
 }
 
-export default function Waterfall({ r }: { r: Report }) {
+export default function Waterfall({ r, paid }: { r: Report; paid: number | null }) {
   const p = r.price;
   const rows = layout(p.waterfall);
   // Plain reasons, and only for adjustments that moved the price.
@@ -64,36 +64,84 @@ export default function Waterfall({ r }: { r: Report }) {
         </ul>
       </div>
 
-      <div>
-        <h3 className="font-semibold">The 6 past WLDD deals it compared against</h3>
-        <p className="basis mt-1">The closest deals in the same category and of a similar size, and what WLDD paid them.</p>
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-left text-muted">
-              <tr>
-                <th className="py-2 pr-3 font-normal">Creator</th>
-                <th className="py-2 pr-3 text-right font-normal">Followers</th>
-                <th className="py-2 pr-3 text-right font-normal">Typical views</th>
-                <th className="py-2 pr-3 text-right font-normal">WLDD paid</th>
-                <th className="py-2 text-right font-normal">Per 1,000 views</th>
+      <CreatorFacts r={r} paid={paid} />
+    </section>
+  );
+}
+
+// The creator being priced, in the same terms as the past deals table below it.
+function CreatorFacts({ r, paid }: { r: Report; paid: number | null }) {
+  const views = r.placement.typical_views;
+  const rows = [
+    { label: "Followers", value: compact(r.profile.followers) },
+    { label: "Typical views", value: compact(views) },
+    { label: "WLDD paid", value: paid ? inr(paid) : "Not booked yet" },
+    { label: "Per 1,000 views", value: paid && views ? inr(paid / (views / 1000)) : "—" },
+  ];
+  return (
+    <div>
+      <h3 className="font-semibold">@{r.handle}</h3>
+      <p className="basis mt-1">
+        {paid ? "What WLDD paid them, set against the views they get." : `WLDD hasn't booked them yet. At the middle of the fair range it would be ${inr(r.price.delivery.cost_per_1k)} per 1,000 views.`}
+      </p>
+      <table className="mt-4 w-full">
+        <tbody className="divide-y divide-line">
+          {rows.map((x) => (
+            <tr key={x.label}>
+              <th scope="row" className="py-3.5 pr-4 text-left font-normal text-muted">
+                {x.label}
+              </th>
+              <td className={`figure py-3.5 text-right text-2xl font-semibold ${x.value === "Not booked yet" || x.value === "—" ? "text-muted" : ""}`}>{x.value}</td>
+            </tr>
+          ))}
+          <tr>
+            <th scope="row" className="py-3.5 pr-4 text-left font-normal text-muted">
+              Audience
+            </th>
+            <td className="py-3.5 text-right">
+              {r.audience.verdict}, <span className="figure">{pct(r.engagement.rate, 1)}</span> of viewers like or comment
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function Comparables({ r }: { r: Report }) {
+  const p = r.price;
+  return (
+    <section aria-labelledby="comparables" className="max-w-4xl">
+      <h2 id="comparables" className="section-title">
+        The {p.comparables.length} past WLDD deals it compared against
+      </h2>
+      <p className="basis mt-1">The closest deals in the same category and of a similar size, and what WLDD paid them.</p>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-left text-muted">
+            <tr>
+              <th className="py-2 pr-3 font-normal">Creator</th>
+              <th className="py-2 pr-3 text-right font-normal">Followers</th>
+              <th className="py-2 pr-3 text-right font-normal">Typical views</th>
+              <th className="py-2 pr-3 text-right font-normal">WLDD paid</th>
+              <th className="py-2 text-right font-normal">Per 1,000 views</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-line">
+            {p.comparables.map((c) => (
+              <tr key={c.handle}>
+                <td className="py-2 pr-3">
+                  @{c.handle}
+                  {c.category !== r.category && <span className="basis"> · {c.category}</span>}
+                </td>
+                <td className="figure py-2 pr-3 text-right">{compact(c.followers)}</td>
+                <td className="figure py-2 pr-3 text-right">{compact(c.views)}</td>
+                <td className="figure py-2 pr-3 text-right">{inr(c.price)}</td>
+                <td className="figure py-2 text-right">{inr(c.per_1k_views)}</td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {p.comparables.map((c) => (
-                <tr key={c.handle}>
-                  <td className="py-2 pr-3">
-                    @{c.handle}
-                    {c.category !== r.category && <span className="basis"> · {c.category}</span>}
-                  </td>
-                  <td className="figure py-2 pr-3 text-right">{compact(c.followers)}</td>
-                  <td className="figure py-2 pr-3 text-right">{compact(c.views)}</td>
-                  <td className="figure py-2 pr-3 text-right">{inr(c.price)}</td>
-                  <td className="figure py-2 text-right">{inr(c.per_1k_views)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
     </section>
   );

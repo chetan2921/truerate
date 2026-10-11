@@ -84,3 +84,4 @@ Ideas for after the hackathon: a refresh option for saved HikerAPI responses; re
     - a rate card that needs 3+ deals per category
     - Negotiate (not Avoid) for a possible competitor
     - plain sentences for unknown handles, and Indian grouping in all money text
+- 2026-10-11 Price tab for the creator: the right column is this creator (followers, typical views, WLDD paid, per 1,000 views, audience line), the 6 past deals moved below, the quote checker removed, and Similar gets tick boxes with a Compare creators button into a batch. `Analysis.wldd_paid` added. Checked: 189 API tests, lint, tsc, ui-check, both Price states and the compare request in the browser.
