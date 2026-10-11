@@ -153,7 +153,9 @@ def build_metrics_cmd(workers: int = 1) -> None:
     def label(item):
         """Gemini labels and the category; stored ones are reused while the snapshot is the same."""
         deal, snap, stored = item
-        if stored.get("labels_for") == snap["_id"]:
+        # Reused for the same snapshot, or for a snapshot rebuilt from the saved responses: the same reels, all labelled.
+        codes = {r["code"] for r in recent_reels(snap)}
+        if stored.get("labels_for") == snap["_id"] or (codes and codes <= set((stored.get("labels") or {}).get("topics") or {})):
             labels = stored["labels"]
         else:
             labels = label_creator(llm, snap, fetch_covers([r for r in recent_reels(snap) if ambiguous(r)]))

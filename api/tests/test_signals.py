@@ -311,3 +311,28 @@ def test_build_metrics_adds_the_stats_around_the_payout_date(db, monkeypatch):
     assert result.exit_code == 0, result.output
     m = db.metrics.find_one({"_id": "dated"})
     assert m["n_then"] == 15 and m["views_then"] == 17_000  # the 15 reels of 16 to 30 Sept, all within 90 days of 1 Oct
+
+
+def test_build_metrics_reuses_labels_for_a_rebuilt_snapshot_of_the_same_reels(db, monkeypatch):
+    from truerate.signals import recent_reels
+
+    db.deals.insert_one({"handle": "known", "tier": "medium", "niche": ["Gadgets"], "price": 41_000, "holdout": False})
+    snap = snapshot("known")
+    db.snapshots.insert_one(snap)  # a new id: rebuilt from the saved HikerAPI responses
+    codes = [r["code"] for r in recent_reels(snap)]
+    db.labels.insert_one({"_id": "known", "labels_for": "an-older-snapshot", "category": "Tech and gadgets", "category_source": "wldd",
+                          "labels": {"ads": [], "topics": {c: "Gadgets" for c in codes}, "kinds": {"fan": "person"}, "languages": [{"language": "English", "share": 1.0}]}})
+    llm = SchemaLLM()
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    monkeypatch.setattr(cli, "make_llm", lambda: llm)
+    monkeypatch.setattr(cli, "fetch_covers", lambda reels: {})
+    monkeypatch.setattr(cli, "load_fake_model", lambda: train_fake_model([[1, 0, 2, 0, 0, 0]] * 5 + [[0, 0.6, 0, 0, 0, 0]] * 5, [0] * 5 + [1] * 5))
+    monkeypatch.setattr(cli, "minilm_embed", lambda texts: np.eye(len(texts), 8))
+    result = CliRunner().invoke(cli.app, ["build-metrics"])
+    assert result.exit_code == 0, result.output
+    assert llm.label_prompts == [] and db.metrics.find_one({"_id": "known"})["labels"]["topics"][codes[0]] == "Gadgets"
+    # a snapshot with a reel the labels never saw is labelled again
+    db.snapshots.delete_one({"_id": snap["_id"]})
+    db.snapshots.insert_one({k: v for k, v in snap.items() if k != "_id"} | {"data": snap["data"] | {"reels": snap["data"]["reels"] + [make_reel("10-05", 9000, code="new")]}})
+    CliRunner().invoke(cli.app, ["build-metrics"])
+    assert len(llm.label_prompts) == 1
