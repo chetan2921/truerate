@@ -379,3 +379,18 @@ def test_label_offline_reads_niche_from_captions_and_never_asks_gemini(db, monke
     result = CliRunner().invoke(cli.app, ["build-metrics"])
     assert result.exit_code == 0, result.output
     assert db.metrics.find_one({"_id": "cook3"})["category"] == "Food"
+
+
+def test_build_metrics_stores_the_extra_features_the_boosted_model_reads(db, monkeypatch):
+    db.deals.insert_one({"handle": "known", "tier": "medium", "niche": ["Gadgets"], "price": 41_000, "holdout": False})
+    db.snapshots.insert_one(snapshot("known"))
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    monkeypatch.setattr(cli, "make_llm", lambda: SchemaLLM())
+    monkeypatch.setattr(cli, "fetch_covers", lambda reels: {})
+    monkeypatch.setattr(cli, "load_fake_model", lambda: train_fake_model([[1, 0, 2, 0, 0, 0]] * 5 + [[0, 0.6, 0, 0, 0, 0]] * 5, [0] * 5 + [1] * 5))
+    monkeypatch.setattr(cli, "minilm_embed", lambda texts: np.eye(len(texts), 8))
+    assert CliRunner().invoke(cli.app, ["build-metrics"]).exit_code == 0
+    m = db.metrics.find_one({"_id": "known"})
+    for key in ("age_years", "reel_seconds", "reels_per_month", "youtube", "email", "verified", "english"):
+        assert key in m, key  # training_rows then carries them, so `validate --method boosting` sees what the experiment saw
+    assert m["english"] == 1.0

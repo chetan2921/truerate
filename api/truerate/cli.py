@@ -16,6 +16,8 @@ from truerate.llm import Gemini
 from truerate.pricing import fit, validate
 from truerate.signals import (
     RULES_ONLY_LABELS,
+    english_share,
+    extra_features,
     ambiguous,
     fit_niche_model,
     niche_vector,
@@ -199,7 +201,9 @@ def build_metrics_cmd(workers: int = 1) -> None:
             continue
         commenters = sorted({c["user"]["username"] for cs in snap["data"]["comments"].values() for c in cs})
         doc = {**metrics, **audience, "mix": mix, "labels": labels, "labels_for": snap["_id"], "commenters": commenters,
-               "category": category, "category_source": source, "computed_at": datetime.now(timezone.utc)}
+               "category": category, "category_source": source, "computed_at": datetime.now(timezone.utc),
+               # what the boosted model reads beyond the reel metrics, kept here so training needs no snapshot
+               **extra_features(snap), "english": english_share(mix)}
         if deal.get("payout_date"):  # what the creator was delivering when WLDD paid them, beside today's numbers
             doc |= deal_window_metrics(snap, deal["payout_date"])
         db.metrics.replace_one({"_id": handle}, doc, upsert=True)
