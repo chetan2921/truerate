@@ -28,6 +28,11 @@
 - Web bugs with no unit-test setup are reproduced first with a short Playwright script in real Chrome (API calls that would start real work are intercepted with `page.route`), then fixed until the same script passes. Next 16 keeps visited pages alive with `<Activity>`: test navigating away and back, and read only visible elements, because hidden pages stay in the DOM.
 - Verdicts (`test_outputs.py`) are tested on a small hand-made result plus one real `analyze()` run; the web check (`test_webcheck.py`) uses a `SearchLLM` stand-in and checks that no deal price reaches the search prompt.
 - A test that passes on its first run gets a mutation check: break the code it guards, watch it fail, restore.
+- Served model against experiment: `test_boosted_model_serves_exactly_what_the_experiment_scored` (global and local ranges) fits `pricing.fit(method="boosting")` and requires the same fair, low and high as `experiment.predict` on the same deals. Live, `validate --method boosting` reproduced the experiment's held-out 38% and 85% exactly. Score a served model only on creators it never trained on: the staged copy learns from every deal, so its held-out score is in-sample.
+- Range quality is more than the median width: check the tail (90th percentile, widest, share over 15×) before serving a range method. "Local" ranges won the median and lost the tail.
+- Overflow checks on charts must skip invisible elements (`checkVisibility({opacityProperty, visibilityProperty})`): hidden `ChartTip` cards sit outside their chart by design.
+- Mongo returns dates without a timezone: compare with `.replace(tzinfo=timezone.utc)`.
+- Long runs against HikerAPI: the account allows 9 requests a second (`/sys/balance` shows `rate`). `collect_deals.py` paces at a fixed rate under it; adaptive pacing let two machines overshoot and collapse.
 - Statistical properties (range coverage) are pooled over several synthetic seeds: 15 held-out deals swing too much by chance to test one seed.
 - Pricing tests: `synthetic_rows(n, seed)` in `api/tests/test_pricing.py` makes deals whose true price is known.
 - Audience tests: `genuine_band()` and `genuine_snapshot(i, rng)` in `api/tests/test_audience.py` make believable creators. `fake_embed` gives each distinct text its own random unit vector, so identical texts match and others don't.
@@ -60,7 +65,7 @@
 
 ## Model validation (judging 4 and 5)
 These are reports, not pass/fail unit tests, and they arrive with milestones 2 and 3:
-- `truerate validate`: 30 held-out creators by follower band, leave-one-out by category, both baselines, range coverage
+- `truerate validate --method boosting`: 124 held-out creators (since 2026-10-11) by follower band, leave-one-out by category, both baselines, range coverage
 - `truerate redteam`: catch rate per fake type (smart fake included) and the flagged share of unmodified creators
 
 ## Live checks on real data (2026-10-10)

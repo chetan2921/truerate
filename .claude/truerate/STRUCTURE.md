@@ -9,6 +9,7 @@ Generated from git. Signatures only.
 Makefile
 api/.python-version
 api/pyproject.toml
+api/scripts/collect_deals.py
 api/scripts/make_deck.py
 api/scripts/seed_dev.py
 api/tests/conftest.py
@@ -16,6 +17,7 @@ api/tests/test_app.py
 api/tests/test_audience.py
 api/tests/test_audio.py
 api/tests/test_brand.py
+api/tests/test_collect_deals.py
 api/tests/test_db.py
 api/tests/test_deck.py
 api/tests/test_experiment.py
@@ -100,6 +102,12 @@ api/tests/fixtures/*.json  (recorded HikerAPI responses, one per endpoint)
 
 ## Python (api/)
 ```
+api/scripts/collect_deals.py:32:class Paced(httpx.BaseTransport):
+api/scripts/collect_deals.py:49:    def handle_request(self, request: httpx.Request) -> httpx.Response:
+api/scripts/collect_deals.py:64:    def close(self) -> None:
+api/scripts/collect_deals.py:68:def plan(rows: list[dict], done: set[str]) -> list[tuple[str, datetime]]:
+api/scripts/collect_deals.py:78:def run(hiker, todo: list[tuple[str, datetime]], workers: int, log: Path, collect=collect, store: Path | None = None) -> dict:
+api/scripts/collect_deals.py:113:def main() -> None:
 api/scripts/make_deck.py:40:def pct(x) -> str:
 api/scripts/make_deck.py:44:class Deck:
 api/scripts/make_deck.py:49:    def slide(self, title: str, note: str = ""):
@@ -178,10 +186,21 @@ api/tests/test_brand.py:83:def test_the_pool_labels_where_each_creator_came_from
 api/tests/test_brand.py:96:def test_a_brand_run_profiles_ranks_plans_and_lists_who_to_price_next(world):
 api/tests/test_brand.py:113:def test_a_brand_on_instagram_costs_three_requests(tmp_path):
 api/tests/test_brand.py:124:def test_the_plan_never_books_a_creator_with_a_clear_problem():
+api/tests/test_collect_deals.py:12:def test_plan_reaches_back_before_each_payout_and_skips_creators_done():
+api/tests/test_collect_deals.py:19:def test_run_keeps_going_past_failures_and_queues_rate_limits_for_another_pass(tmp_path):
+api/tests/test_collect_deals.py:22:    def fake_collect(hiker, handle, workers, back_to):
+api/tests/test_collect_deals.py:37:def test_run_stops_when_credit_runs_out(tmp_path):
+api/tests/test_collect_deals.py:38:    def broke(hiker, handle, workers, back_to):
+api/tests/test_collect_deals.py:46:def test_paced_transport_waits_out_rate_limits_and_slows_down():
+api/tests/test_collect_deals.py:51:    def inner(request):
+api/tests/test_collect_deals.py:61:def test_paced_transport_speeds_back_up_on_success():
 api/tests/test_db.py:9:def write_csv(path, per_tier=11):
 api/tests/test_db.py:18:def test_indexes(db):
 api/tests/test_db.py:25:def test_import_deals_holds_out_10_per_tier_and_is_idempotent(db, tmp_path):
 api/tests/test_db.py:37:def test_import_deals_command(db, tmp_path, monkeypatch):
+api/tests/test_db.py:44:def write_dated_csv(path, counts=(("small", 20), ("medium", 12), ("big", 8))):
+api/tests/test_db.py:53:def test_import_deals_holds_out_a_share_of_each_tier_from_creators_not_excluded(db, tmp_path):
+api/tests/test_db.py:70:def test_import_deals_command_with_a_holdout_share(db, tmp_path, monkeypatch):
 api/tests/test_deck.py:19:def test_deck_has_at_most_12_slides_with_the_real_numbers_and_no_handles(tmp_path):
 api/tests/test_experiment.py:16:def test_extra_features_read_account_age_reel_length_posting_rate_and_contact():
 api/tests/test_experiment.py:30:def test_ranges_hold_close_to_their_stated_share_of_unseen_prices():
@@ -197,6 +216,12 @@ api/tests/test_experiment.py:107:    def noisy(n, seed):
 api/tests/test_experiment.py:125:def test_coverage_by_width_counts_prices_inside_a_range_of_each_width_around_the_middle():
 api/tests/test_experiment.py:132:def test_the_ensemble_averages_its_members_in_log_price():
 api/tests/test_experiment.py:135:    def with_extras(rows, seed):  # boosting needs the new features to have values, as WLDD's deals do
+api/tests/test_experiment.py:146:def test_dated_rows_use_the_stats_around_the_payout_where_there_are_any():
+api/tests/test_experiment.py:158:def test_run_scores_one_held_out_set_when_there_are_no_fresh_deals():
+api/tests/test_experiment.py:172:def test_live_model_is_scored_on_the_held_out_deals_exactly_as_the_app_prices_them():
+api/tests/test_experiment.py:183:def test_repeated_cv_gives_the_same_scores_on_several_cores():
+api/tests/test_experiment.py:192:def test_charts_draw_a_run_without_fresh_deals(tmp_path):
+api/tests/test_experiment.py:202:def test_experiment_plots_redraws_from_saved_results(tmp_path):
 api/tests/test_instagram.py:39:def fixture(name):
 api/tests/test_instagram.py:43:def fake_hiker(store, calls=None, status=200, private=False, missing=(), disabled=()):
 api/tests/test_instagram.py:44:    def handler(request):
@@ -222,6 +247,17 @@ api/tests/test_instagram.py:218:def test_collect_benchmark_fresh_hours_zero_coll
 api/tests/test_instagram.py:227:def test_collect_fetches_the_per_reel_lists_in_parallel_with_the_same_result(tmp_path):
 api/tests/test_instagram.py:233:def test_comments_start_while_older_reel_pages_are_still_loading(tmp_path):
 api/tests/test_instagram.py:242:    def handler(request):
+api/tests/test_instagram.py:260:def _paged_hiker(store, pages: int, step_days: int = 30, calls=None):
+api/tests/test_instagram.py:264:    def page(k):
+api/tests/test_instagram.py:270:    def handler(request):
+api/tests/test_instagram.py:282:def test_reels_page_back_past_a_date(tmp_path):
+api/tests/test_instagram.py:293:def test_reels_without_a_date_keep_the_page_limit(tmp_path):
+api/tests/test_instagram.py:300:def test_reels_back_to_a_date_stop_at_the_page_cap(tmp_path):
+api/tests/test_instagram.py:309:def test_collect_passes_the_date_to_the_reel_pages(tmp_path):
+api/tests/test_instagram.py:317:def test_collect_benchmark_reaches_back_before_each_deals_payout(db, tmp_path, monkeypatch):
+api/tests/test_instagram.py:321:    def fake_collect(hiker, handle, back_to=None):
+api/tests/test_instagram.py:333:def test_collect_benchmark_can_be_limited_to_a_list_of_creators(db, tmp_path, monkeypatch):
+api/tests/test_instagram.py:337:    def fake_collect(hiker, handle, back_to=None):
 api/tests/test_llm.py:7:class Reply:
 api/tests/test_llm.py:11:def flaky(failures):
 api/tests/test_llm.py:15:    def generate_content(**kwargs):
@@ -261,23 +297,30 @@ api/tests/test_pipeline.py:192:def test_a_competitor_for_a_specific_product_is_n
 api/tests/test_pipeline.py:202:def test_a_creator_wldd_has_booked_is_never_turned_away_by_the_cover_check(world):
 api/tests/test_pipeline.py:209:def test_a_quote_above_where_most_deals_land_means_negotiate():
 api/tests/test_pipeline.py:213:    def call(quote):
-api/tests/test_pricing.py:16:def synthetic_rows(n=90, seed=1):
-api/tests/test_pricing.py:34:def test_bands_and_rounding():
-api/tests/test_pricing.py:39:def test_collab_factor_shrinks_few_ads_toward_the_typical_drop():
-api/tests/test_pricing.py:47:def test_collab_factor_never_raises_a_price_and_never_more_than_halves_it():
-api/tests/test_pricing.py:54:def test_baselines():
-api/tests/test_pricing.py:62:def test_price_has_a_range_waterfall_comparables_and_delivery():
-api/tests/test_pricing.py:77:def test_validate_beats_both_baselines_on_synthetic_deals():
-api/tests/test_pricing.py:94:def test_range_covers_most_held_out_prices():
-api/tests/test_pricing.py:100:def test_validate_command_saves_model_and_report(db, tmp_path, monkeypatch):
-api/tests/test_pricing.py:113:def test_rate_card_per_category():
-api/tests/test_pricing.py:121:def test_a_creator_bigger_than_any_wldd_deal_gets_a_note():
-api/tests/test_pricing.py:129:def test_rate_card_leaves_out_categories_with_fewer_than_3_deals():
-api/tests/test_pricing.py:137:def test_every_price_carries_the_published_asking_range_for_its_size():
-api/tests/test_pricing.py:144:def test_beyond_wldds_largest_creator_the_price_leans_on_the_market_discounted_the_way_wldd_pays():
-api/tests/test_pricing.py:167:def test_below_wldds_smallest_creator_only_the_bottom_widens():
-api/tests/test_pricing.py:176:def test_the_range_comes_from_mapie_cross_conformal_at_80_percent():
-api/tests/test_pricing.py:193:def test_the_likely_band_is_about_3x_wide_around_the_middle_and_inside_the_full_range():
+api/tests/test_pipeline.py:222:def test_the_price_model_gets_the_extra_features_boosting_reads(world, monkeypatch):
+api/tests/test_pipeline.py:228:    def spy(model, m, genuine_share=1.0):
+api/tests/test_pricing.py:17:def synthetic_rows(n=90, seed=1):
+api/tests/test_pricing.py:35:def test_bands_and_rounding():
+api/tests/test_pricing.py:40:def test_collab_factor_shrinks_few_ads_toward_the_typical_drop():
+api/tests/test_pricing.py:48:def test_collab_factor_never_raises_a_price_and_never_more_than_halves_it():
+api/tests/test_pricing.py:55:def test_baselines():
+api/tests/test_pricing.py:63:def test_price_has_a_range_waterfall_comparables_and_delivery():
+api/tests/test_pricing.py:78:def test_validate_beats_both_baselines_on_synthetic_deals():
+api/tests/test_pricing.py:95:def test_range_covers_most_held_out_prices():
+api/tests/test_pricing.py:101:def test_validate_command_saves_model_and_report(db, tmp_path, monkeypatch):
+api/tests/test_pricing.py:114:def test_rate_card_per_category():
+api/tests/test_pricing.py:122:def test_a_creator_bigger_than_any_wldd_deal_gets_a_note():
+api/tests/test_pricing.py:130:def test_rate_card_leaves_out_categories_with_fewer_than_3_deals():
+api/tests/test_pricing.py:138:def test_every_price_carries_the_published_asking_range_for_its_size():
+api/tests/test_pricing.py:145:def test_beyond_wldds_largest_creator_the_price_leans_on_the_market_discounted_the_way_wldd_pays():
+api/tests/test_pricing.py:168:def test_below_wldds_smallest_creator_only_the_bottom_widens():
+api/tests/test_pricing.py:177:def test_the_range_comes_from_mapie_cross_conformal_at_80_percent():
+api/tests/test_pricing.py:194:def test_the_likely_band_is_about_3x_wide_around_the_middle_and_inside_the_full_range():
+api/tests/test_pricing.py:206:def test_validate_dated_trains_the_served_model_on_the_stats_around_each_payout(db, tmp_path, monkeypatch):
+api/tests/test_pricing.py:219:def with_extras(rows, seed):
+api/tests/test_pricing.py:228:def test_boosted_model_serves_exactly_what_the_experiment_scored(ranges):
+api/tests/test_pricing.py:241:def test_boosted_model_still_discounts_fake_engagement_and_weak_sponsored_reach():
+api/tests/test_pricing.py:249:def test_validate_can_serve_the_boosted_model(db, tmp_path, monkeypatch):
 api/tests/test_signals.py:13:def write_kaggle(path, n=20):
 api/tests/test_signals.py:23:def test_account_features_follow_kaggle_definitions():
 api/tests/test_signals.py:32:def test_load_kaggle_keeps_the_six_list_fields(tmp_path):
@@ -303,6 +346,14 @@ api/tests/test_signals.py:236:def test_build_metrics_keeps_gemini_labels_when_a_
 api/tests/test_signals.py:242:    def flaky_metrics(snap, labels=None):
 api/tests/test_signals.py:263:def test_label_creator_sends_only_the_8_newest_tagged_posts():
 api/tests/test_signals.py:274:def test_hidden_like_counts_are_not_zero_likes():
+api/tests/test_signals.py:283:def test_deal_window_metrics_use_own_reels_in_the_90_days_before_the_payout():
+api/tests/test_signals.py:294:def test_deal_window_metrics_need_three_own_reels():
+api/tests/test_signals.py:302:def test_build_metrics_adds_the_stats_around_the_payout_date(db, monkeypatch):
+api/tests/test_signals.py:316:def test_build_metrics_reuses_labels_for_a_rebuilt_snapshot_of_the_same_reels(db, monkeypatch):
+api/tests/test_signals.py:341:def test_label_offline_reads_niche_from_captions_and_never_asks_gemini(db, monkeypatch):
+api/tests/test_signals.py:342:    def snap_with(handle, word):
+api/tests/test_signals.py:356:    def embed(texts):
+api/tests/test_signals.py:384:def test_build_metrics_stores_the_extra_features_the_boosted_model_reads(db, monkeypatch):
 api/tests/test_webcheck.py:9:class SearchLLM(TopicLLM):
 api/tests/test_webcheck.py:16:    def search(self, prompt):
 api/tests/test_webcheck.py:24:def test_a_stated_rate_is_read_with_its_sources():
@@ -411,74 +462,79 @@ api/truerate/brand.py:197:def bookable(picks: list[dict]) -> list[dict]:
 api/truerate/brand.py:202:def budget_plan(cands: list[dict], budget: int, unit: int = 500) -> dict:
 api/truerate/brand.py:218:class BrandDeps:
 api/truerate/brand.py:226:def run_brand(deps: BrandDeps, req: dict, step: Callable[[int], None] = lambda i: None) -> dict:
-api/truerate/cli.py:36:def main() -> None:
-api/truerate/cli.py:41:def import_deals_cmd(csv_path: Annotated[Path, typer.Argument()] = REPO_ROOT / "data" / "creators.csv") -> None:
-api/truerate/cli.py:49:def build_fake_model_cmd(
-api/truerate/cli.py:60:def make_hiker() -> Hiker:
-api/truerate/cli.py:65:def collect_cmd(handle: str) -> None:
-api/truerate/cli.py:83:def collect_benchmark_cmd(workers: int = 1, fresh_hours: int = 24) -> None:
-api/truerate/cli.py:117:def load_fake_model():
-api/truerate/cli.py:121:def make_llm() -> Gemini:
-api/truerate/cli.py:127:def build_metrics_cmd(workers: int = 1) -> None:
-api/truerate/cli.py:142:    def label(item):
-api/truerate/cli.py:156:    def safe_label(item):
-api/truerate/cli.py:196:def validate_cmd(out_dir: Path = REPO_ROOT / "data" / "models") -> None:
-api/truerate/cli.py:217:def experiment_cmd(out_dir: Path = REPO_ROOT / "data" / "models" / "experiments", fresh_csv: Path = REPO_ROOT / "data" / "fresh_test_20.csv",
-api/truerate/cli.py:255:def redteam_cmd(out_dir: Path = MODELS_DIR) -> None:
+api/truerate/cli.py:44:def main() -> None:
+api/truerate/cli.py:49:def import_deals_cmd(csv_path: Annotated[Path, typer.Argument()] = REPO_ROOT / "data" / "creators.csv",
+api/truerate/cli.py:60:def build_fake_model_cmd(
+api/truerate/cli.py:71:def make_hiker() -> Hiker:
+api/truerate/cli.py:76:def collect_cmd(handle: str) -> None:
+api/truerate/cli.py:94:def collect_benchmark_cmd(workers: int = 1, fresh_hours: int = 24, only: Path | None = None) -> None:
+api/truerate/cli.py:133:def load_fake_model():
+api/truerate/cli.py:137:def make_llm() -> Gemini:
+api/truerate/cli.py:143:def build_metrics_cmd(workers: int = 1) -> None:
+api/truerate/cli.py:158:    def label(item):
+api/truerate/cli.py:174:    def safe_label(item):
+api/truerate/cli.py:218:def label_offline_cmd() -> None:
+api/truerate/cli.py:226:    def latest(handle):
+api/truerate/cli.py:249:def validate_cmd(out_dir: Path = REPO_ROOT / "data" / "models", dated: bool = False, method: str = "ridge") -> None:
+api/truerate/cli.py:275:def experiment_cmd(out_dir: Path = REPO_ROOT / "data" / "models" / "experiments", fresh_csv: Path = REPO_ROOT / "data" / "fresh_test_20.csv",
+api/truerate/cli.py:317:def _draw_experiment(result: dict, out_dir: Path) -> None:
+api/truerate/cli.py:333:def experiment_plots_cmd(out_dir: Path) -> None:
+api/truerate/cli.py:340:def redteam_cmd(out_dir: Path = MODELS_DIR) -> None:
 api/truerate/config.py:16:class Settings(BaseSettings):
 api/truerate/config.py:28:def get_settings() -> Settings:
-api/truerate/db.py:18:def _client(uri: str) -> MongoClient:
-api/truerate/db.py:22:def get_db() -> Database:
-api/truerate/db.py:29:def ensure_indexes(db: Database) -> None:
-api/truerate/db.py:37:def import_deals(db: Database, csv_path: Path) -> dict[str, int]:
-api/truerate/db.py:63:def training_rows(db: Database) -> list[dict]:
-api/truerate/experiment.py:39:def extra_features(snap: dict) -> dict:
-api/truerate/experiment.py:61:def _utc(t: datetime) -> datetime:
-api/truerate/experiment.py:65:def _with_extras(row: dict, snap: dict, mix: dict | None) -> dict:
-api/truerate/experiment.py:71:def deal_rows(db) -> list[dict]:
-api/truerate/experiment.py:76:def fresh_rows(db, prices: dict[str, float]) -> list[dict]:
-api/truerate/experiment.py:95:def _num(x) -> float:
-api/truerate/experiment.py:99:def _log(x) -> float:
-api/truerate/experiment.py:103:def features_v2(m: dict) -> list[float]:
-api/truerate/experiment.py:110:def _paid_typical(rows: list[dict]) -> float:
-api/truerate/experiment.py:115:def _linear(regressor):
-api/truerate/experiment.py:129:def _tabpfn():
-api/truerate/experiment.py:139:def _sklearn_point(name: str, train: list[dict], test: list[dict]) -> np.ndarray:
-api/truerate/experiment.py:149:def _today(train: list[dict]):
-api/truerate/experiment.py:156:def _today_point(train: list[dict], test: list[dict], capped: bool = True) -> np.ndarray:
-api/truerate/experiment.py:179:def _oof(rows: list[dict], point: str, folds: int = 10, seed: int = 0) -> np.ndarray:
-api/truerate/experiment.py:186:def _offsets(resid: np.ndarray) -> dict:
-api/truerate/experiment.py:196:def _band_offsets(rows: list[dict], resid: np.ndarray, by_band: bool) -> dict:
-api/truerate/experiment.py:204:def conformal_offsets(rows: list[dict], point: str, by_band: bool = False, folds: int = 10, seed: int = 0) -> dict:
-api/truerate/experiment.py:209:def _local_spread(train: list[dict], resid: np.ndarray, targets: list[dict], leave_out_self: bool = False) -> np.ndarray:
-api/truerate/experiment.py:212:    def pos(rows):
-api/truerate/experiment.py:224:def _widen(rows: list[dict], m: dict) -> tuple[float, float]:
-api/truerate/experiment.py:231:def _predict_both(point: str, train: list[dict], test: list[dict], folds: int = 10) -> dict[str, list[dict]]:
-api/truerate/experiment.py:256:def predict(point: str, rng: str, train: list[dict], test: list[dict]) -> list[dict]:
-api/truerate/experiment.py:260:def _served(train: list[dict], test: list[dict]) -> list[dict]:
-api/truerate/experiment.py:266:def _all_preds(train: list[dict], test: list[dict], points, folds: int = 10) -> dict[str, list[dict]]:
-api/truerate/experiment.py:276:def _summary(pairs: list[tuple[dict, dict]]) -> dict:
-api/truerate/experiment.py:285:def score(test: list[dict], preds: list[dict]) -> dict:
-api/truerate/experiment.py:295:def coverage_by_width(test: list[dict], preds: list[dict], widths=WIDTHS) -> dict:
-api/truerate/experiment.py:302:def _mean(scores: list[dict]) -> dict:
-api/truerate/experiment.py:307:def repeated_cv(train: list[dict], points=POINTS, repeats: int = 5, folds: int = 10) -> dict:
-api/truerate/experiment.py:323:def pick(cv: dict, points=POINTS) -> dict:
-api/truerate/experiment.py:334:def beats(after: dict, before: dict) -> bool:
-api/truerate/experiment.py:340:def _bootstrap(test: list[dict], after: list[dict], before: list[dict], draws: int = 2000, seed: int = 0) -> dict:
-api/truerate/experiment.py:344:    def arrays(ps):
-api/truerate/experiment.py:354:def run(train: list[dict], holdout: list[dict], fresh: list[dict], repeats: int = 5, folds: int = 10, points=POINTS) -> dict:
-api/truerate/experiment.py:382:def learning_curve(point: str, train: list[dict], test: list[dict], sizes, draws: int = 20, seed: int = 0) -> list[dict]:
-api/truerate/experiment.py:395:def importance(point: str, rows: list[dict]) -> dict[str, float]:
-api/truerate/experiment.py:416:def report_table(result: dict) -> str:
-api/truerate/experiment.py:418:    def pct(x):
-api/truerate/experiment.py:421:    def width(x):
-api/truerate/experiment.py:424:    def cells(s):
+api/truerate/db.py:19:def _client(uri: str) -> MongoClient:
+api/truerate/db.py:23:def get_db() -> Database:
+api/truerate/db.py:30:def ensure_indexes(db: Database) -> None:
+api/truerate/db.py:38:def import_deals(db: Database, csv_path: Path, holdout_share: float | None = None, exclude: set[str] | None = None) -> dict[str, int]:
+api/truerate/db.py:75:def training_rows(db: Database) -> list[dict]:
+api/truerate/experiment.py:33:def _utc(t: datetime) -> datetime:
+api/truerate/experiment.py:37:def _with_extras(row: dict, snap: dict, mix: dict | None) -> dict:
+api/truerate/experiment.py:41:def deal_rows(db) -> list[dict]:
+api/truerate/experiment.py:46:def fresh_rows(db, prices: dict[str, float]) -> list[dict]:
+api/truerate/experiment.py:68:def dated(rows: list[dict]) -> list[dict]:
+api/truerate/experiment.py:84:def _paid_typical(rows: list[dict]) -> float:
+api/truerate/experiment.py:89:def _linear(regressor):
+api/truerate/experiment.py:102:def _tabpfn():
+api/truerate/experiment.py:112:def _sklearn_point(name: str, train: list[dict], test: list[dict]) -> np.ndarray:
+api/truerate/experiment.py:122:def _today(train: list[dict]):
+api/truerate/experiment.py:129:def _today_point(train: list[dict], test: list[dict], capped: bool = True) -> np.ndarray:
+api/truerate/experiment.py:152:def _oof(rows: list[dict], point: str, folds: int = 10, seed: int = 0) -> np.ndarray:
+api/truerate/experiment.py:159:def _offsets(resid: np.ndarray) -> dict:
+api/truerate/experiment.py:163:def _band_offsets(rows: list[dict], resid: np.ndarray, by_band: bool) -> dict:
+api/truerate/experiment.py:171:def conformal_offsets(rows: list[dict], point: str, by_band: bool = False, folds: int = 10, seed: int = 0) -> dict:
+api/truerate/experiment.py:176:def _local_spread(train: list[dict], resid: np.ndarray, targets: list[dict], leave_out_self: bool = False) -> np.ndarray:
+api/truerate/experiment.py:178:    def pos(rows):
+api/truerate/experiment.py:184:def _widen(rows: list[dict], m: dict) -> tuple[float, float]:
+api/truerate/experiment.py:191:def _predict_both(point: str, train: list[dict], test: list[dict], folds: int = 10) -> dict[str, list[dict]]:
+api/truerate/experiment.py:216:def predict(point: str, rng: str, train: list[dict], test: list[dict]) -> list[dict]:
+api/truerate/experiment.py:220:def _served(train: list[dict], test: list[dict]) -> list[dict]:
+api/truerate/experiment.py:226:def live_scores(model, test: list[dict]) -> dict:
+api/truerate/experiment.py:231:def _all_preds(train: list[dict], test: list[dict], points, folds: int = 10) -> dict[str, list[dict]]:
+api/truerate/experiment.py:241:def _summary(pairs: list[tuple[dict, dict]]) -> dict:
+api/truerate/experiment.py:250:def score(test: list[dict], preds: list[dict]) -> dict:
+api/truerate/experiment.py:260:def coverage_by_width(test: list[dict], preds: list[dict], widths=WIDTHS) -> dict:
+api/truerate/experiment.py:267:def _mean(scores: list[dict]) -> dict:
+api/truerate/experiment.py:275:def _cv_init(train: list[dict]) -> None:
+api/truerate/experiment.py:280:def _cv_fold(job: tuple) -> tuple:
+api/truerate/experiment.py:285:def repeated_cv(train: list[dict], points=POINTS, repeats: int = 5, folds: int = 10, workers: int = 1) -> dict:
+api/truerate/experiment.py:313:def pick(cv: dict, points=POINTS) -> dict:
+api/truerate/experiment.py:324:def beats(after: dict, before: dict) -> bool:
+api/truerate/experiment.py:330:def _bootstrap(test: list[dict], after: list[dict], before: list[dict], draws: int = 2000, seed: int = 0) -> dict:
+api/truerate/experiment.py:334:    def arrays(ps):
+api/truerate/experiment.py:344:def run(train: list[dict], holdout: list[dict], fresh: list[dict], repeats: int = 5, folds: int = 10, points=POINTS, workers: int = 1) -> dict:
+api/truerate/experiment.py:373:def learning_curve(point: str, train: list[dict], test: list[dict], sizes, draws: int = 20, seed: int = 0) -> list[dict]:
+api/truerate/experiment.py:386:def importance(point: str, rows: list[dict]) -> dict[str, float]:
+api/truerate/experiment.py:407:def report_table(result: dict) -> str:
+api/truerate/experiment.py:409:    def pct(x):
+api/truerate/experiment.py:412:    def width(x):
+api/truerate/experiment.py:415:    def cells(s):
 api/truerate/experiment_plots.py:27:def _inr(x: float, _=None) -> str:
 api/truerate/experiment_plots.py:32:def _log_axis(axis) -> None:
 api/truerate/experiment_plots.py:38:def predicted_vs_actual(result: dict, names: tuple[str, str], path: Path) -> None:
 api/truerate/experiment_plots.py:64:def ranges(result: dict, names: tuple[str, str], path: Path) -> None:
-api/truerate/experiment_plots.py:91:def importance(values: dict[str, float], title: str, path: Path, permutation: bool = False, top: int = 12) -> None:
-api/truerate/experiment_plots.py:110:def learning(curves: dict[str, list[dict]], labels: dict[str, str], n_test: int, path: Path) -> None:
+api/truerate/experiment_plots.py:81:    def holds(x: dict, k: str) -> str:
+api/truerate/experiment_plots.py:94:def importance(values: dict[str, float], title: str, path: Path, permutation: bool = False, top: int = 12) -> None:
+api/truerate/experiment_plots.py:113:def learning(curves: dict[str, list[dict]], labels: dict[str, str], n_test: int, path: Path) -> None:
 api/truerate/instagram.py:20:class HikerError(RuntimeError):
 api/truerate/instagram.py:26:def _has_pic(url: str | None) -> bool:
 api/truerate/instagram.py:30:def parse_profile(raw: dict) -> dict:
@@ -488,19 +544,20 @@ api/truerate/instagram.py:65:def parse_reels(items: list[dict]) -> list[dict]:
 api/truerate/instagram.py:90:def parse_tagged(items: list[dict]) -> list[dict]:
 api/truerate/instagram.py:104:def mark_pinned(reels: list[dict]) -> list[dict]:
 api/truerate/instagram.py:113:def parse_comments(items: list[dict]) -> list[dict]:
-api/truerate/instagram.py:120:class Hiker:
-api/truerate/instagram.py:153:    def profile(self, username: str) -> dict:
-api/truerate/instagram.py:156:    def about(self, pk: str) -> dict:
-api/truerate/instagram.py:159:    def reels(self, pk: str, pages: int = 3, on_page=None) -> list[dict]:
-api/truerate/instagram.py:173:    def comments(self, media_id: str) -> list[dict]:
-api/truerate/instagram.py:176:    def likers(self, media_id: str, n: int = 200) -> list[dict]:
-api/truerate/instagram.py:184:    def followers(self, pk: str) -> list[dict]:
-api/truerate/instagram.py:187:    def tagged(self, pk: str) -> list[dict]:
-api/truerate/instagram.py:190:    def suggested(self, pk: str) -> list[dict]:
-api/truerate/instagram.py:194:def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int = 3, workers: int = 1) -> dict:
-api/truerate/instagram.py:235:def _or_empty(fetch, key: str, empty=None):
-api/truerate/instagram.py:246:def fetch_covers(reels: list[dict], limit: int = 6) -> dict[str, bytes]:
-api/truerate/instagram.py:248:    def one(http, r):
+api/truerate/instagram.py:123:def _when(taken_at: str) -> datetime:
+api/truerate/instagram.py:127:class Hiker:
+api/truerate/instagram.py:160:    def profile(self, username: str) -> dict:
+api/truerate/instagram.py:163:    def about(self, pk: str) -> dict:
+api/truerate/instagram.py:166:    def reels(self, pk: str, pages: int = 3, on_page=None, back_to: datetime | None = None) -> list[dict]:
+api/truerate/instagram.py:184:    def comments(self, media_id: str) -> list[dict]:
+api/truerate/instagram.py:187:    def likers(self, media_id: str, n: int = 200) -> list[dict]:
+api/truerate/instagram.py:195:    def followers(self, pk: str) -> list[dict]:
+api/truerate/instagram.py:198:    def tagged(self, pk: str) -> list[dict]:
+api/truerate/instagram.py:201:    def suggested(self, pk: str) -> list[dict]:
+api/truerate/instagram.py:205:def collect(hiker: Hiker, handle: str, comment_reels: int = 10, liker_reels: int = 3, workers: int = 1, back_to: datetime | None = None) -> dict:
+api/truerate/instagram.py:246:def _or_empty(fetch, key: str, empty=None):
+api/truerate/instagram.py:257:def fetch_covers(reels: list[dict], limit: int = 6) -> dict[str, bytes]:
+api/truerate/instagram.py:259:    def one(http, r):
 api/truerate/llm.py:10:class Gemini:
 api/truerate/llm.py:18:    def json(self, prompt: str, schema: dict, images: list[bytes] = (), audio: list[bytes] = ()) -> dict:
 api/truerate/llm.py:33:    def search(self, prompt: str) -> dict:
@@ -508,81 +565,99 @@ api/truerate/outputs.py:21:def _views(n: float) -> str:
 api/truerate/outputs.py:29:def _sentence(parts: list[str]) -> str:
 api/truerate/outputs.py:34:def outputs(r: dict, inputs: dict) -> list[dict]:
 api/truerate/outputs.py:40:    def add(key: str, status: str, title: str, detail: str = "") -> None:
-api/truerate/pipeline.py:46:class Deps:
-api/truerate/pipeline.py:58:def when(days: int) -> str:
-api/truerate/pipeline.py:62:def _flag_text(f: dict, s: dict) -> str:
-api/truerate/pipeline.py:77:def _brand(reel: dict, handle: str) -> str | None:
-api/truerate/pipeline.py:83:def _days_ago(iso: str) -> int:
-api/truerate/pipeline.py:87:def _safe_web_rate(llm, handle: str, full_name: str, followers: int, category: str) -> dict | None:
-api/truerate/pipeline.py:95:def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] = lambda i: None) -> dict:
-api/truerate/pipeline.py:152:    def kind(r):
-api/truerate/pipeline.py:233:def _decide(v, flags, p, inputs, metrics, typical, fit, fit_share, competitor) -> dict:
-api/truerate/pipeline.py:263:def _negotiation(p: dict, flags: list[dict], metrics: dict, category: str) -> dict:
-api/truerate/pipeline.py:272:def check_quote(r: dict, quote: int) -> dict:
-api/truerate/pricing.py:20:def _group(n: float) -> str:
-api/truerate/pricing.py:29:def inr(n: float) -> str:
-api/truerate/pricing.py:33:def round500(x: float) -> int:
-api/truerate/pricing.py:37:def features(m: dict) -> list[float]:
-api/truerate/pricing.py:46:def likely_band(fair: float, low: float, high: float) -> tuple[int, int]:
-api/truerate/pricing.py:52:def per_1k(row: dict) -> float:
-api/truerate/pricing.py:57:class Core:
-api/truerate/pricing.py:66:    def fit(cls, rows: list[dict]) -> "Core":
-api/truerate/pricing.py:73:    def predict_logs(self, m: dict) -> tuple[float, float, list[dict]]:
-api/truerate/pricing.py:84:class PriceModel:
-api/truerate/pricing.py:93:    def rows(self) -> list[dict]:
-api/truerate/pricing.py:97:def fit(rows: list[dict], blend: tuple[float, float, float] | None = None) -> PriceModel:
-api/truerate/pricing.py:131:def market_discount(rows: list[dict]) -> float:
-api/truerate/pricing.py:143:def market_reference(followers: int) -> dict:
-api/truerate/pricing.py:148:def collab_factor(n: int, ratio: float | None, typical: float, prior: float | None = None) -> tuple[float, float]:
-api/truerate/pricing.py:158:def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
-api/truerate/pricing.py:230:def band_median_price(rows: list[dict], followers: int) -> float:
-api/truerate/pricing.py:235:def modash_price(rows: list[dict], m: dict) -> float:
-api/truerate/pricing.py:243:def _summary(errors: list[dict], method: str) -> dict:
-api/truerate/pricing.py:255:def validate(rows: list[dict]) -> dict:
-api/truerate/pricing.py:260:    def errors(r: dict, m: PriceModel, others: list[dict]) -> dict:
-api/truerate/pricing.py:296:def rate_card(model: PriceModel) -> list[dict]:
-api/truerate/pricing.py:309:def thin_categories(model: PriceModel) -> list[dict]:
-api/truerate/signals.py:16:def _digit_ratio(text: str) -> float:
-api/truerate/signals.py:20:def account_features(acc: dict) -> list[float]:
-api/truerate/signals.py:33:def load_kaggle(path: Path) -> tuple[list[list[float]], list[int]]:
-api/truerate/signals.py:38:def train_fake_model(X: list[list[float]], y: list[int]) -> RandomForestClassifier:
-api/truerate/signals.py:42:def fake_share(model: RandomForestClassifier, accounts: list[dict]) -> float | None:
-api/truerate/signals.py:75:def category_from_niche(genres: list[str]) -> str | None:
-api/truerate/signals.py:84:def is_paid(reel: dict) -> bool:
-api/truerate/signals.py:88:def recent_reels(snapshot: dict) -> list[dict]:
-api/truerate/signals.py:93:def reel_metrics(snapshot: dict, labels: dict | None = None) -> dict:
-api/truerate/signals.py:99:    def paid_reel(r):
-api/truerate/signals.py:113:    def ratio(group):
-api/truerate/signals.py:138:def label_niche(llm, bio: str, captions: list[str]) -> str:
-api/truerate/signals.py:146:def band(followers: int) -> str:
-api/truerate/signals.py:151:def _minilm():
-api/truerate/signals.py:157:def minilm_embed(texts: list[str]) -> np.ndarray:
-api/truerate/signals.py:169:def comment_signals(comments_by_reel: dict[str, list[dict]], embed) -> dict:
-api/truerate/signals.py:191:def _cv(values: list[float]) -> float | None:
-api/truerate/signals.py:196:def audience_signals(snapshot: dict, metrics: dict, fake_model, embed) -> dict:
-api/truerate/signals.py:230:def _scale(value: float, log: bool) -> float:
-api/truerate/signals.py:234:def band_norms(rows: list[dict]) -> dict:
-api/truerate/signals.py:252:def verdict(signals: dict, norms: dict) -> dict:
-api/truerate/signals.py:268:def genuine_share(signals: dict, norms: dict) -> float:
-api/truerate/signals.py:285:def _bot(rng) -> dict:
-api/truerate/signals.py:290:def make_fake(snapshot: dict, kind: str, rng) -> dict:
-api/truerate/signals.py:326:def redteam(snapshots: list[dict], fake_model, embed, seed: int = 7) -> dict:
-api/truerate/signals.py:331:    def signals(snap):
-api/truerate/signals.py:352:def ambiguous(reel: dict) -> bool:
-api/truerate/signals.py:357:def top_commenters(comments_by_reel: dict[str, list[dict]], n: int = 15) -> list[dict]:
-api/truerate/signals.py:382:def label_creator(llm, snapshot: dict, images: dict[str, bytes]) -> dict:
-api/truerate/signals.py:415:def commenter_mix(snapshot: dict, fake_model, labels: dict) -> dict:
-api/truerate/signals.py:438:def _model(url: str):
-api/truerate/signals.py:451:def _face_detector():
-api/truerate/signals.py:459:def _person_detector():
-api/truerate/signals.py:466:def has_face(image: bytes) -> bool:
-api/truerate/signals.py:477:def face_share(covers: dict[str, bytes], detect=has_face) -> float | None:
-api/truerate/signals.py:487:def commenter_rings(commenters_by_creator: dict[str, set[str]]) -> dict[str, int]:
-api/truerate/signals.py:506:def _anomaly_row(signals: dict, typical: dict) -> list[float]:
-api/truerate/signals.py:511:def fit_anomaly(rows: list[dict]):
-api/truerate/signals.py:521:def audience_warnings(signals: dict, forest) -> list[str]:
-api/truerate/signals.py:534:def spoken_candidates(reels: list[dict], n: int = SPOKEN_REELS) -> list[dict]:
-api/truerate/signals.py:550:def label_spoken(llm, clips: dict[str, bytes]) -> dict[str, dict]:
+api/truerate/pipeline.py:48:class Deps:
+api/truerate/pipeline.py:60:def when(days: int) -> str:
+api/truerate/pipeline.py:64:def _flag_text(f: dict, s: dict) -> str:
+api/truerate/pipeline.py:79:def _brand(reel: dict, handle: str) -> str | None:
+api/truerate/pipeline.py:85:def _days_ago(iso: str) -> int:
+api/truerate/pipeline.py:89:def _safe_web_rate(llm, handle: str, full_name: str, followers: int, category: str) -> dict | None:
+api/truerate/pipeline.py:97:def analyze(handle: str, inputs: dict, deps: Deps, step: Callable[[int], None] = lambda i: None) -> dict:
+api/truerate/pipeline.py:156:    def kind(r):
+api/truerate/pipeline.py:237:def _decide(v, flags, p, inputs, metrics, typical, fit, fit_share, competitor) -> dict:
+api/truerate/pipeline.py:267:def _negotiation(p: dict, flags: list[dict], metrics: dict, category: str) -> dict:
+api/truerate/pipeline.py:276:def check_quote(r: dict, quote: int) -> dict:
+api/truerate/pricing.py:21:def _group(n: float) -> str:
+api/truerate/pricing.py:30:def inr(n: float) -> str:
+api/truerate/pricing.py:34:def round500(x: float) -> int:
+api/truerate/pricing.py:38:def features(m: dict) -> list[float]:
+api/truerate/pricing.py:47:def _num(x) -> float:
+api/truerate/pricing.py:51:def _log(x) -> float:
+api/truerate/pricing.py:55:def features_v2(m: dict) -> list[float]:
+api/truerate/pricing.py:69:def likely_band(fair: float, low: float, high: float) -> tuple[int, int]:
+api/truerate/pricing.py:75:def per_1k(row: dict) -> float:
+api/truerate/pricing.py:80:class Core:
+api/truerate/pricing.py:89:    def fit(cls, rows: list[dict]) -> "Core":
+api/truerate/pricing.py:96:    def predict_logs(self, m: dict) -> tuple[float, float, list[dict]]:
+api/truerate/pricing.py:109:def boosting_regressor():
+api/truerate/pricing.py:117:def paid_typical_of(rows: list[dict]) -> float:
+api/truerate/pricing.py:122:def boosted_logs(train: list[dict], test: list[dict]) -> np.ndarray:
+api/truerate/pricing.py:129:def split_offsets(resid: np.ndarray, level: float) -> tuple[float, float]:
+api/truerate/pricing.py:135:def _positions(rows: list[dict]) -> np.ndarray:
+api/truerate/pricing.py:139:def local_spread(train_pos: np.ndarray, abs_resid: np.ndarray, target_pos: np.ndarray, leave_out_self: bool = False) -> np.ndarray:
+api/truerate/pricing.py:151:class Boosted:
+api/truerate/pricing.py:165:    def fit(cls, rows: list[dict], ranges: bool = True, local: bool = False) -> "Boosted":
+api/truerate/pricing.py:178:    def log_price(self, m: dict) -> float:
+api/truerate/pricing.py:181:    def spread(self, m: dict) -> float:
+api/truerate/pricing.py:186:class PriceModel:
+api/truerate/pricing.py:196:    def rows(self) -> list[dict]:
+api/truerate/pricing.py:200:def fit(rows: list[dict], blend: tuple[float, float, float] | None = None, method: str = "ridge", ranges: bool = True,
+api/truerate/pricing.py:238:def market_discount(rows: list[dict]) -> float:
+api/truerate/pricing.py:250:def market_reference(followers: int) -> dict:
+api/truerate/pricing.py:255:def collab_factor(n: int, ratio: float | None, typical: float, prior: float | None = None) -> tuple[float, float]:
+api/truerate/pricing.py:265:def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
+api/truerate/pricing.py:340:def band_median_price(rows: list[dict], followers: int) -> float:
+api/truerate/pricing.py:345:def modash_price(rows: list[dict], m: dict) -> float:
+api/truerate/pricing.py:353:def _summary(errors: list[dict], method: str) -> dict:
+api/truerate/pricing.py:368:def validate(rows: list[dict], method: str = "ridge") -> dict:
+api/truerate/pricing.py:373:    def errors(r: dict, m: PriceModel, others: list[dict]) -> dict:
+api/truerate/pricing.py:412:def rate_card(model: PriceModel) -> list[dict]:
+api/truerate/pricing.py:425:def thin_categories(model: PriceModel) -> list[dict]:
+api/truerate/signals.py:17:def _digit_ratio(text: str) -> float:
+api/truerate/signals.py:21:def account_features(acc: dict) -> list[float]:
+api/truerate/signals.py:34:def load_kaggle(path: Path) -> tuple[list[list[float]], list[int]]:
+api/truerate/signals.py:39:def train_fake_model(X: list[list[float]], y: list[int]) -> RandomForestClassifier:
+api/truerate/signals.py:43:def fake_share(model: RandomForestClassifier, accounts: list[dict]) -> float | None:
+api/truerate/signals.py:76:def category_from_niche(genres: list[str]) -> str | None:
+api/truerate/signals.py:85:def is_paid(reel: dict) -> bool:
+api/truerate/signals.py:89:def recent_reels(snapshot: dict) -> list[dict]:
+api/truerate/signals.py:94:def reel_metrics(snapshot: dict, labels: dict | None = None) -> dict:
+api/truerate/signals.py:100:    def paid_reel(r):
+api/truerate/signals.py:114:    def ratio(group):
+api/truerate/signals.py:142:def niche_vector(snapshot: dict, embed) -> np.ndarray:
+api/truerate/signals.py:150:def fit_niche_model(X: np.ndarray, y: list[str]):
+api/truerate/signals.py:161:def extra_features(snap: dict) -> dict:
+api/truerate/signals.py:184:def english_share(mix: dict | None) -> float | None:
+api/truerate/signals.py:194:def deal_window_metrics(snapshot: dict, paid_on: datetime) -> dict:
+api/truerate/signals.py:216:def label_niche(llm, bio: str, captions: list[str]) -> str:
+api/truerate/signals.py:224:def band(followers: int) -> str:
+api/truerate/signals.py:229:def _minilm():
+api/truerate/signals.py:235:def minilm_embed(texts: list[str]) -> np.ndarray:
+api/truerate/signals.py:247:def comment_signals(comments_by_reel: dict[str, list[dict]], embed) -> dict:
+api/truerate/signals.py:269:def _cv(values: list[float]) -> float | None:
+api/truerate/signals.py:274:def audience_signals(snapshot: dict, metrics: dict, fake_model, embed) -> dict:
+api/truerate/signals.py:308:def _scale(value: float, log: bool) -> float:
+api/truerate/signals.py:312:def band_norms(rows: list[dict]) -> dict:
+api/truerate/signals.py:330:def verdict(signals: dict, norms: dict) -> dict:
+api/truerate/signals.py:346:def genuine_share(signals: dict, norms: dict) -> float:
+api/truerate/signals.py:363:def _bot(rng) -> dict:
+api/truerate/signals.py:368:def make_fake(snapshot: dict, kind: str, rng) -> dict:
+api/truerate/signals.py:404:def redteam(snapshots: list[dict], fake_model, embed, seed: int = 7) -> dict:
+api/truerate/signals.py:409:    def signals(snap):
+api/truerate/signals.py:430:def ambiguous(reel: dict) -> bool:
+api/truerate/signals.py:435:def top_commenters(comments_by_reel: dict[str, list[dict]], n: int = 15) -> list[dict]:
+api/truerate/signals.py:460:def label_creator(llm, snapshot: dict, images: dict[str, bytes]) -> dict:
+api/truerate/signals.py:493:def commenter_mix(snapshot: dict, fake_model, labels: dict) -> dict:
+api/truerate/signals.py:516:def _model(url: str):
+api/truerate/signals.py:529:def _face_detector():
+api/truerate/signals.py:537:def _person_detector():
+api/truerate/signals.py:544:def has_face(image: bytes) -> bool:
+api/truerate/signals.py:555:def face_share(covers: dict[str, bytes], detect=has_face) -> float | None:
+api/truerate/signals.py:565:def commenter_rings(commenters_by_creator: dict[str, set[str]]) -> dict[str, int]:
+api/truerate/signals.py:584:def _anomaly_row(signals: dict, typical: dict) -> list[float]:
+api/truerate/signals.py:589:def fit_anomaly(rows: list[dict]):
+api/truerate/signals.py:599:def audience_warnings(signals: dict, forest) -> list[str]:
+api/truerate/signals.py:612:def spoken_candidates(reels: list[dict], n: int = SPOKEN_REELS) -> list[dict]:
+api/truerate/signals.py:628:def label_spoken(llm, clips: dict[str, bytes]) -> dict[str, dict]:
 api/truerate/webcheck.py:15:def _field(text: str, name: str) -> str:
 api/truerate/webcheck.py:20:def _rupees(value: str) -> int | None:
 api/truerate/webcheck.py:25:def web_rate(llm, handle: str, full_name: str, followers: int, category: str) -> dict:
@@ -619,7 +694,7 @@ web/src/app/login/page.tsx:3:export default function LoginPage() {
 web/src/components/batch/compare.tsx:48:export function Recommendation({ rows }: { rows: Row[] }) {
 web/src/components/batch/compare.tsx:98:export function Scorecard({ rows }: { rows: Row[] }) {
 web/src/components/batch/compare.tsx:156:export function PriceChart({ rows, budget }: { rows: Row[]; budget: number | null | undefined }) {
-web/src/components/batch/compare.tsx:199:export function ReachChart({ rows }: { rows: Row[] }) {
+web/src/components/batch/compare.tsx:198:export function ReachChart({ rows }: { rows: Row[] }) {
 web/src/components/brand/result.tsx:48:export default function BrandResult({ run }: { run: BrandRun }) {
 web/src/components/chart-tip.tsx:5:export default function ChartTip({ lines, children, className = "" }: { lines: React.ReactNode[]; children: React.ReactNode; className?: string }) {
 web/src/components/chips.tsx:7:export function CallChip({ call, large = false }: { call: string; large?: boolean }) {
@@ -670,12 +745,13 @@ web/src/lib/api.ts:18:export type BrandSummary = Schemas["BrandSummary"];
 web/src/lib/api.ts:19:export type BrandRequest = Schemas["BrandRequest"];
 web/src/lib/api.ts:35:export const api = {
 web/src/lib/format.ts:3:export function inr(n: number): string {
-web/src/lib/format.ts:11:export function compact(n: number): string {
-web/src/lib/format.ts:18:export function pct(x: number, digits = 0): string {
-web/src/lib/format.ts:22:export function daysAgo(iso: string): string {
-web/src/lib/format.ts:28:export const SESSION_COOKIE = "truerate_session";
+web/src/lib/format.ts:8:export function inrRange(low: number, high: number): string {
+web/src/lib/format.ts:16:export function compact(n: number): string {
+web/src/lib/format.ts:23:export function pct(x: number, digits = 0): string {
+web/src/lib/format.ts:27:export function daysAgo(iso: string): string {
+web/src/lib/format.ts:33:export const SESSION_COOKIE = "truerate_session";
 web/src/proxy.ts:4:export function proxy(request: NextRequest) {
 web/src/proxy.ts:12:export const config = {
 ```
 
-<!-- mapped: .@fcb7e2f | paths: api/, web/src/ -->
+<!-- mapped: .@06d2adf | paths: api/, web/src/ -->

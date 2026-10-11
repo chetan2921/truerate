@@ -11,7 +11,7 @@ The WLDD campaign team, when onboarding or discovering a creator. They paste an 
 1. What is one reel on this page really worth? A fair price, a range, what it should deliver, and how the number was reached.
 2. Should WLDD book this creator for this product? Go, Negotiate or Avoid, with data-backed reasons.
 
-Prices are learned from WLDD's 150 past deals (handle, tier, niche where known, price paid in INR; confidential, never committed). Views and engagement are not in that data; we collect them from public Instagram data. Judges test on creators we have never seen, some built to fool the audience check.
+Prices are learned from WLDD's past deals: 150 at first, 1,253 since 2026-10-11 (`data/creators2.csv`: handle, tier, niche where known, price paid in INR, payout date; confidential, never committed). 1,230 of those creators have usable Instagram data. Views and engagement are not in that data; we collect them from public Instagram data. Judges test on creators we have never seen, some built to fool the audience check.
 
 ## Flows
 
@@ -76,7 +76,7 @@ The pitch deck uses the same content.
 | Fair price: cost of one reel | Recommended price + range | 2 |
 | Fair price: what it's likely to deliver | Expected views, likes, comments; cost per 1,000 views vs category | 2, 4 |
 | Fair price: clear explanation | Waterfall + the 6 comparable past deals | 2, 4 |
-| Uses past references and current analytics | Ridge + KNN on WLDD's deals, fed this creator's current metrics | 2 |
+| Uses past references and current analytics | Gradient boosting on WLDD's deals (Ridge + KNN until 2026-10-11), fed this creator's current metrics; the 6 most similar deals shown | 2 |
 | Reflects authenticity | Genuine share multiplies the price; a waterfall step shows the amount | 3 |
 | Usable in a negotiation | Range with start offer and walk-away, quote check, talking points, PDF | 5 |
 | Small, medium, big accounts; any niche | Log-scale model; accuracy reported per band and per category | 2 |
@@ -85,7 +85,7 @@ The pitch deck uses the same content.
 | Judging 2: signals and why | Signals table below; About; pitch | 5, 6 |
 | Judging 3: pricing logic across sizes and niches | Pricing section; per-band and per-category accuracy | 2, 6 |
 | Judging 4: resistance to gaming | Red-team with 6 fake types incl. a smart fake built to look genuine | 3 |
-| Judging 5: tested against known prices | 30 held-out creators vs 2 baselines; range coverage | 2 |
+| Judging 5: tested against known prices | 124 held-out creators (10% of each tier, none the earlier model trained on) vs 2 baselines and the earlier model; range coverage | 2 |
 | Judging 6: strategy for other page types | Section below | 5, 6 |
 | Unseen creators at judging | Live analysis of any handle; batch for many | 4, 5 |
 
@@ -155,7 +155,7 @@ Not in scope: watchlist, post-campaign check, UGC pricing, brand-handle input, d
 
 | Collection | Contents |
 |---|---|
-| `deals` | `{handle, tier, niche, price, holdout}` |
+| `deals` | `{handle, tier, niche, price, holdout, payout_date}` |
 | `snapshots` | `{handle, fetched_at, followers, data}`. One per fetch, so follower history builds up |
 | `metrics` | `{_id: handle, computed_at, ...}` |
 | `analyses` | `{_id, handle, inputs, status, steps, result, error, batch_id, created_at, finished_at}` |
@@ -180,19 +180,19 @@ Not in scope: watchlist, post-campaign check, UGC pricing, brand-handle input, d
 Response models are Pydantic. The web types are generated from `/openapi.json` (see `.claude/contracts/api-surface.md`).
 
 **Pricing:**
-- Market price is a blend in log space of Ridge on log(price) (log views, log followers, engagement, comments per 1K views, category) and KNN, where the 6 nearest past deals' ₹ per 1,000 views is multiplied by this creator's views. Nearest means the same category first, then the closest views and followers. The blend weight is picked by leave-one-out.
+- Market price (since 2026-10-11): gradient boosting (`pricing.Boosted`, scikit-learn `HistGradientBoostingRegressor`, never lower for more views or followers) on log(price) from `features_v2`: log views, log followers, engagement, comments per 1K views, category, plus account age, reel length, posting rate, share of ads, a YouTube link, a contact email, the tick, English comments, how much views vary, the trend and likes per view. Missing values stay missing. The 6 nearest past deals (same category first, then closest views and followers) are shown as comparables. `validate --method boosting` builds it; `--method ridge` still builds the earlier Ridge + KNN blend.
 - Fair price = market × collab factor × genuine share, rounded to ₹500.
 - Past WLDD's largest or smallest creator, the 80% range widens about 1.4× per doubling toward the side being extrapolated. The published market asking price for the creator's size (`market_reference`) is shown on its own line, never merged into the range (user decision, 2026-10-10).
 - Past WLDD's largest creator the price also leans on the published market rate for the creator's size, times WLDD's measured discount on it (median WLDD price over the market middle in its biggest tier with 10+ deals: 0.19 at 1L to 5L), fully from 3× beyond (user decision, 2026-10-11). For those creators a Google-grounded Gemini search looks for their own stated rate; it is shown with its sources as information only, never used in the price, and never given a WLDD price.
 - The likely band is the middle price ÷ and × √3, inside the full range. A quote above it reads "on the high side" and makes the call Negotiate.
-- On WLDD's 148 deals, leave-one-out picked a Ridge weight of 1.0, so the market price is the regression alone and the 6 nearest deals are comparables in the report.
+- Earlier (148 deals): leave-one-out picked a Ridge weight of 1.0, so that market price was the regression alone.
 - **Collab factor:**
   - Measure how many views this creator's paid reels keep, relative to their own reels.
   - With a product category, use their ads in that category, pulled toward the population ratio for matching or non-matching ads.
   - Shrinkage: `(n·r + 3·prior)/(n + 3)`.
   - Divide by the typical ratio, because past prices already include the usual drop.
   - Bound the factor to 0.5–1.0. Unbounded, viral reels labelled as ads pushed it to 120× and the holdout error from 57% to 83%; discount-only won on leave-one-out (39%).
-- **Range:** the 10th/90th percentile of leave-one-out residuals.
+- **Range:** split-conformal 80%: the offsets come from the boosted model's 10-fold out-of-fold errors, one pair for every creator ("global"). Per-creator "local" offsets were tested and held 87% at a median 6.3×, but 8% of held-out creators got ranges over 15× (one 144×), so global is served (85%, 6.7×, never over 7.5×).
 - **Expected delivery:** own-reel views (25th/50th/75th percentile) × the adjusted ratio. Likes and comments are those views × the creator's likes and comments per view.
 - **Decision:**
   - Avoid = mostly fake or weak product fit.
@@ -261,7 +261,8 @@ Response models are Pydantic. The web types are generated from `/openapi.json` (
 ## Known limits
 
 - **Follower spikes are a proxy.** Instagram doesn't expose follower history, so the spike signal is the share of fake-looking accounts among the newest followers. Real history builds from our first snapshot onward.
-- **The 150 prices were negotiated at different past dates,** but we only see creators' current stats. That noise sets a floor on accuracy, and we report the error honestly.
+- **Deals carry payout dates, but Instagram keeps no follower history.** Views around each payout can be read from reel dates; using them instead of today's didn't improve accuracy (cross-validated error 44% either way), so the model reads today's stats. Near-identical creators were still paid a median 1.87× apart (2,327 pairs): what each deal included is the missing piece.
+- **632 of the 1,230 deal creators were labelled offline** (Gemini credit ran out): the niche by a MiniLM classifier that agrees with Gemini on 71% of creators, ads by the rules alone. To replace them, delete the labels marked `labels_source: rules` and run `build-metrics` with Gemini credit.
 - **Hidden-ad detection is probabilistic.** Reels it can't call are left out of the paid-vs-own comparison.
 - **The face check sees any face.** A fan page full of film stars passes it. It only rejects clearly faceless pages: fewer than 2 of 10 covers with a face.
 
