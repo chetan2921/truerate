@@ -92,6 +92,25 @@ def fresh_rows(db, prices: dict[str, float]) -> list[dict]:
     return rows
 
 
+DATED = ("views", "engagement", "comments_per_1k", "likes_per_view")
+
+
+def dated(rows: list[dict]) -> list[dict]:
+    """Each deal with the stats from the 90 days before its payout in place of today's, where it has them: what WLDD saw
+    when it booked the creator. Today's numbers stay alongside as `<name>_today`; without reels around the payout, today's
+    stats stand in. Followers stay today's: Instagram keeps no follower history."""
+    out = []
+    for r in rows:
+        r = dict(r)
+        if r.get("views_then") is not None:
+            for k in DATED:
+                r[f"{k}_today"] = r[k]
+                if r.get(f"{k}_then") is not None:
+                    r[k] = r[f"{k}_then"]
+        out.append(r)
+    return out
+
+
 def _num(x) -> float:
     return math.nan if x is None else float(x)
 
@@ -263,6 +282,11 @@ def _served(train: list[dict], test: list[dict]) -> list[dict]:
     return [{"fair": p["fair"], "low80": p["low"], "high80": p["high"]} for p in (price(model, r) for r in test)]
 
 
+def live_scores(model, test: list[dict]) -> dict:
+    """The model the app serves right now (fitted on WLDD's first 148 deals), scored on `test` as the app prices it."""
+    return score(test, [{"fair": p["fair"], "low80": p["low"], "high80": p["high"]} for p in (price(model, r) for r in test)])
+
+
 def _all_preds(train: list[dict], test: list[dict], points, folds: int = 10) -> dict[str, list[dict]]:
     out = {}
     for p in points:
@@ -358,7 +382,7 @@ def run(train: list[dict], holdout: list[dict], fresh: list[dict], repeats: int 
     picked = pick(cv, points)
     after = picked["range"]
     deals = sorted(train + holdout, key=lambda r: r["handle"])  # the served model's order (`training_rows`); MAPIE's folds follow it
-    hold, new = _all_preds(train, holdout, points, folds), _all_preds(deals, fresh, points, folds)
+    hold, new = _all_preds(train, holdout, points, folds), (_all_preds(deals, fresh, points, folds) if fresh else {})
     shown = (f"{picked['price']}/global" if after == BEFORE else after)  # where the 50% band comes from
     points_out = [{"set": s, "band": band(r["followers"]), "actual": r["price"], "before": preds[BEFORE][i], "after": preds[after][i] | {
                    k: v for k, v in preds[shown][i].items() if k.endswith("50")},
@@ -371,11 +395,12 @@ def run(train: list[dict], holdout: list[dict], fresh: list[dict], repeats: int 
         "picked": picked,
         "holdout": {name: score(holdout, ps) for name, ps in hold.items()},
         "fresh": {name: score(fresh, ps) for name, ps in new.items()},
-        "bootstrap": _bootstrap(holdout + fresh, hold[after] + new[after], hold[BEFORE] + new[BEFORE]),
+        "bootstrap": _bootstrap(holdout + fresh, hold[after] + new.get(after, []), hold[BEFORE] + new.get(BEFORE, [])),
         "points": points_out,
     }
-    result["coverage_by_width"] = {s: coverage_by_width(rows, preds[BEFORE]) for s, rows, preds in (("holdout", holdout, hold), ("fresh", fresh, new))}
-    result["adopt"] = after != BEFORE and all(beats(result[s][after], result[s][BEFORE]) for s in ("holdout", "fresh"))
+    sets = [s for s, rows in (("holdout", holdout), ("fresh", fresh)) if rows]  # one held-out set is enough when there are no fresh deals
+    result["coverage_by_width"] = {s: coverage_by_width(rows, preds[BEFORE]) for s, rows, preds in (("holdout", holdout, hold), ("fresh", fresh, new)) if rows}
+    result["adopt"] = after != BEFORE and all(beats(result[s][after], result[s][BEFORE]) for s in sets)
     return result
 
 
@@ -425,7 +450,8 @@ def report_table(result: dict) -> str:
         return [pct(s["error"]), pct(s.get("coverage80")), width(s.get("width80")), pct(s.get("coverage50")), width(s.get("width50"))]
 
     p, n, b = result["picked"], result["n"], result["bootstrap"]
-    head = ["Candidate"] + [f"{s} {c}" for s in ("CV", "Held-out", "Fresh") for c in ("error", "in 80%", "80% width", "in 50%", "50% width")]
+    sets = [("CV", "cv"), ("Held-out", "holdout")] + ([("Fresh", "fresh")] if n["fresh"] else [])
+    head = ["Candidate"] + [f"{s} {c}" for s, _ in sets for c in ("error", "in 80%", "80% width", "in 50%", "50% width")]
     lines = [f"Deals: {n['train']} training, {n['holdout']} held out, {n['fresh']} fresh. Error is the median gap between the middle of the "
              "range and the price paid; width is the median high ÷ low.",
              f"Picked on CV of the training deals only: price `{p['price']}`, range `{p['range']}`. Adopted: {'yes' if result['adopt'] else 'no'}.",
@@ -434,10 +460,12 @@ def report_table(result: dict) -> str:
              "", "| " + " | ".join(head) + " |", "|" + "---|" * len(head)]
     for name in [BEFORE] + [x for x in result["cv"] if x != BEFORE]:
         mark = " ←" if name == p["range"] else ""
-        lines.append(f"| {name}{mark} | " + " | ".join(cells(result["cv"][name]) + cells(result["holdout"][name]) + cells(result["fresh"][name])) + " |")
+        lines.append(f"| {name}{mark} | " + " | ".join(c for _, key in sets for c in cells(result[key][name])) + " |")
     if "coverage_by_width" in result:
         lines += ["", "How wide a range must be: the share of real prices inside a range of each width around today's middle price.", "",
                   "| Width (high ÷ low) | " + " | ".join(f"{w:g}×" for w in WIDTHS) + " |", "|" + "---|" * (len(WIDTHS) + 1)]
         for s, label in (("holdout", "Held out"), ("fresh", "Fresh")):
+            if s not in result["coverage_by_width"]:
+                continue
             lines.append(f"| {label} | " + " | ".join(pct(result["coverage_by_width"][s][w]) for w in WIDTHS) + " |")
     return "\n".join(lines) + "\n"
