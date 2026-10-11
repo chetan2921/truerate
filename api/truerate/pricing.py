@@ -1,4 +1,5 @@
 import math
+from bisect import bisect_right
 from dataclasses import dataclass
 from statistics import median
 
@@ -188,6 +189,115 @@ class Boosted:
         return float(local_spread(self.pos, self.abs_resid, _positions([m]))[0]) if self.local else 1.0
 
 
+BAND_EDGES = [1_000, 5_000, 10_000, 50_000, 1_00_000, 5_00_000, 10_00_000]  # follower bands: under 1K, 1K-5K ... 10L and up
+MIN_GROUP = 15  # a follower band x category with fewer deals borrows its nearest deals by followers (user decision, 2026-10-11)
+OUTLIER_X = 4  # a deal priced more than this many times above or below its group's median is left out of training
+
+
+def follower_band(followers: float) -> int:
+    return bisect_right(BAND_EDGES, followers)
+
+
+def clean_outliers(rows: list[dict]) -> list[dict]:
+    """Drop deals priced more than OUTLIER_X times above or below the median of their follower band x category (the band's
+    median when that group has under 5 deals). Held-out deals are never passed through this, so scores stay honest."""
+    key = lambda r: (follower_band(r["followers"]), r["category"])
+    cell, band_ = {}, {}
+    for r in rows:
+        cell.setdefault(key(r), []).append(r["price"])
+        band_.setdefault(key(r)[0], []).append(r["price"])
+    def ref(r: dict) -> float:
+        prices = cell[key(r)]
+        return median(prices) if len(prices) >= 5 else median(band_[key(r)[0]])
+    return [r for r in rows if 1 / OUTLIER_X <= r["price"] / ref(r) <= OUTLIER_X]
+
+
+@dataclass
+class Banded:
+    """What WLDD paid creators like this one: the deals in the creator's follower band and category. A group with under
+    MIN_GROUP deals takes the MIN_GROUP deals nearest in followers within the category (all categories if the category has
+    fewer). `median` is what they were paid; it anchors `BandBoosted`."""
+
+    bands: np.ndarray
+    followers: np.ndarray
+    categories: np.ndarray
+    prices: np.ndarray
+
+    @classmethod
+    def fit(cls, rows: list[dict]) -> "Banded":
+        return cls(np.array([follower_band(r["followers"]) for r in rows]), np.array([r["followers"] for r in rows], dtype=float),
+                   np.array([r["category"] for r in rows]), np.array([r["price"] for r in rows], dtype=float))
+
+    def median(self, m: dict, leave_out: int | None = None) -> float:
+        """The group's median price; `leave_out` drops that training deal, so a deal's own price never anchors itself."""
+        keep = np.ones(len(self.prices), bool)
+        if leave_out is not None:
+            keep[leave_out] = False
+        in_cat = keep & (self.categories == m["category"])
+        same = in_cat & (self.bands == follower_band(m["followers"]))
+        if same.sum() >= MIN_GROUP:
+            return float(np.median(self.prices[same]))
+        pool = np.flatnonzero(in_cat if in_cat.sum() >= MIN_GROUP else keep)
+        near = pool[np.argsort(np.abs(np.log(self.followers[pool]) - math.log(max(m["followers"], 1))), kind="stable")[:MIN_GROUP]]
+        return float(np.median(self.prices[near]))
+
+
+def features_v3(m: dict) -> list[float]:
+    """`features_v2` plus the rest of what the metrics hold: views per follower, fake followers and likers, repeat
+    commenters, ring size, hits in the last 10 reels, generic comments, the share of reposts, the 25th and 75th percentile
+    views, likes spread, earlier comments per 1,000 views and the number of comments. Missing ones stay NaN."""
+    n = m.get("n_reels")
+    return features_v2(m) + [_log(m.get("views_per_follower")), _num(m.get("fake_followers")), _num(m.get("fake_likers")),
+                             _num(m.get("repeat_commenters")), _num(m.get("ring_size")), _num(m.get("hits_last_10")),
+                             _num(m.get("generic_comments")), (m.get("n_reposts") or 0) / n if n else math.nan,
+                             _log(m.get("views_p25")), _log(m.get("views_p75")), _num(m.get("likes_cv")),
+                             _num(m.get("comments_per_1k_then")), _num(m.get("n_comments"))]
+
+
+@dataclass
+class BandBoosted:
+    """Gradient boosting on `features_v3` plus the log of the creator's band x category median price, which can only raise
+    the price. The range comes from out-of-fold errors: `lo_head`/`hi_head` the headline (60%), `lo`/`hi` the outer (80%).
+    On 124 held-out creators: 36% median error (38% before), outer range 4.4x wide (6.7x before) holding 74% (86%)."""
+
+    est: object
+    banded: Banded
+    lo: float
+    hi: float
+    lo_head: float
+    hi_head: float
+
+    @staticmethod
+    def x(m: dict, anchor: float) -> list[float]:
+        return features_v3(m) + [math.log(anchor)]
+
+    @staticmethod
+    def regressor(n_features: int):
+        """Views, followers and the band's median price can only raise the price (the other features are free)."""
+        from sklearn.ensemble import HistGradientBoostingRegressor
+
+        return HistGradientBoostingRegressor(max_iter=200, learning_rate=0.05, max_depth=2, min_samples_leaf=10, l2_regularization=1.0,
+                                             monotonic_cst=[1, 1] + [0] * (n_features - 3) + [1], random_state=0)
+
+    @classmethod
+    def fit(cls, rows: list[dict], ranges: bool = True) -> "BandBoosted":
+        banded = Banded.fit(rows)
+        X = np.array([cls.x(r, banded.median(r, leave_out=i)) for i, r in enumerate(rows)])
+        y = np.log([r["price"] for r in rows])
+        est = cls.regressor(X.shape[1]).fit(X, y)
+        if not ranges:
+            return cls(est, banded, 0.0, 0.0, 0.0, 0.0)
+        oof = np.empty(len(rows))
+        for tr, te in KFold(10, shuffle=True, random_state=0).split(X):
+            oof[te] = cls.regressor(X.shape[1]).fit(X[tr], y[tr]).predict(X[te])
+        lo, hi = split_offsets(y - oof, CONFIDENCE)
+        lo_head, hi_head = split_offsets(y - oof, HEADLINE)
+        return cls(est, banded, lo, hi, lo_head, hi_head)
+
+    def log_price(self, m: dict) -> float:
+        return float(self.est.predict(np.array([self.x(m, self.banded.median(m))]))[0])
+
+
 @dataclass
 class PriceModel:
     core: Core
@@ -197,6 +307,7 @@ class PriceModel:
     paid_typical: float  # median share of views a paid reel keeps, across WLDD's creators
     conformal: CrossConformalRegressor | None = None  # gives each creator's 80% price interval
     boosted: Boosted | None = None  # when set, the price and range come from gradient boosting instead of Ridge
+    banded: BandBoosted | None = None  # when set, the price and range come from boosting anchored on the creator's follower band x category (served since 2026-10-11)
 
     @property
     def rows(self) -> list[dict]:
@@ -207,6 +318,9 @@ def fit(rows: list[dict], blend: tuple[float, float, float] | None = None, metho
         local: bool = False) -> PriceModel:
     """Fit on these deals. Without `blend`, the weight and range come from leave-one-out over the same deals. With
     `method="boosting"` the price and range come from `Boosted`; Ridge's core still gives the comparables and the rate card."""
+    if method == "band":
+        rows = clean_outliers(rows)
+        return PriceModel(Core.fit(rows), 1.0, 0.0, 0.0, paid_typical=paid_typical_of(rows), banded=BandBoosted.fit(rows, ranges))
     if method == "boosting":
         return PriceModel(Core.fit(rows), 1.0, 0.0, 0.0, paid_typical=paid_typical_of(rows), boosted=Boosted.fit(rows, ranges, local))
     if blend is None:
@@ -270,7 +384,7 @@ def collab_factor(n: int, ratio: float | None, typical: float, prior: float | No
 
 def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
     ridge_log, knn_log, near = model.core.predict_logs(m)
-    market = math.exp(model.boosted.log_price(m) if model.boosted else model.w * ridge_log + (1 - model.w) * knn_log)
+    market = math.exp(model.banded.log_price(m) if model.banded else model.boosted.log_price(m) if model.boosted else model.w * ridge_log + (1 - model.w) * knn_log)
     top_followers, top_views = max(r["followers"] for r in model.rows), max(r["views"] for r in model.rows)
     least_followers = min(r["followers"] for r in model.rows)
     above = max(m["followers"] / top_followers, m["views"] / top_views, 1.0)
@@ -291,7 +405,9 @@ def price(model: PriceModel, m: dict, genuine_share: float = 1.0) -> dict:
     # creator's size is returned beside the range, never merged into it (user decision, 2026-10-10).
     below = max(least_followers / m["followers"], 1.0)
     head = None
-    if model.boosted is not None:
+    if model.banded is not None:
+        lo_off, hi_off, head = model.banded.lo, model.banded.hi, (model.banded.lo_head, model.banded.hi_head)
+    elif model.boosted is not None:
         s = model.boosted.spread(m)
         lo_off, hi_off = model.boosted.lo * s, model.boosted.hi * s
         head = (model.boosted.lo_head * s, model.boosted.hi_head * s) if model.boosted.lo_head is not None else None
@@ -377,6 +493,9 @@ def _summary(errors: list[dict], method: str) -> dict:
 BOOSTED_RANGE_METHOD = f"Gradient boosting, split-conformal {HEADLINE:.0%} range (outer limit {CONFIDENCE:.0%}) from 10-fold out-of-fold errors"
 
 
+BAND_RANGE_METHOD = f"Gradient boosting anchored on the follower band x category median, split-conformal {HEADLINE:.0%} range (outer limit {CONFIDENCE:.0%}) from 10-fold out-of-fold errors"
+
+
 def validate(rows: list[dict], method: str = "ridge") -> dict:
     """Holdout error by follower band and leave-one-out error by category, against both baselines. Holds no handles or prices."""
     train = [r for r in rows if not r["holdout"]]
@@ -415,7 +534,7 @@ def validate(rows: list[dict], method: str = "ridge") -> dict:
         "n_deals": len(rows),
         "method": method,
         "blend_weight": model.w,
-        "range_method": BOOSTED_RANGE_METHOD if method == "boosting" else RANGE_METHOD,
+        "range_method": BAND_RANGE_METHOD if method == "band" else BOOSTED_RANGE_METHOD if method == "boosting" else RANGE_METHOD,
         "range": [math.exp(model.lo), math.exp(model.hi)],
     }
 

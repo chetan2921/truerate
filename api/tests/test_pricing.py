@@ -103,7 +103,7 @@ def test_validate_command_saves_model_and_report(db, tmp_path, monkeypatch):
         db.deals.insert_one({"handle": r["handle"], "tier": band(r["followers"]), "niche": [], "price": r["price"], "holdout": r["holdout"]})
         db.metrics.insert_one({"_id": r["handle"], **{k: v for k, v in r.items() if k not in ("handle", "price", "holdout")}})
     monkeypatch.setattr(cli, "get_db", lambda: db)
-    result = CliRunner().invoke(cli.app, ["validate", "--out-dir", str(tmp_path)])
+    result = CliRunner().invoke(cli.app, ["validate", "--out-dir", str(tmp_path), "--method", "ridge"])
     assert result.exit_code == 0, result.output
     assert "Holdout (15 creators) median error: model" in result.output
     assert json.loads((tmp_path / "model_report.json").read_text())["holdout"]["n"] == 15
@@ -209,7 +209,7 @@ def test_validate_dated_trains_the_served_model_on_the_stats_around_each_payout(
         then = {"views_then": r["views"] * 2, "engagement_then": r["engagement"], "comments_per_1k_then": r["comments_per_1k"], "likes_per_view_then": None, "n_then": 9}
         db.metrics.insert_one({"_id": r["handle"], **{k: v for k, v in r.items() if k not in ("handle", "price", "holdout")}, **then})
     monkeypatch.setattr(cli, "get_db", lambda: db)
-    result = CliRunner().invoke(cli.app, ["validate", "--out-dir", str(tmp_path), "--dated"])
+    result = CliRunner().invoke(cli.app, ["validate", "--out-dir", str(tmp_path), "--dated", "--method", "ridge"])
     assert result.exit_code == 0, result.output
     served = joblib.load(tmp_path / "price.joblib")
     row = next(r for r in served.rows if r["handle"] == "creator0")
@@ -280,3 +280,55 @@ def test_a_boosted_model_saved_before_the_headline_range_serves_its_outer_range(
         del model.boosted.__dict__[k]  # as unpickled from a file saved before the fields existed
     p = price(model, rows[0])
     assert (p["low"], p["high"]) == (p["outer_low"], p["outer_high"]) and p["low"] < p["high"]
+
+
+def with_v3_extras(rows, seed):
+    """The rest of the metrics the band model reads, as WLDD's deals have them."""
+    rng = np.random.default_rng(seed)
+    return [r | {"views_per_follower": r["views"] / r["followers"], "fake_followers": rng.uniform(0, 0.4), "fake_likers": rng.uniform(0, 0.4),
+                 "repeat_commenters": rng.uniform(0, 0.3), "ring_size": int(rng.integers(0, 6)), "hits_last_10": int(rng.integers(0, 10)),
+                 "generic_comments": rng.uniform(0, 0.5), "n_reposts": int(rng.integers(0, 4)), "likes_cv": rng.uniform(0.2, 1.5),
+                 "comments_per_1k_then": rng.uniform(0.5, 5), "n_comments": int(rng.integers(20, 300))} for r in with_extras(rows, seed + 1)]
+
+
+def test_outliers_are_dropped_against_their_own_band_and_category():
+    from truerate.pricing import clean_outliers
+
+    rows = [{"followers": 20_000, "category": "Food", "price": p} for p in [9000, 10000, 11000, 10000, 10500, 100_000, 1_000]]
+    rows += [{"followers": 300_000, "category": "Food", "price": 60_000}]  # dear for 20K, normal for its own band
+    kept = sorted(r["price"] for r in clean_outliers(rows))
+    assert 100_000 not in kept and 1_000 not in kept and 60_000 in kept and len(kept) == 6
+
+
+def test_a_thin_group_borrows_its_nearest_deals_in_followers_within_the_category():
+    from truerate.pricing import MIN_GROUP, Banded
+
+    rows = [{"followers": 20_000 + 100 * i, "category": "Food", "price": 10_000} for i in range(20)]  # a full 10K-50K group
+    rows += [{"followers": 80_000 + 1_000 * i, "category": "Food", "price": 30_000} for i in range(5)]  # 5 deals at 50K-1L
+    rows += [{"followers": 90_000, "category": "Tech and gadgets", "price": 999_999}]
+    b = Banded.fit(rows)
+    assert b.median({"followers": 20_500, "category": "Food"}) == 10_000
+    # 5 in its own group, so it takes the 15 Food deals nearest 85K followers: the 5 here plus the 10 closest below
+    assert b.median({"followers": 85_000, "category": "Food"}) == 10_000 and MIN_GROUP == 15
+    assert b.median({"followers": 85_000, "category": "Food"}, leave_out=20) == 10_000
+
+
+def test_the_band_model_serves_a_narrower_range_inside_the_outer_one_and_discounts_fakes():
+    rows = with_v3_extras(synthetic_rows(240, 21), 5)
+    model = fit([r for r in rows if not r["holdout"]], method="band")
+    assert model.banded is not None
+    r = next(r for r in rows if r["holdout"])
+    p = price(model, r)
+    assert p["outer_low"] <= p["low"] <= p["fair"] <= p["high"] <= p["outer_high"]
+    assert price(model, r, genuine_share=0.6)["fair"] < p["fair"]
+
+
+def test_validate_can_serve_the_band_model(db, tmp_path, monkeypatch):
+    for r in with_v3_extras(synthetic_rows(240, 22), 8):
+        db.deals.insert_one({"handle": r["handle"], "tier": band(r["followers"]), "niche": [], "price": r["price"], "holdout": r["holdout"]})
+        db.metrics.insert_one({"_id": r["handle"], **{k: v for k, v in r.items() if k not in ("handle", "price", "holdout")}})
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    result = CliRunner().invoke(cli.app, ["validate", "--out-dir", str(tmp_path), "--method", "band"])
+    assert result.exit_code == 0, result.output
+    assert joblib.load(tmp_path / "price.joblib").banded is not None
+    assert json.loads((tmp_path / "model_report.json").read_text())["method"] == "band"

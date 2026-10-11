@@ -246,10 +246,11 @@ def label_offline_cmd() -> None:
 
 
 @app.command("validate")
-def validate_cmd(out_dir: Path = REPO_ROOT / "data" / "models", dated: bool = False, method: str = "ridge") -> None:
+def validate_cmd(out_dir: Path = REPO_ROOT / "data" / "models", dated: bool = False, method: str = "band") -> None:
     """Holdout and per-category accuracy against both baselines, then the served price model. `--dated` learns from each
-    deal's stats in the 90 days before its payout (what WLDD saw when it booked) instead of today's. `--method boosting` serves
-    gradient boosting with local ranges (`pricing.Boosted`) instead of Ridge."""
+    deal's stats in the 90 days before its payout (what WLDD saw when it booked) instead of today's. the default `--method band` serves boosting
+    anchored on the follower band x category median (`pricing.BandBoosted`); `--method boosting` serves plain gradient boosting and
+    `--method ridge` the earlier Ridge blend."""
     from truerate.experiment import dated as at_payout
 
     rows = training_rows(get_db())
