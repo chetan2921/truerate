@@ -328,13 +328,38 @@ def _mean(scores: list[dict]) -> dict:
             for k, v in scores[0].items()}
 
 
-def repeated_cv(train: list[dict], points=POINTS, repeats: int = 5, folds: int = 10) -> dict:
-    """Every candidate scored on deals it never saw: `repeats` shuffles of `folds` folds, averaged over shuffles."""
+_CV_TRAIN: list[dict] = []  # each worker process's copy of the training deals, sent once by the pool's initializer
+
+
+def _cv_init(train: list[dict]) -> None:
+    global _CV_TRAIN
+    _CV_TRAIN = train
+
+
+def _cv_fold(job: tuple) -> tuple:
+    tr, te, points, folds = job
+    return te, _all_preds([_CV_TRAIN[i] for i in tr], [_CV_TRAIN[i] for i in te], points, folds)
+
+
+def repeated_cv(train: list[dict], points=POINTS, repeats: int = 5, folds: int = 10, workers: int = 1) -> dict:
+    """Every candidate scored on deals it never saw: `repeats` shuffles of `folds` folds, averaged over shuffles. The
+    folds are independent, so `workers` processes can fit them at once with the same result."""
+    splits = [(rep, tr, te) for rep in range(repeats) for tr, te in KFold(folds, shuffle=True, random_state=rep).split(train)]
+    jobs = [(tr, te, points, folds) for _, tr, te in splits]
+    if workers > 1:
+        from concurrent.futures import ProcessPoolExecutor
+
+        with ProcessPoolExecutor(workers, initializer=_cv_init, initargs=(train,)) as pool:
+            done = list(pool.map(_cv_fold, jobs))
+    else:
+        _cv_init(train)
+        done = [_cv_fold(j) for j in jobs]
     per: dict[str, list] = {}
     for rep in range(repeats):
         preds: dict[str, list] = {}
-        for tr, te in KFold(folds, shuffle=True, random_state=rep).split(train):
-            out = _all_preds([train[i] for i in tr], [train[i] for i in te], points, folds)
+        for (r, _, _), (te, out) in zip(splits, done):
+            if r != rep:
+                continue
             for name, ps in out.items():
                 preds.setdefault(name, [None] * len(train))
                 for i, p in zip(te, ps):
@@ -375,10 +400,10 @@ def _bootstrap(test: list[dict], after: list[dict], before: list[dict], draws: i
     return {"error_drop": [float(x) for x in np.percentile(drop, [5, 50, 95])], "width_ratio": [float(x) for x in np.percentile(ratio, [5, 50, 95])]}
 
 
-def run(train: list[dict], holdout: list[dict], fresh: list[dict], repeats: int = 5, folds: int = 10, points=POINTS) -> dict:
+def run(train: list[dict], holdout: list[dict], fresh: list[dict], repeats: int = 5, folds: int = 10, points=POINTS, workers: int = 1) -> dict:
     """The pick uses `train` only. Held-out deals are scored by models fitted on `train`, fresh ones by models fitted on all deals."""
     _FITS.clear()
-    cv = repeated_cv(train, points, repeats, folds)
+    cv = repeated_cv(train, points, repeats, folds, workers)
     picked = pick(cv, points)
     after = picked["range"]
     deals = sorted(train + holdout, key=lambda r: r["handle"])  # the served model's order (`training_rows`); MAPIE's folds follow it

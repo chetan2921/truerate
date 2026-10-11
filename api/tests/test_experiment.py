@@ -178,3 +178,12 @@ def test_live_model_is_scored_on_the_held_out_deals_exactly_as_the_app_prices_th
     expected = [price(model, r) for r in test]
     assert out["n"] == 12 and out["error"] == pytest.approx(float(np.median([abs(p["fair"] - r["price"]) / r["price"] for r, p in zip(test, expected)])))
     assert 0 <= out["coverage80"] <= 1 and out["width80"] > 1
+
+
+def test_repeated_cv_gives_the_same_scores_on_several_cores():
+    from truerate.experiment import repeated_cv
+
+    train, _, _ = _sets(9)
+    one = repeated_cv(train, ("today", "ridge_v2"), repeats=2, folds=3)
+    many = repeated_cv(train, ("today", "ridge_v2"), repeats=2, folds=3, workers=2)
+    assert one == many

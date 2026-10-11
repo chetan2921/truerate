@@ -230,7 +230,8 @@ def validate_cmd(out_dir: Path = REPO_ROOT / "data" / "models") -> None:
 
 @app.command("experiment")
 def experiment_cmd(out_dir: Path = REPO_ROOT / "data" / "models" / "experiments", fresh_csv: Path = REPO_ROOT / "data" / "fresh_test_20.csv",
-                   repeats: int = 5, points: str = "", no_fresh: bool = False, dated: bool = False, live_model: Path | None = None) -> None:
+                   repeats: int = 5, points: str = "", no_fresh: bool = False, dated: bool = False, live_model: Path | None = None,
+                   workers: int = 1) -> None:
     """Model v2 experiments: candidates picked by repeated CV on the training deals, then scored once on the held-out and
     fresh deals. Writes the before/after table, results.json and the graphs; the served model is left alone.
     `--points today,ridge_v2` limits the candidates (default: all; today's model is always one). `--no-fresh` scores the held-out
@@ -255,7 +256,7 @@ def experiment_cmd(out_dir: Path = REPO_ROOT / "data" / "models" / "experiments"
         typer.echo(f"{len(rows)} deals; {len(fresh)} of {len(prices)} fresh deals have a finished analysis")
     train, holdout = [r for r in rows if not r["holdout"]], [r for r in rows if r["holdout"]]
     chosen = tuple(dict.fromkeys(("today", *points.split(",")))) if points else ex.POINTS
-    result = ex.run(train, holdout, fresh, repeats=repeats, points=chosen)
+    result = ex.run(train, holdout, fresh, repeats=repeats, points=chosen, workers=workers)
     picked, test = result["picked"]["price"], holdout + fresh
     if live_model:
         result["live"] = ex.live_scores(joblib.load(live_model), [r for r in today if r["holdout"]])
