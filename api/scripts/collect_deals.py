@@ -25,7 +25,8 @@ import httpx  # noqa: E402
 from truerate.instagram import BASE_URL, Hiker, HikerError, collect  # noqa: E402
 
 BACK_DAYS = 90  # the reels in the 90 days before a payout show what the creator was delivering when booked
-MIN_FREE_GB = 1.0  # the server is shared: stop before its disk gets close to full
+MIN_FREE_GB = 1.0
+PACER = None  # set by main(): its rate and 429 count go into the progress line  # the server is shared: stop before its disk gets close to full
 
 
 class Paced(httpx.BaseTransport):
@@ -98,8 +99,9 @@ def run(hiker, todo: list[tuple[str, datetime]], workers: int, log: Path, collec
             out["done"].append(handle)
             done_log.write(handle + "\n")
             done_log.flush()
-            if i % 25 == 0:
-                print(f"[{i}/{len(todo)}] done {len(out['done'])}, retry {len(out['retry'])}, failed {len(out['failed'])}", flush=True)
+            if i % 10 == 0:
+                pace = f", {PACER.rate:.1f}/s, {PACER.limited} rate-limited so far" if PACER else ""
+                print(f"[{i}/{len(todo)}] done {len(out['done'])}, retry {len(out['retry'])}, failed {len(out['failed'])}{pace}", flush=True)
                 if store is not None and shutil.disk_usage(store).free / 1e9 < MIN_FREE_GB:
                     print("Less than 1 GB free: stopping", flush=True)
                     out["stopped"] = True
@@ -121,8 +123,9 @@ def main() -> None:
     todo, workers = plan(rows, done), a.workers
     # httpx allows 100 connections by default; each worker needs up to 5 at once (its reel pages plus 4 per-reel lists).
     inner = httpx.HTTPTransport(limits=httpx.Limits(max_connections=a.workers * 5, max_keepalive_connections=a.workers * 2))
-    http = httpx.Client(base_url=BASE_URL, headers={"x-access-key": os.environ["HIKERAPI_KEY"]}, timeout=60,
-                        transport=Paced(inner, rate=a.rate, ceiling=a.rate))  # the account's limit is fixed (`/sys/balance` says 9 a second)
+    global PACER
+    PACER = Paced(inner, rate=a.rate, ceiling=a.rate)  # the account's limit is fixed (`/sys/balance` says 9 a second)
+    http = httpx.Client(base_url=BASE_URL, headers={"x-access-key": os.environ["HIKERAPI_KEY"]}, timeout=60, transport=PACER)
     hiker = Hiker(os.environ["HIKERAPI_KEY"], a.store, http)
     print(f"{len(todo)} creators to collect, {len(done)} already done", flush=True)
     failed = []

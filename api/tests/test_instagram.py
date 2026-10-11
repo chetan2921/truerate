@@ -328,3 +328,21 @@ def test_collect_benchmark_reaches_back_before_each_deals_payout(db, tmp_path, m
     result = CliRunner().invoke(cli.app, ["collect-benchmark"])
     assert result.exit_code == 0, result.output
     assert seen == {"dated": datetime(2026, 6, 6, tzinfo=timezone.utc), "undated": None}  # 90 days before, as collect_deals.py fetched
+
+
+def test_collect_benchmark_can_be_limited_to_a_list_of_creators(db, tmp_path, monkeypatch):
+    db.deals.insert_many([{"handle": h} for h in ("a", "b", "c")])
+    seen = []
+
+    def fake_collect(hiker, handle, back_to=None):
+        seen.append(handle)
+        return {"handle": handle, "fetched_at": datetime.now(timezone.utc), "followers": 1, "data": {"reels": []}}
+
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    monkeypatch.setattr(cli, "make_hiker", lambda: None)
+    monkeypatch.setattr(cli, "collect", fake_collect)
+    only = tmp_path / "done.txt"
+    only.write_text("a\nc\n")
+    result = CliRunner().invoke(cli.app, ["collect-benchmark", "--only", str(only)])
+    assert result.exit_code == 0, result.output
+    assert sorted(seen) == ["a", "c"]

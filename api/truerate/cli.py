@@ -86,10 +86,11 @@ def collect_cmd(handle: str) -> None:
 
 
 @app.command("collect-benchmark")
-def collect_benchmark_cmd(workers: int = 1, fresh_hours: int = 24) -> None:
+def collect_benchmark_cmd(workers: int = 1, fresh_hours: int = 24, only: Path | None = None) -> None:
     """Snapshot every deal creator, skipping any fetched in the last `fresh_hours`, `workers` at a time. With
     `--fresh-hours 0` every creator is snapshotted again; saved HikerAPI responses make that nearly free.
-    A failed creator is reported and skipped; running out of HikerAPI credit (402) stops the run."""
+    A failed creator is reported and skipped; running out of HikerAPI credit (402) stops the run. `--only done.txt` limits the run
+    to the handles listed (one a line), such as the creators `scripts/collect_deals.py` has finished."""
     db = get_db()
     ensure_indexes(db)
     hiker = make_hiker()
@@ -98,7 +99,8 @@ def collect_benchmark_cmd(workers: int = 1, fresh_hours: int = 24) -> None:
     handles = [d["handle"] for d in deals]
     # A dated deal's reels reach back WINDOW_DAYS before its payout, as `scripts/collect_deals.py` saved them.
     back_to = {d["handle"]: d["payout_date"].replace(tzinfo=timezone.utc) - timedelta(days=WINDOW_DAYS) if d.get("payout_date") else None for d in deals}
-    todo = [h for h in handles if not db.snapshots.find_one({"handle": h, "fetched_at": {"$gt": since}})]
+    listed = set(only.read_text().split()) if only else None
+    todo = [h for h in handles if (listed is None or h in listed) and not db.snapshots.find_one({"handle": h, "fetched_at": {"$gt": since}})]
     done = failed = 0
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {pool.submit(collect, hiker, h, back_to=back_to[h]): h for h in todo}
