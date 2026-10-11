@@ -242,9 +242,13 @@ def label_offline_cmd() -> None:
 
 
 @app.command("validate")
-def validate_cmd(out_dir: Path = REPO_ROOT / "data" / "models") -> None:
-    """Holdout and per-category accuracy against both baselines, then the served price model."""
+def validate_cmd(out_dir: Path = REPO_ROOT / "data" / "models", dated: bool = False) -> None:
+    """Holdout and per-category accuracy against both baselines, then the served price model. `--dated` learns from each
+    deal's stats in the 90 days before its payout (what WLDD saw when it booked) instead of today's."""
+    from truerate.experiment import dated as at_payout
+
     rows = training_rows(get_db())
+    rows = at_payout(rows) if dated else rows
     report = validate(rows)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "model_report.json").write_text(json.dumps(report, indent=1))

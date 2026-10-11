@@ -200,3 +200,16 @@ def test_the_likely_band_is_about_3x_wide_around_the_middle_and_inside_the_full_
         assert 2.5 <= p["likely_high"] / p["likely_low"] <= 3.5 or p["likely_low"] == p["low"] or p["likely_high"] == p["high"]
     assert likely_band(30_000, 1_000, 10**7) == (17_500, 52_000)  # 30,000 ÷ √3 and × √3, to the nearest ₹500
     assert likely_band(30_000, 25_000, 40_000) == (25_000, 40_000)  # never outside the full range
+
+
+def test_validate_dated_trains_the_served_model_on_the_stats_around_each_payout(db, tmp_path, monkeypatch):
+    for r in synthetic_rows():
+        db.deals.insert_one({"handle": r["handle"], "tier": band(r["followers"]), "niche": [], "price": r["price"], "holdout": r["holdout"]})
+        then = {"views_then": r["views"] * 2, "engagement_then": r["engagement"], "comments_per_1k_then": r["comments_per_1k"], "likes_per_view_then": None, "n_then": 9}
+        db.metrics.insert_one({"_id": r["handle"], **{k: v for k, v in r.items() if k not in ("handle", "price", "holdout")}, **then})
+    monkeypatch.setattr(cli, "get_db", lambda: db)
+    result = CliRunner().invoke(cli.app, ["validate", "--out-dir", str(tmp_path), "--dated"])
+    assert result.exit_code == 0, result.output
+    served = joblib.load(tmp_path / "price.joblib")
+    row = next(r for r in served.rows if r["handle"] == "creator0")
+    assert row["views"] == row["views_today"] * 2  # learned from the views around the payout, today's kept beside them
