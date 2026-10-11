@@ -114,7 +114,7 @@ def main() -> None:
     ap.add_argument("--store", type=Path, default=Path("hikerapi"))
     ap.add_argument("--log", type=Path, default=Path("done.txt"))
     ap.add_argument("--workers", type=int, default=32)
-    ap.add_argument("--rate", type=float, default=6.0, help="requests a second to start at; adapts to 429s")
+    ap.add_argument("--rate", type=float, default=6.0, help="requests a second, at most; slows down on 429s")
     a = ap.parse_args()
     rows = list(csv.DictReader(a.csv.open(newline="")))
     done = set(a.log.read_text().split()) if a.log.exists() else set()
@@ -122,7 +122,7 @@ def main() -> None:
     # httpx allows 100 connections by default; each worker needs up to 5 at once (its reel pages plus 4 per-reel lists).
     inner = httpx.HTTPTransport(limits=httpx.Limits(max_connections=a.workers * 5, max_keepalive_connections=a.workers * 2))
     http = httpx.Client(base_url=BASE_URL, headers={"x-access-key": os.environ["HIKERAPI_KEY"]}, timeout=60,
-                        transport=Paced(inner, rate=a.rate, ceiling=a.rate * 2))
+                        transport=Paced(inner, rate=a.rate, ceiling=a.rate))  # the account's limit is fixed (`/sys/balance` says 9 a second)
     hiker = Hiker(os.environ["HIKERAPI_KEY"], a.store, http)
     print(f"{len(todo)} creators to collect, {len(done)} already done", flush=True)
     failed = []
