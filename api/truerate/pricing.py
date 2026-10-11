@@ -149,17 +149,20 @@ def local_spread(train_pos: np.ndarray, abs_resid: np.ndarray, target_pos: np.nd
 
 @dataclass
 class Boosted:
-    """Gradient boosting on `features_v2` for the price, and a "local" 80% range: conformal offsets on out-of-fold errors,
-    each scaled by how alike WLDD priced the creator's nearest deals."""
+    """Gradient boosting on `features_v2` for the price, and an 80% conformal range from its out-of-fold errors. Global by
+    default: one pair of offsets for every creator. `local` scales them by how alike WLDD priced the creator's nearest
+    deals; on 124 held-out creators that held 87% at a median 6.3× but left 8% of ranges over 15× wide (one 144×), against
+    85%, 6.7× and never over 7.5× for global, so the served model is global (2026-10-11)."""
 
     est: object
     lo: float
     hi: float
     pos: np.ndarray  # the training deals' log views and followers
     abs_resid: np.ndarray  # their absolute out-of-fold log errors
+    local: bool = False
 
     @classmethod
-    def fit(cls, rows: list[dict], ranges: bool = True) -> "Boosted":
+    def fit(cls, rows: list[dict], ranges: bool = True, local: bool = False) -> "Boosted":
         est = boosting_regressor().fit(np.array([features_v2(r) for r in rows]), np.log([r["price"] for r in rows]))
         pos = _positions(rows)
         if not ranges:  # point prices only (leave-one-out checks): skip the 10 out-of-fold refits
@@ -168,14 +171,15 @@ class Boosted:
         for tr, te in KFold(10, shuffle=True, random_state=0).split(rows):
             oof[te] = boosted_logs([rows[i] for i in tr], [rows[i] for i in te])
         resid = np.log([r["price"] for r in rows]) - oof
-        lo, hi = split_offsets(resid / local_spread(pos, np.abs(resid), pos, leave_out_self=True), CONFIDENCE)
-        return cls(est, lo, hi, pos, np.abs(resid))
+        scaled = resid / local_spread(pos, np.abs(resid), pos, leave_out_self=True) if local else resid
+        lo, hi = split_offsets(scaled, CONFIDENCE)
+        return cls(est, lo, hi, pos, np.abs(resid), local)
 
     def log_price(self, m: dict) -> float:
         return float(self.est.predict(np.array([features_v2(m)]))[0])
 
     def spread(self, m: dict) -> float:
-        return float(local_spread(self.pos, self.abs_resid, _positions([m]))[0])
+        return float(local_spread(self.pos, self.abs_resid, _positions([m]))[0]) if self.local else 1.0
 
 
 @dataclass
@@ -193,11 +197,12 @@ class PriceModel:
         return self.core.rows
 
 
-def fit(rows: list[dict], blend: tuple[float, float, float] | None = None, method: str = "ridge", ranges: bool = True) -> PriceModel:
+def fit(rows: list[dict], blend: tuple[float, float, float] | None = None, method: str = "ridge", ranges: bool = True,
+        local: bool = False) -> PriceModel:
     """Fit on these deals. Without `blend`, the weight and range come from leave-one-out over the same deals. With
     `method="boosting"` the price and range come from `Boosted`; Ridge's core still gives the comparables and the rate card."""
     if method == "boosting":
-        return PriceModel(Core.fit(rows), 1.0, 0.0, 0.0, paid_typical=paid_typical_of(rows), boosted=Boosted.fit(rows, ranges))
+        return PriceModel(Core.fit(rows), 1.0, 0.0, 0.0, paid_typical=paid_typical_of(rows), boosted=Boosted.fit(rows, ranges, local))
     if blend is None:
         loo = np.array([Core.fit(rows[:i] + rows[i + 1 :]).predict_logs(r)[:2] for i, r in enumerate(rows)])
         y = np.log([r["price"] for r in rows])
@@ -357,7 +362,7 @@ def _summary(errors: list[dict], method: str) -> dict:
             "spearman": float(spearmanr(actual, predicted).statistic)}
 
 
-BOOSTED_RANGE_METHOD = f"Gradient boosting, conformal {CONFIDENCE:.0%} ranges scaled by the nearest {LOCAL_K} deals' errors"
+BOOSTED_RANGE_METHOD = f"Gradient boosting, split-conformal {CONFIDENCE:.0%} ranges from 10-fold out-of-fold errors"
 
 
 def validate(rows: list[dict], method: str = "ridge") -> dict:

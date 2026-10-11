@@ -3,6 +3,7 @@ import math
 
 import joblib
 import numpy as np
+import pytest
 from typer.testing import CliRunner
 
 from truerate import cli
@@ -223,14 +224,15 @@ def with_extras(rows, seed):
                  "views_cv": rng.uniform(0.3, 2), "trend": rng.uniform(0.5, 1.5)} for r in rows]
 
 
-def test_boosted_model_serves_exactly_what_the_experiment_scored():
+@pytest.mark.parametrize("ranges", ["global", "local"])
+def test_boosted_model_serves_exactly_what_the_experiment_scored(ranges):
     from truerate.experiment import predict
 
     rows = with_extras(synthetic_rows(160, 11), 3)
     train, test = [r for r in rows if not r["holdout"]], [r for r in rows if r["holdout"]]
-    model = fit(train, method="boosting")
+    model = fit(train, method="boosting", local=ranges == "local")
     served = [price(model, r) for r in test]
-    expected = predict("boosting_v2", "local", train, test)
+    expected = predict("boosting_v2", ranges, train, test)
     assert [p["fair"] for p in served] == [e["fair"] for e in expected]
     assert [(p["low"], p["high"]) for p in served] == [(e["low80"], e["high80"]) for e in expected]
     assert len(served[0]["comparables"]) == 6 and served[0]["waterfall"][0]["step"] == "Market price from WLDD's past deals"
