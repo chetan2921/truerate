@@ -305,14 +305,30 @@ def experiment_cmd(out_dir: Path = REPO_ROOT / "data" / "models" / "experiments"
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "results.json").write_text(json.dumps(result | {"learning_curve": curves, "importance": imp}, indent=1))
     (out_dir / "table.md").write_text(ex.report_table(result))
+    _draw_experiment(result | {"learning_curve": curves, "importance": imp}, out_dir)
+    typer.echo(ex.report_table(result))
+
+
+def _draw_experiment(result: dict, out_dir: Path) -> None:
+    from truerate import experiment as ex
+    from truerate import experiment_plots as plots
+
     names = ("Today, as served", f"{result['picked']['range']}, {'adopted' if result['adopt'] else 'not adopted'}")
     plots.predicted_vs_actual(result, names, out_dir / "predicted_vs_actual.png")
     plots.ranges(result, names, out_dir / "ranges.png")
-    for n, values in imp.items():
-        plots.importance(values, f"What moves the price in {n}, fitted on all {len(rows)} deals", out_dir / f"importance_{n}.png",
-                         permutation=n in ex.PERMUTATION)
-    plots.learning(curves, {n: n for n in curves}, len(test), out_dir / "learning_curve.png")
-    typer.echo(ex.report_table(result))
+    n = result["n"]["train"] + result["n"]["holdout"]
+    for name, values in result["importance"].items():
+        plots.importance(values, f"What moves the price in {name}, fitted on all {n} deals", out_dir / f"importance_{name}.png",
+                         permutation=name in ex.PERMUTATION)
+    curves = result["learning_curve"]
+    plots.learning(curves, {name: name for name in curves}, result["n"]["holdout"] + result["n"]["fresh"], out_dir / "learning_curve.png")
+
+
+@app.command("experiment-plots")
+def experiment_plots_cmd(out_dir: Path) -> None:
+    """Draws an experiment's graphs again from its saved results.json, without refitting anything."""
+    _draw_experiment(json.loads((out_dir / "results.json").read_text()), out_dir)
+    typer.echo(f"Drew the graphs in {out_dir}")
 
 
 @app.command("redteam")

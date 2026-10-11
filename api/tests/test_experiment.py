@@ -187,3 +187,29 @@ def test_repeated_cv_gives_the_same_scores_on_several_cores():
     one = repeated_cv(train, ("today", "ridge_v2"), repeats=2, folds=3)
     many = repeated_cv(train, ("today", "ridge_v2"), repeats=2, folds=3, workers=2)
     assert one == many
+
+
+def test_charts_draw_a_run_without_fresh_deals(tmp_path):
+    from truerate import experiment_plots as plots
+
+    train, holdout, _ = _sets()
+    out = run(train, holdout, [], repeats=1, folds=3, points=("today", "ridge_v2"))
+    plots.predicted_vs_actual(out, ("Before", "After"), tmp_path / "p.png")
+    plots.ranges(out, ("Before", "After"), tmp_path / "r.png")
+    assert (tmp_path / "p.png").stat().st_size > 0 and (tmp_path / "r.png").stat().st_size > 0
+
+
+def test_experiment_plots_redraws_from_saved_results(tmp_path):
+    from typer.testing import CliRunner
+
+    from truerate import cli
+    from truerate.experiment import importance, learning_curve
+
+    train, holdout, _ = _sets()
+    out = run(train, holdout, [], repeats=1, folds=3, points=("today", "ridge_v2"))
+    out |= {"learning_curve": {"today": learning_curve("today", train, holdout, (20, len(train)), draws=2)},
+            "importance": {"ridge_v2": importance("ridge_v2", train + holdout)}}
+    (tmp_path / "results.json").write_text(json.dumps(out))
+    result = CliRunner().invoke(cli.app, ["experiment-plots", str(tmp_path)])
+    assert result.exit_code == 0, result.output
+    assert {p.name for p in tmp_path.glob("*.png")} == {"predicted_vs_actual.png", "ranges.png", "importance_ridge_v2.png", "learning_curve.png"}

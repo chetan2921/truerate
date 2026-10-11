@@ -45,11 +45,11 @@ def predicted_vs_actual(result: dict, names: tuple[str, str], path: Path) -> Non
         ax.plot([lo, hi], [lo, hi], color=MUTED, lw=1.2, ls="--")
         for f in (2, 0.5):
             ax.plot([lo, hi], [lo * f, hi * f], color=LINE, lw=1, ls=":")
-        for s, marker in MARKERS.items():
+        for s, marker in ((s, m) for s, m in MARKERS.items() if result["n"][s]):
             sel = [p for p in pts if p["set"] == s]
             ax.scatter([p["actual"] for p in sel], [p[key]["fair"] for p in sel], s=42, marker=marker, color=color, edgecolor=BG, linewidth=1.2, label=f"{SET_NAMES[s]} ({result['n'][s]})")
-        errs = {s: result[s][result["picked"]["range"] if key == "after" else "today_served"]["error"] for s in MARKERS}
-        ax.set_title(f"{name}\nmedian error: held out {errs['holdout']:.0%}, fresh {errs['fresh']:.0%}", color=TEXT, loc="left", fontsize=12)
+        errs = {s: result[s][result["picked"]["range"] if key == "after" else "today_served"]["error"] for s in MARKERS if result["n"][s]}
+        ax.set_title(f"{name}\nmedian error: " + ", ".join(f"{SET_NAMES[s]} {e:.0%}" for s, e in errs.items()), color=TEXT, loc="left", fontsize=12)
         ax.set_xlabel("What WLDD paid")
         _log_axis(ax.xaxis)
         _log_axis(ax.yaxis)
@@ -74,13 +74,16 @@ def ranges(result: dict, names: tuple[str, str], path: Path) -> None:
     _log_axis(ax.yaxis)
     top = ax.get_ylim()[1]
     ax.text(split / 2, top, "Held out, cheapest to dearest", ha="center", va="bottom", color=MUTED, fontsize=10)
-    ax.text(split + (len(pts) - split) / 2, top, "Fresh deals, cheapest to dearest", ha="center", va="bottom", color=MUTED, fontsize=10)
+    if result["n"]["fresh"]:
+        ax.text(split + (len(pts) - split) / 2, top, "Fresh deals, cheapest to dearest", ha="center", va="bottom", color=MUTED, fontsize=10)
     b, a = (result[s][k] for s, k in (("holdout", "today_served"), ("holdout", result["picked"]["range"])))
-    fb, fa = (result["fresh"][k] for k in ("today_served", result["picked"]["range"]))
+
+    def holds(x: dict, k: str) -> str:
+        return f"holds {x['coverage80']:.0%} held out" + (f" / {result['fresh'][k]['coverage80']:.0%} fresh" if result["n"]["fresh"] else "")
     handles = [plt.Line2D([], [], color=BEFORE_C, lw=3), plt.Line2D([], [], color=AFTER_C, lw=3),
                plt.Line2D([], [], color=TEXT, marker="o", ls="", markersize=5)]
-    ax.legend(handles, [f"{names[0]}: 80% range, median {b['width80']:.1f}× wide, holds {b['coverage80']:.0%} held out / {fb['coverage80']:.0%} fresh",
-                        f"{names[1]}: 80% range, median {a['width80']:.1f}× wide, holds {a['coverage80']:.0%} held out / {fa['coverage80']:.0%} fresh",
+    ax.legend(handles, [f"{names[0]}: 80% range, median {b['width80']:.1f}× wide, {holds(b, 'today_served')}",
+                        f"{names[1]}: 80% range, median {a['width80']:.1f}× wide, {holds(a, result['picked']['range'])}",
                         "Price WLDD paid"], loc="upper left", fontsize=10)
     ax.set_ylabel("₹ per reel")
     fig.tight_layout()
